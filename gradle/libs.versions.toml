@@ -1,0 +1,50 @@
+[versions]
+agp = "8.13.2"
+kotlin = "2.4.10"
+metro = "1.4.2"
+composeBom = "2026.08.00"
+nav3 = "1.1.7"
+lifecycle = "2.11.0"
+lifecycleNav3 = "2.11.0"
+activityCompose = "1.13.0"
+fragment = "1.9.0"
+mavericks = "3.0.10"
+serialization = "1.9.0"
+coroutines = "1.10.2"
+appcompat = "1.8.0"
+coreKtx = "1.17.0"
+
+[libraries]
+compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
+compose-ui = { module = "androidx.compose.ui:ui" }
+compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
+compose-foundation = { module = "androidx.compose.foundation:foundation" }
+compose-animation = { module = "androidx.compose.animation:animation" }
+compose-material3 = { module = "androidx.compose.material3:material3" }
+activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
+core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+
+nav3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "nav3" }
+nav3-ui = { module = "androidx.navigation3:navigation3-ui", version.ref = "nav3" }
+lifecycle-viewmodel-nav3 = { module = "androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "lifecycleNav3" }
+lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
+lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+
+fragment-ktx = { module = "androidx.fragment:fragment-ktx", version.ref = "fragment" }
+fragment-compose = { module = "androidx.fragment:fragment-compose", version.ref = "fragment" }
+
+mavericks = { module = "com.airbnb.android:mavericks", version.ref = "mavericks" }
+mavericks-compose = { module = "com.airbnb.android:mavericks-compose", version.ref = "mavericks" }
+
+serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "serialization" }
+serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
