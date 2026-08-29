@@ -30,7 +30,7 @@ class ProfileViewModel(
 
     fun toggleFollow() = setState { copy(followed = !followed) }
 
-    fun onNotesChanged(notes: String) = setState { copy(notes = notes) }
+    fun appendNote() = setState { copy(notes = notes + "🪿") }
 
     fun done() = withState { state ->
         navigator.pop(ProfileResult(followed = state.followed))

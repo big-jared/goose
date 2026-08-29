@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,7 +42,7 @@ class ProfileEntry : ScreenEntry {
         ProfileUi(
             state = state,
             onToggleFollow = viewModel::toggleFollow,
-            onNotesChanged = viewModel::onNotesChanged,
+            onAppendNote = viewModel::appendNote,
             onDone = viewModel::done,
             modifier = modifier,
         )
@@ -54,7 +53,7 @@ class ProfileEntry : ScreenEntry {
 private fun ProfileUi(
     state: ProfileState,
     onToggleFollow: () -> Unit,
-    onNotesChanged: (String) -> Unit,
+    onAppendNote: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -63,12 +62,8 @@ private fun ProfileUi(
         OutlinedButton(onClick = onToggleFollow) {
             Text(if (state.followed) "Following ✓" else "Follow")
         }
-        OutlinedTextField(
-            value = state.notes,
-            onValueChange = onNotesChanged,
-            label = { Text("Notes (persisted)") },
-            modifier = Modifier.fillMaxWidth(),
-        )
+        Text("Notes (persisted): ${state.notes.ifEmpty { "—" }}")
+        OutlinedButton(onClick = onAppendNote) { Text("Add a goose to notes") }
         Button(onClick = onDone) { Text("Done") }
     }
 }

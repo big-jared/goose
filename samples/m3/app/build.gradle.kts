@@ -34,3 +34,24 @@ dependencies {
     implementation(libs.fragment.ktx)
     implementation(libs.core.ktx)
 }
+
+dependencies {
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+
+android.defaultConfig.testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+dependencies {
+    testImplementation(platform(libs.compose.bom))
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("androidx.test.ext:junit:1.3.0")
+    testImplementation("androidx.test.espresso:espresso-core:3.7.0")
+    testImplementation("org.robolectric:robolectric:4.16")
+}
+
+android.testOptions.unitTests.isIncludeAndroidResources = true

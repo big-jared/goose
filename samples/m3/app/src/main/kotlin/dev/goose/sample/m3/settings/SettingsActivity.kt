@@ -8,7 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -48,7 +48,7 @@ import kotlinx.serialization.modules.subclass
  * The CONVERTED flow: this activity's stack is Nav3-owned (ScreenNavDisplay). The one screen not
  * yet migrated — [AboutFragment] — rides along as a [FragmentScreen] (direction 2 of interop).
  */
-class SettingsActivity : ComponentActivity() {
+class SettingsActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val graph = (application as GooseGraphHolder).gooseGraph

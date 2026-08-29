@@ -10,7 +10,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -114,12 +113,8 @@ class ShippingStepEntry : ScreenEntry {
         var address by rememberSaveable { mutableStateOf("") }
         Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Step 1: Shipping", style = MaterialTheme.typography.titleLarge)
-            OutlinedTextField(
-                value = address,
-                onValueChange = { address = it },
-                label = { Text("Address") },
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Text("Address: ${address.ifEmpty { "—" }}")
+            OutlinedButton(onClick = { address = "1 Goose Way, Pondside" }) { Text("Use home address") }
             Button(
                 onClick = { navigator.goTo(ConfirmStepScreen(address)) },
                 enabled = address.isNotBlank(),
