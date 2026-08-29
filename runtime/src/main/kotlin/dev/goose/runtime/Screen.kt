@@ -8,8 +8,12 @@ import androidx.navigation3.runtime.NavKey
  *
  * Concrete screens must be `@Serializable` (kotlinx) so back stacks can survive process death,
  * and must be registered polymorphically against [NavKey] via a contributed `SerializersModule`.
+ *
+ * Screens are also [java.io.Serializable] because they double as Mavericks args
+ * (ViewModelContext.args must be Parcelable or Serializable for saved-state persistence) —
+ * screens are small data classes, so this costs nothing and keeps the MvRx contract intact.
  */
-interface Screen : NavKey
+interface Screen : NavKey, java.io.Serializable
 
 /** A result a [ScreenWithResult] can answer with when popped. Concrete types are `@Serializable`. */
 interface PopResult

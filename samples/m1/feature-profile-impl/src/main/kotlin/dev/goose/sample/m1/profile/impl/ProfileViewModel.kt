@@ -10,7 +10,7 @@ import dev.goose.sample.m1.profile.api.ProfileResult
 import dev.goose.sample.m1.profile.api.ProfileScreen
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
-import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.AssistedInject
 
 data class ProfileState(
     val userId: String = "",
@@ -22,7 +22,7 @@ data class ProfileState(
     constructor(screen: ProfileScreen) : this(userId = screen.userId)
 }
 
-@Inject
+@AssistedInject
 class ProfileViewModel(
     @Assisted initialState: ProfileState,
     @Assisted private val navigator: Navigator,

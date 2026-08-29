@@ -10,7 +10,7 @@ import dev.goose.runtime.Navigator
 import dev.goose.sample.m1.profile.api.ProfileScreen
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
-import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.AssistedInject
 import kotlinx.coroutines.launch
 
 data class HomeState(
@@ -19,7 +19,7 @@ data class HomeState(
     val lastFollowed: Boolean? = null,
 ) : MavericksState
 
-@Inject
+@AssistedInject
 class HomeViewModel(
     @Assisted initialState: HomeState,
     @Assisted private val navigator: Navigator,

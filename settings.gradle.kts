@@ -27,4 +27,10 @@ include(
     ":samples:m1:feature-profile-api",
     ":samples:m1:feature-profile-impl",
     ":samples:m1:app",
+    ":samples:m2:feature-catalog-api",
+    ":samples:m2:feature-catalog-impl",
+    ":samples:m2:feature-cart-api",
+    ":samples:m2:feature-cart-impl",
+    ":samples:m2:app",
+    ":samples:m3:app",
 )

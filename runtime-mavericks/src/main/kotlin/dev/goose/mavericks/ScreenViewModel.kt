@@ -43,6 +43,7 @@ inline fun <reified VM : MavericksViewModel<S>, reified S : MavericksState> scre
     screen: Screen,
 ): VM = screenViewModel(screen, VM::class.java, S::class.java)
 
+@OptIn(com.airbnb.mvrx.InternalMavericksApi::class)
 @Composable
 fun <VM : MavericksViewModel<S>, S : MavericksState> screenViewModel(
     screen: Screen,
