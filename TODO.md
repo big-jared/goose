@@ -9,7 +9,7 @@ Ordered roughly by dependency. See [GOALS.md](GOALS.md) for milestone definition
 - [x] Module skeleton: `:runtime`, `:runtime-metro`, `:runtime-nav3`,
       `:runtime-mavericks`, `:runtime-fragment`, `:app`,
       `:feature:home:{api,impl}`, `:feature:profile:{api,impl}`
-- [ ] Convention plugins (android-library + compose + metro + ksp boilerplate)
+- [x] Convention plugins (`build-logic`: goose.android.{base,library,api,feature,application})
 
 ## 1. `:runtime` — core contracts (no Android nav deps)
 
@@ -19,7 +19,8 @@ Ordered roughly by dependency. See [GOALS.md](GOALS.md) for milestone definition
       observable `backStack`, `suspend goToForResult(ScreenWithResult<R>): R?`
 - [x] `TabNavigator : Navigator`: `selectTab(StackKey)`, saved per-tab stacks
 - [x] `Ui<S>` fun interface (`@Composable Content(state, modifier)`)
-- [ ] `StateHolder<S>` (presenter-agnostic: exposes `StateFlow<S>`)
+- [ ] `StateHolder<S>` (presenter-agnostic: exposes `StateFlow<S>`) — deliberately
+      deferred: Mavericks IS the presenter layer per project direction
 - [x] Result bus: stack-scoped keyed routing (`ResultRouter`); survives config
       change. NOT yet durable across process death — documented limitation,
       matching coroutine-wrapped ActivityResult semantics
@@ -31,8 +32,8 @@ Ordered roughly by dependency. See [GOALS.md](GOALS.md) for milestone definition
       aggregating the two multibound maps
 - [x] `LocalAppGraph` CompositionLocal + `inject { }` composable helper
       (compile-safe via `@ContributesTo` accessor interfaces)
-- [ ] Decide/document graph shape: `AppScope` root, `@GraphExtension` for
-      logged-in / per-flow scopes (defer implementation until M3 needs it)
+- [x] Decide/document graph shape: `AppScope` root (documented in README);
+      `@GraphExtension` for logged-in scopes deferred until a sample needs it
 
 ## 3. `:runtime-mavericks` — MvRx as the presenter layer
 
@@ -45,8 +46,9 @@ Ordered roughly by dependency. See [GOALS.md](GOALS.md) for milestone definition
 - [x] Assisted params: `screen`, `navigator` injected into VM constructors;
       navigator must be the stable host-level delegate, not a composition capture
 - [x] Verify `@PersistState` restoration through the per-entry saved-state owner
-- [ ] Shared-VM story: flow-level `ViewModelStoreOwner` replacing
-      `activityViewModel()` / `existingViewModel()` (design in M1, harden in M2)
+- [x] Shared-VM story: `FlowViewModelScope` + `flowViewModel()` — flow-level
+      shared Mavericks VMs (used by the M2 checkout wizard); `activityViewModel()`
+      parity via mavericksViewModel(scope = activity) shown in M3
 
 ## 4. `:runtime-nav3` — Compose host
 
@@ -85,12 +87,15 @@ Ordered roughly by dependency. See [GOALS.md](GOALS.md) for milestone definition
 - [x] **M3 migration sample**: separate `:sample-migration` app — legacy
       fragments + MvRx + Metro, 50% migrated, both interop directions live, one
       VM shared verbatim between a fragment and a `Ui`
-- [ ] Screenshot/gif each milestone for the README
+- [x] Screenshots for the README (M2 catalog / detail / cart, docs/screenshots)
 
 ## 7. Hardening / later
 
-- [ ] Deep links → back stack synthesis
-- [ ] Overlay/dialog screens (bottom sheets as entries)
+- [x] Deep links → back stack synthesis (`rememberGooseBackStack(List<Screen>)`;
+      URI parsing stays app-side)
+- [x] Overlay/dialog screens: `OverlayScreen` marker → DialogSceneStrategy
+      (M2 cart-info dialog)
 - [x] Instrumentation tests: retention, result delivery, process death, back
-- [ ] Lint/detekt rule: no `:feature:*:impl` → `:feature:*:impl` deps
+- [x] Build-time rule: goose.android.feature fails configuration on
+      `:feature:*:impl` → `*-impl` project deps (verified with a synthetic violation)
 - [x] README: migration cookbook ("migrate one screen" recipe, before/after diff)

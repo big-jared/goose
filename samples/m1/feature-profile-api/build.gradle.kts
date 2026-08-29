@@ -1,18 +1,8 @@
 plugins {
-    alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.serialization)
+    id("goose.android.api")
 }
 
-android {
-    namespace = "dev.goose.sample.m1.profile.api"
-    compileSdk = 37
-    compileSdkMinor = 0
-    defaultConfig { minSdk = 26 }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-}
+android { namespace = "dev.goose.sample.m1.profile.api" }
 
 dependencies {
     api(project(":runtime"))

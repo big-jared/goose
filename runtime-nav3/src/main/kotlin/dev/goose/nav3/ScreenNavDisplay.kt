@@ -13,6 +13,7 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.scene.DialogSceneStrategy
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
@@ -22,6 +23,7 @@ import dev.goose.runtime.LocalNavigator
 import dev.goose.runtime.LocalScreenAnimatedContentScope
 import dev.goose.runtime.LocalSharedTransitionScope
 import dev.goose.runtime.Navigator
+import dev.goose.runtime.OverlayScreen
 import dev.goose.runtime.Screen
 
 /**
@@ -29,12 +31,20 @@ import dev.goose.runtime.Screen
  * `SerializersModule` — the multi-module answer to Nav3's polymorphic NavKey requirement.
  */
 @Composable
-fun rememberGooseBackStack(vararg roots: Screen): NavBackStack<NavKey> {
+fun rememberGooseBackStack(vararg roots: Screen): NavBackStack<NavKey> =
+    rememberGooseBackStack(roots.toList())
+
+/**
+ * List overload for synthesized stacks — e.g. a deep link that should land on a detail screen
+ * with its parents beneath it: `rememberGooseBackStack(listOf(HomeScreen, ItemDetailScreen(id)))`.
+ */
+@Composable
+fun rememberGooseBackStack(initial: List<Screen>): NavBackStack<NavKey> {
     val module = gooseGraph<GooseRuntimeAccessors>().navSerializersModule
     val configuration = remember(module) {
         SavedStateConfiguration { serializersModule = module }
     }
-    return rememberNavBackStack(configuration, *roots)
+    return rememberNavBackStack(configuration, *initial.toTypedArray())
 }
 
 /**
@@ -78,10 +88,14 @@ internal fun GooseNavDisplay(
                     rememberSaveableStateHolderNavEntryDecorator(),
                     rememberViewModelStoreNavEntryDecorator(),
                 ),
+                // Falls back to single-pane for non-overlay entries.
+                sceneStrategies = remember { listOf(DialogSceneStrategy<NavKey>()) },
                 entryProvider = { key ->
                     val screen = key as? Screen
                         ?: error("Non-Screen NavKey on a Goose back stack: $key")
-                    NavEntry(key) {
+                    val metadata =
+                        if (screen is OverlayScreen) DialogSceneStrategy.dialog() else emptyMap()
+                    NavEntry(key, metadata = metadata) {
                         CompositionLocalProvider(
                             LocalNavigator provides navigator,
                             LocalScreenAnimatedContentScope provides LocalNavAnimatedContentScope.current,

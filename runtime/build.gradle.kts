@@ -1,19 +1,8 @@
 plugins {
-    alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.compose)
+    id("goose.android.library")
 }
 
-android {
-    namespace = "dev.goose.runtime"
-    compileSdk = 37
-    compileSdkMinor = 0
-    defaultConfig { minSdk = 26 }
-    buildFeatures { compose = true }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-}
+android { namespace = "dev.goose.runtime" }
 
 dependencies {
     api(libs.nav3.runtime)
@@ -22,4 +11,5 @@ dependencies {
     implementation(libs.compose.ui)
     implementation(libs.compose.animation)
     implementation(libs.compose.foundation)
+    implementation(libs.lifecycle.viewmodel.compose)
 }

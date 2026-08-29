@@ -43,6 +43,24 @@ ScreenEntry (@ContributesIntoMap, keyed by screen class)
 | `samples/m2` | Tabs (stack-per-tab, preserved across switches), nested checkout wizard, cross-module `goToForResult`, shared-element keys in `:api` | 4 instrumented tests (emulator) + Robolectric |
 | `samples/m3` | 50%-migrated app: legacy MvRx fragments + migrated compose screens on one stack, shared activity-scoped VM across both worlds, results across the boundary in both directions, `FragmentScreen` on a Nav3 stack | 2 instrumented tests (emulator) + Robolectric |
 
+<p align="center">
+  <img src="docs/screenshots/m2_catalog.png" width="200" alt="M2 catalog tab" />
+  <img src="docs/screenshots/m2_item_detail.png" width="200" alt="M2 item detail (shared-element end state, graph-injected pricing)" />
+  <img src="docs/screenshots/m2_cart.png" width="200" alt="M2 cart tab" />
+</p>
+
+## Scopes and sharing
+
+- Per-screen: `screenViewModel` (entry-scoped Mavericks VM, assisted screen + navigator).
+- Per-flow: wrap a nested stack in `FlowViewModelScope`; every step shares VMs via
+  `flowViewModel()` (the M2 checkout wizard shares a `CheckoutFlowViewModel` this way).
+- Per-activity (migration): `mavericksViewModel(scope = activity)` — the same VM instance a
+  legacy fragment sees through `activityViewModel()` (demonstrated in M3).
+- App graph: `AppScope` root assembled by `@DependencyGraph`; per-login/per-flow Metro
+  `@GraphExtension`s slot in later without touching this library.
+- Dialogs: mark a screen `OverlayScreen` and it renders in a dialog over the previous entry —
+  same stack, same results.
+
 ## Migration recipe (per screen)
 
 1. Keep the ViewModel file. Swap its companion for

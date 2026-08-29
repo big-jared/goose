@@ -15,6 +15,13 @@ import androidx.navigation3.runtime.NavKey
  */
 interface Screen : NavKey, java.io.Serializable
 
+/**
+ * A [Screen] rendered as a dialog OVER the previous entry instead of replacing it. Push and pop
+ * it like any screen ([Navigator.goToForResult] works too — a dialog is a natural answerer);
+ * tapping outside or system back pops it with a null result.
+ */
+interface OverlayScreen : Screen
+
 /** A result a [ScreenWithResult] can answer with when popped. Concrete types are `@Serializable`. */
 interface PopResult
 

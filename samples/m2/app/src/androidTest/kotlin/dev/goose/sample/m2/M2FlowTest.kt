@@ -72,6 +72,18 @@ class M2FlowTest {
         composeRule.waitFor("alpha")
         composeRule.onNodeWithText("alpha").assertIsDisplayed()
     }
+
+    /** OverlayScreen renders as a dialog over the cart; pop closes it. */
+    @Test
+    fun cartInfoDialogShowsAndCloses() {
+        composeRule.onNodeWithText("Cart", useUnmergedTree = true).performClick()
+        composeRule.waitFor("Cart info")
+        composeRule.onNodeWithText("Cart info").performClick()
+        composeRule.waitFor("About this cart")
+        composeRule.onNodeWithText("Close").performClick()
+        composeRule.waitFor("Checkout")
+        composeRule.onNodeWithText("Checkout").assertIsDisplayed()
+    }
 }
 
 private fun AndroidComposeTestRule<*, *>.waitFor(text: String) {
