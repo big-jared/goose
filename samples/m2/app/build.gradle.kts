@@ -48,3 +48,12 @@ dependencies {
 }
 
 android.defaultConfig.testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+dependencies {
+    testImplementation(platform(libs.compose.bom))
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("androidx.test.ext:junit:1.3.0")
+    testImplementation("org.robolectric:robolectric:4.16")
+}
+
+android.testOptions.unitTests.isIncludeAndroidResources = true

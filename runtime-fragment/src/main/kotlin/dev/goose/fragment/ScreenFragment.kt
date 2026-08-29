@@ -41,7 +41,7 @@ class ScreenFragment : Fragment() {
     ): View {
         val screen = ScreenBundler.fromBundle(requireArguments())
         val graph = (requireActivity().application as GooseGraphHolder).gooseGraph
-        val navigator = (requireActivity() as FragmentNavigatorOwner).gooseNavigator
+        val navigator = findNavigatorOwner().gooseNavigator
         return ComposeView(requireContext()).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
@@ -55,6 +55,20 @@ class ScreenFragment : Fragment() {
                 }
             }
         }
+    }
+
+    /** Nearest owner wins: parent fragments first (nested legacy stacks), then the activity. */
+    private fun findNavigatorOwner(): FragmentNavigatorOwner {
+        var parent = parentFragment
+        while (parent != null) {
+            if (parent is FragmentNavigatorOwner) return parent
+            parent = parent.parentFragment
+        }
+        return requireActivity() as? FragmentNavigatorOwner
+            ?: error(
+                "No FragmentNavigatorOwner found. The host activity (or a parent fragment) must " +
+                    "implement FragmentNavigatorOwner to host migrated screens."
+            )
     }
 
     companion object {

@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
 import com.airbnb.mvrx.compose.collectAsState
 import dev.goose.mavericks.MavericksVmCreator
+import dev.goose.mavericks.mavericksVmCreator
 import dev.goose.mavericks.screenViewModel
 import dev.goose.runtime.Screen
 import dev.goose.runtime.ScreenEntry
@@ -75,9 +76,7 @@ interface ProfileModule {
         @IntoMap
         @ClassKey(ProfileViewModel::class)
         fun profileVmCreator(factory: ProfileViewModel.Factory): MavericksVmCreator =
-            MavericksVmCreator { state, _, navigator ->
-                factory.create(state as ProfileState, navigator)
-            }
+            mavericksVmCreator<ProfileState> { state, navigator -> factory.create(state, navigator) }
 
         @Provides
         @IntoSet

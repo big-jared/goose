@@ -29,6 +29,7 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ClassKey
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
+import kotlinx.coroutines.launch
 
 data class DetailState(val id: String = "") : MavericksState {
     @Suppress("unused")
@@ -41,8 +42,10 @@ class DetailViewModel(
     private val navigator: Navigator,
 ) : MavericksViewModel<DetailState>(initialState) {
 
-    fun sendResult() = withState { state ->
-        navigator.pop(DetailResult(message = "hello from legacy detail ${state.id}"))
+    fun sendResult() {
+        viewModelScope.launch {
+            navigator.pop(DetailResult(message = "hello from legacy detail ${awaitState().id}"))
+        }
     }
 
     companion object : MavericksViewModelFactory<DetailViewModel, DetailState> {

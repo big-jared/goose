@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
                         ScreenTabNavDisplay(
                             tabNavigator = tabNavigator,
                             modifier = Modifier.fillMaxSize().padding(padding),
+                            onRootBack = { finish() },
                         )
                     }
                 }

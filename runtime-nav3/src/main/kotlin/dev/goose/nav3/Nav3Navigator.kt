@@ -36,6 +36,9 @@ class Nav3Navigator(
     }
 
     override fun resetRoot(screen: Screen) {
+        // Every removed screen is "dismissed without answering" — resume any awaiting callers
+        // with null instead of leaving their goToForResult suspended forever.
+        stack.asReversed().forEach { key -> (key as? Screen)?.let { deliverPopResult(it, null) } }
         stack.clear()
         stack.add(screen)
     }

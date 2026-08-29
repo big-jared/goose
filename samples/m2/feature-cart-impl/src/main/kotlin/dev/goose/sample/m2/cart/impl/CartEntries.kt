@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
 import com.airbnb.mvrx.compose.collectAsState
 import dev.goose.mavericks.MavericksVmCreator
+import dev.goose.mavericks.mavericksVmCreator
 import dev.goose.mavericks.screenViewModel
 import dev.goose.nav3.ScreenNavDisplay
 import dev.goose.nav3.rememberGooseBackStack
@@ -151,7 +152,7 @@ interface CartModule {
         @IntoMap
         @ClassKey(CartViewModel::class)
         fun cartVmCreator(factory: CartViewModel.Factory): MavericksVmCreator =
-            MavericksVmCreator { state, _, navigator -> factory.create(state as CartState, navigator) }
+            mavericksVmCreator<CartState> { state, navigator -> factory.create(state, navigator) }
 
         @Provides
         @IntoSet

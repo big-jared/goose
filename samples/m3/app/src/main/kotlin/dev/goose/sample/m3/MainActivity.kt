@@ -16,11 +16,18 @@ import dev.goose.sample.m3.legacy.HomeFragment
 /**
  * The LEGACY host: a FragmentActivity whose FragmentManager still owns the back stack. Migrated
  * compose screens ride on it via ScreenFragment; nothing above the Navigator interface knows.
+ *
+ * The navigator exposed to VMs is the app-scoped [dev.goose.runtime.NavigatorHandle] — retained
+ * Mavericks VMs hold it safely across recreation while this activity rebinds the live
+ * [FragmentNavigator] each onCreate.
  */
 class MainActivity : FragmentActivity(), FragmentNavigatorOwner {
 
-    override lateinit var gooseNavigator: Navigator
-        private set
+    private lateinit var fragmentNavigator: FragmentNavigator
+
+    override val gooseNavigator: Navigator
+        get() = (application as GooseGraphHolder).gooseGraph
+            .let { it as MainNavModule }.mainNavigatorHandle
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,12 +35,13 @@ class MainActivity : FragmentActivity(), FragmentNavigatorOwner {
         setContentView(container)
 
         val graph = (application as GooseGraphHolder).gooseGraph
-        gooseNavigator = FragmentNavigator(
+        fragmentNavigator = FragmentNavigator(
             fragmentManager = supportFragmentManager,
             containerId = CONTAINER_ID,
             binders = (graph as GooseFragmentAccessors).fragmentBinders,
             resultRouter = (graph as GooseRuntimeAccessors).resultRouter,
         )
+        (graph as MainNavModule).mainNavigatorHandle.bind(fragmentNavigator)
 
         if (savedInstanceState == null) {
             supportFragmentManager.commit { add(CONTAINER_ID, HomeFragment()) }
@@ -46,6 +54,12 @@ class MainActivity : FragmentActivity(), FragmentNavigatorOwner {
                 finish()
             }
         }
+    }
+
+    override fun onDestroy() {
+        val graph = (application as GooseGraphHolder).gooseGraph
+        (graph as MainNavModule).mainNavigatorHandle.unbind(fragmentNavigator)
+        super.onDestroy()
     }
 
     companion object {

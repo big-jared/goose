@@ -9,7 +9,6 @@ import dev.goose.runtime.Navigator
 import dev.goose.runtime.PopResult
 import dev.goose.runtime.ResultRouter
 import dev.goose.runtime.Screen
-import dev.goose.runtime.ScreenWithResult
 import kotlin.reflect.KClass
 
 /**
@@ -32,8 +31,16 @@ fun interface ScreenFragmentBinder {
  * navigating through this cannot tell it apart from a Nav3 host, which is the whole point:
  * migrating a screen from fragment-hosted to compose-hosted swaps the host, not the VM.
  *
+ * The FragmentManager is the single source of truth. Result delivery rides the back stack entry
+ * NAME (the awaited screen instance's result key) and is performed by a back-stack-changed
+ * listener, so it fires no matter who popped: [pop], system back, or legacy code calling
+ * `popBackStack()` directly — an awaited screen dismissed by ANY path resumes its caller.
+ *
  * Screens whose fragment is a migrated compose screen need no binder: anything unmapped is hosted
  * in a [ScreenFragment] automatically.
+ *
+ * [backStack] cannot reconstruct [Screen] instances from a restored FragmentManager and is
+ * intentionally empty here; mid-migration callers should not introspect the legacy stack.
  */
 class FragmentNavigator(
     private val fragmentManager: FragmentManager,
@@ -43,9 +50,32 @@ class FragmentNavigator(
     override val parent: Navigator? = null,
 ) : BaseNavigator(resultRouter) {
 
-    private val mirror = mutableListOf<Screen>()
+    private var knownEntryNames: List<String?> = currentEntryNames()
 
-    override val backStack: List<Screen> get() = mirror.toList()
+    /** Result to attach to the next listener-observed removal of the named entry. */
+    private var pendingResult: Pair<String, PopResult?>? = null
+
+    init {
+        fragmentManager.addOnBackStackChangedListener {
+            val current = currentEntryNames()
+            if (current.size < knownEntryNames.size) {
+                // Deliver for every removed entry, top-down; complete() no-ops when nobody awaits.
+                for (index in knownEntryNames.size - 1 downTo current.size) {
+                    val name = knownEntryNames[index] ?: continue
+                    val pending = pendingResult
+                    if (pending?.first == name) {
+                        pendingResult = null
+                        resultRouter.complete(name, pending.second)
+                    } else {
+                        resultRouter.complete(name, null)
+                    }
+                }
+            }
+            knownEntryNames = current
+        }
+    }
+
+    override val backStack: List<Screen> get() = emptyList()
 
     override fun goTo(screen: Screen) {
         val fragment = binders[screen::class]?.createFragment(screen)
@@ -53,39 +83,27 @@ class FragmentNavigator(
         fragmentManager.commit {
             setReorderingAllowed(true)
             replace(containerId, fragment)
-            addToBackStack(resultRouter.resultKeyOf(screen))
+            addToBackStack(resultKeyFor(screen))
         }
-        mirror.add(screen)
     }
 
     override fun pop(result: PopResult?): Boolean {
         val count = fragmentManager.backStackEntryCount
         if (count > 0) {
-            // The back stack entry's name is the popped screen's result key; complete() no-ops
-            // when nobody is awaiting it.
             val name = fragmentManager.getBackStackEntryAt(count - 1).name
+            if (name != null && result != null) pendingResult = name to result
             fragmentManager.popBackStack()
-            mirror.removeLastOrNull()
-            if (name != null) resultRouter.complete(name, result)
             return true
         }
         return parent?.pop(result) ?: false
     }
 
     override fun resetRoot(screen: Screen) {
+        // The listener delivers null to every awaited entry this clears.
         fragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE)
-        mirror.clear()
         goTo(screen)
     }
 
-    /**
-     * Call from the host activity's back handling so system back delivers "dismissed without
-     * answering" to any caller awaiting the popped screen.
-     */
-    fun onSystemPop() {
-        val popped = mirror.removeLastOrNull() ?: return
-        if (popped is ScreenWithResult<*>) {
-            resultRouter.complete(resultRouter.resultKeyOf(popped), null)
-        }
-    }
+    private fun currentEntryNames(): List<String?> =
+        (0 until fragmentManager.backStackEntryCount).map { fragmentManager.getBackStackEntryAt(it).name }
 }

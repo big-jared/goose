@@ -18,6 +18,7 @@ import com.airbnb.mvrx.MavericksViewModelFactory
 import com.airbnb.mvrx.compose.collectAsState
 import com.airbnb.mvrx.compose.mavericksViewModel
 import dev.goose.mavericks.MavericksVmCreator
+import dev.goose.mavericks.mavericksVmCreator
 import dev.goose.mavericks.findComponentActivity
 import dev.goose.mavericks.gooseVmFactory
 import dev.goose.mavericks.screenViewModel
@@ -109,8 +110,6 @@ interface ProfileVmModule {
         @IntoMap
         @ClassKey(M3ProfileViewModel::class)
         fun profileVmCreator(factory: M3ProfileViewModel.Factory): MavericksVmCreator =
-            MavericksVmCreator { state, _, navigator ->
-                factory.create(state as M3ProfileState, navigator)
-            }
+            mavericksVmCreator<M3ProfileState> { state, navigator -> factory.create(state, navigator) }
     }
 }

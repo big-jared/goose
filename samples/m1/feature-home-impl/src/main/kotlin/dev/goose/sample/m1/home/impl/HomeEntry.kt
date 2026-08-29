@@ -19,6 +19,7 @@ import com.airbnb.mvrx.Success
 import com.airbnb.mvrx.Uninitialized
 import com.airbnb.mvrx.compose.collectAsState
 import dev.goose.mavericks.MavericksVmCreator
+import dev.goose.mavericks.mavericksVmCreator
 import dev.goose.mavericks.screenViewModel
 import dev.goose.runtime.Screen
 import dev.goose.runtime.ScreenEntry
@@ -84,9 +85,7 @@ interface HomeModule {
         @IntoMap
         @ClassKey(HomeViewModel::class)
         fun homeVmCreator(factory: HomeViewModel.Factory): MavericksVmCreator =
-            MavericksVmCreator { state, _, navigator ->
-                factory.create(state as HomeState, navigator)
-            }
+            mavericksVmCreator<HomeState> { state, navigator -> factory.create(state, navigator) }
 
         @Provides
         @IntoSet

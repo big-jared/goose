@@ -11,6 +11,7 @@ import dev.goose.sample.m1.profile.api.ProfileScreen
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
 import dev.zacsweers.metro.AssistedInject
+import kotlinx.coroutines.launch
 
 data class ProfileState(
     val userId: String = "",
@@ -32,8 +33,12 @@ class ProfileViewModel(
 
     fun appendNote() = setState { copy(notes = notes + "🪿") }
 
-    fun done() = withState { state ->
-        navigator.pop(ProfileResult(followed = state.followed))
+    fun done() {
+        // Navigate from a Main-dispatched coroutine, not withState: Mavericks runs withState
+        // blocks on its background state-store thread, and back stacks are main-thread state.
+        viewModelScope.launch {
+            navigator.pop(ProfileResult(followed = awaitState().followed))
+        }
     }
 
     @AssistedFactory

@@ -52,10 +52,11 @@ fun ScreenNavDisplay(
     backStack: MutableList<NavKey>,
     modifier: Modifier = Modifier,
     parent: Navigator? = null,
+    onRootBack: (() -> Unit)? = null,
 ) {
     val resultRouter = gooseGraph<GooseRuntimeAccessors>().resultRouter
     val navigator = remember(backStack, parent) { Nav3Navigator(backStack, resultRouter, parent) }
-    GooseNavDisplay(backStack, navigator, modifier)
+    GooseNavDisplay(backStack, navigator, modifier, onRootBack)
 }
 
 /** Shared display core for single-stack and tabbed hosts. */
@@ -65,13 +66,14 @@ internal fun GooseNavDisplay(
     displayStack: List<NavKey>,
     navigator: Navigator,
     modifier: Modifier = Modifier,
+    onRootBack: (() -> Unit)? = null,
 ) {
     val registry = gooseGraph<GooseRuntimeAccessors>().screenRegistry
     SharedTransitionLayout(modifier) {
         CompositionLocalProvider(LocalSharedTransitionScope provides this) {
             NavDisplay(
                 backStack = displayStack,
-                onBack = { navigator.pop() },
+                onBack = { if (!navigator.pop()) onRootBack?.invoke() },
                 entryDecorators = listOf(
                     rememberSaveableStateHolderNavEntryDecorator(),
                     rememberViewModelStoreNavEntryDecorator(),

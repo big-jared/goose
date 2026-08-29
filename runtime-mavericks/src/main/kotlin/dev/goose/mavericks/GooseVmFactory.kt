@@ -26,12 +26,13 @@ internal object GooseVmLocator {
     internal val current: Scope? get() = local.get()
 
     internal fun <T> withScope(scope: Scope, block: () -> T): T {
-        val previous = local.get()
         local.set(scope)
         return try {
             block()
         } finally {
-            local.set(previous)
+            // Creation never nests (it runs synchronously inside one remember block), so clear
+            // the slot outright rather than implying re-entrancy support.
+            local.remove()
         }
     }
 }

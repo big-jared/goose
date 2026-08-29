@@ -31,6 +31,27 @@ fun interface MavericksVmCreator {
     fun create(initialState: MavericksState, screen: Screen, navigator: Navigator): MavericksViewModel<*>
 }
 
+/**
+ * Checked-cast adapter for the common binding shape, so features don't hand-write `as` casts:
+ * ```
+ * @Provides @IntoMap @ClassKey(ProfileViewModel::class)
+ * fun creator(factory: ProfileViewModel.Factory): MavericksVmCreator =
+ *   mavericksVmCreator<ProfileState> { state, nav -> factory.create(state, nav) }
+ * ```
+ */
+inline fun <reified S : MavericksState> mavericksVmCreator(
+    crossinline create: (initialState: S, navigator: Navigator) -> MavericksViewModel<S>,
+): MavericksVmCreator = MavericksVmCreator { state, _, navigator ->
+    create(state as S, navigator)
+}
+
+/** Variant for ViewModels that also take their typed screen. */
+inline fun <reified S : MavericksState, reified P : Screen> mavericksVmCreator(
+    crossinline create: (initialState: S, screen: P, navigator: Navigator) -> MavericksViewModel<S>,
+): MavericksVmCreator = MavericksVmCreator { state, screen, navigator ->
+    create(state as S, screen as P, navigator)
+}
+
 @ContributesTo(AppScope::class)
 interface GooseMavericksAccessors {
     @Multibinds(allowEmpty = true)

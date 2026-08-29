@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
 import com.airbnb.mvrx.compose.collectAsState
 import dev.goose.mavericks.MavericksVmCreator
+import dev.goose.mavericks.mavericksVmCreator
 import dev.goose.mavericks.screenViewModel
 import dev.goose.metro.gooseGraph
 import dev.goose.runtime.Screen
@@ -100,7 +102,8 @@ class ItemDetailEntry : ScreenEntry {
         screen as ItemDetailScreen
         val viewModel = screenViewModel<ItemDetailViewModel, ItemDetailState>(screen)
         val state by viewModel.collectAsState()
-        val price = gooseGraph<PricingAccessor>().pricingService.priceOf(screen.itemId)
+        val pricingService = gooseGraph<PricingAccessor>().pricingService
+        val price = remember(screen.itemId) { pricingService.priceOf(screen.itemId) }
         Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Box(
                 Modifier
@@ -127,13 +130,13 @@ interface CatalogModule {
         @IntoMap
         @ClassKey(CatalogViewModel::class)
         fun catalogVmCreator(factory: CatalogViewModel.Factory): MavericksVmCreator =
-            MavericksVmCreator { state, _, navigator -> factory.create(state as CatalogState, navigator) }
+            mavericksVmCreator<CatalogState> { state, navigator -> factory.create(state, navigator) }
 
         @Provides
         @IntoMap
         @ClassKey(ItemDetailViewModel::class)
         fun itemDetailVmCreator(factory: ItemDetailViewModel.Factory): MavericksVmCreator =
-            MavericksVmCreator { state, _, navigator -> factory.create(state as ItemDetailState, navigator) }
+            mavericksVmCreator<ItemDetailState> { state, navigator -> factory.create(state, navigator) }
 
         @Provides
         @IntoSet

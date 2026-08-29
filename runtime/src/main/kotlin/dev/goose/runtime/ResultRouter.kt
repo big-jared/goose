@@ -5,18 +5,19 @@ import kotlinx.coroutines.CompletableDeferred
 /**
  * Routes [PopResult]s from a popping screen back to the caller that awaited it.
  *
- * Results are keyed by the target screen's class (the same shape as the Fragment Result API's
- * requestKey), so routing works identically across Nav3-owned and FragmentManager-owned stacks
- * and across the migration boundary. Nested requests for the same screen type resolve LIFO.
+ * Results are keyed by the target screen's class, SCOPED BY STACK (navigators append their stack
+ * tag — e.g. the tab key — via [dev.goose.runtime.BaseNavigator.resultKeyFor]). Stack-scoping is
+ * what keeps two in-flight requests for the same screen type in different tabs from cross-wiring,
+ * while class-based keys stay stable across activity recreation (the restored back stack contains
+ * new-but-equal screen instances, so identity-based keys would orphan pending awaiters). Within
+ * one stack, nested requests for the same screen type resolve LIFO, matching stack discipline.
  *
  * One instance lives in the app graph and is shared by every navigator in the tree.
  */
 class ResultRouter {
     private val pending = LinkedHashMap<String, ArrayDeque<CompletableDeferred<PopResult?>>>()
 
-    fun resultKeyOf(screen: Screen): String = resultKeyOf(screen.javaClass)
-
-    fun resultKeyOf(screenClass: Class<out Screen>): String = screenClass.name
+    fun resultKeyOf(screen: Screen): String = screen.javaClass.name
 
     /** Registers an awaiting caller. Pair with [unregister] in a finally block. */
     fun register(key: String): CompletableDeferred<PopResult?> {

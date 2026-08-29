@@ -59,8 +59,10 @@ fun <VM : MavericksViewModel<S>, S : MavericksState> screenViewModel(
     }
     val savedStateRegistryOwner = LocalSavedStateRegistryOwner.current
 
-    // Stable per-entry identity: unique when the same screen appears twice on a stack, stable
-    // across process death (rememberSaveable is entry-scoped under the host's saveable decorator).
+    // Stable per-entry identity across process death (rememberSaveable is entry-scoped under the
+    // host's saveable decorator). Known limitation shared with Nav3's default contentKey: two
+    // EQUAL screen values on one stack share an entry scope — and therefore a ViewModel. Give
+    // screens a distinguishing field if the same destination can be pushed twice concurrently.
     val entryId = rememberSaveable { UUID.randomUUID().toString() }
 
     val handleHolder = viewModel<NavigatorHandleHolder>(
@@ -72,8 +74,11 @@ fun <VM : MavericksViewModel<S>, S : MavericksState> screenViewModel(
         onDispose { handleHolder.handle.unbind(navigator) }
     }
 
-    val creators = gooseGraph<GooseMavericksAccessors>().mavericksVmCreators
+    val accessors = gooseGraph<GooseMavericksAccessors>()
     return remember(screen, entryId) {
+        // Read the multibinding map inside remember: Metro materializes it (invoking every
+        // contributed provider) on each accessor read, so it must not run per recomposition.
+        val creators = accessors.mavericksVmCreators
         GooseVmLocator.withScope(GooseVmLocator.Scope(screen, handleHolder.handle, creators)) {
             MavericksViewModelProvider.get(
                 viewModelClass = vmClass,
