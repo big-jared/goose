@@ -7,16 +7,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import android.util.Log
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.DialogSceneStrategy
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import androidx.navigation3.ui.NavDisplay
+import androidx.savedstate.SavedState
 import androidx.savedstate.serialization.SavedStateConfiguration
+import androidx.savedstate.serialization.decodeFromSavedState
+import androidx.savedstate.serialization.encodeToSavedState
+import kotlinx.serialization.PolymorphicSerializer
+import java.util.UUID
 import dev.goose.metro.GooseContent
 import dev.goose.metro.GooseRuntimeAccessors
 import dev.goose.metro.gooseGraph
@@ -38,6 +45,11 @@ fun rememberGooseBackStack(vararg roots: Screen): NavBackStack<NavKey> =
 /**
  * List overload for synthesized stacks — e.g. a deep link that should land on a detail screen
  * with its parents beneath it: `rememberGooseBackStack(listOf(HomeScreen, ItemDetailScreen(id)))`.
+ *
+ * Restoration is resilient BY DESIGN: if a saved stack cannot be decoded (a screen class was
+ * renamed or removed in an app update, lives in an unloaded dynamic feature, or its serialized
+ * shape changed incompatibly), the stack restarts at [initial] instead of crashing on launch.
+ * Losing navigation state on a bad restore is recoverable; a crash loop is not.
  */
 @Composable
 fun rememberGooseBackStack(initial: List<Screen>): NavBackStack<NavKey> {
@@ -45,7 +57,25 @@ fun rememberGooseBackStack(initial: List<Screen>): NavBackStack<NavKey> {
     val configuration = remember(module) {
         SavedStateConfiguration { serializersModule = module }
     }
-    return rememberNavBackStack(configuration, *initial.toTypedArray())
+    return rememberSaveable(
+        saver = Saver(
+            save = { stack -> encodeToSavedState(navBackStackSerializer, stack, configuration) },
+            restore = { saved -> decodeBackStackOrNull(saved, configuration) },
+        ),
+    ) { NavBackStack(*initial.toTypedArray()) }
+}
+
+internal val navBackStackSerializer = NavBackStack.serializer(PolymorphicSerializer(NavKey::class))
+
+/** Decodes a saved stack, or returns null (restart fresh) when the saved form is unreadable. */
+internal fun decodeBackStackOrNull(
+    saved: SavedState,
+    configuration: SavedStateConfiguration,
+): NavBackStack<NavKey>? = try {
+    decodeFromSavedState(navBackStackSerializer, saved, configuration)
+} catch (e: Exception) {
+    Log.w("Goose", "Back stack restore failed (app update removed a screen class?); starting fresh", e)
+    null
 }
 
 /**
@@ -68,7 +98,11 @@ fun NavigableGooseContent(
     onRootBack: (() -> Unit)? = null,
 ) {
     val resultRouter = gooseGraph<GooseRuntimeAccessors>().resultRouter
-    val navigator = remember(backStack, parent) { Nav3Navigator(backStack, resultRouter, parent) }
+    // Stable per-stack-instance identity: scopes result routing to this stack, so equal screen
+    // classes awaited in different stacks or activities never cross-deliver. Saveable, so
+    // pending awaiters survive recreation.
+    val stackTag = rememberSaveable { UUID.randomUUID().toString() }
+    val navigator = remember(backStack, parent) { Nav3Navigator(backStack, resultRouter, parent, stackTag) }
     GooseNavDisplay(
         displayStack = backStack,
         navigator = navigator,

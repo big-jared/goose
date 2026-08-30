@@ -2,7 +2,10 @@ plugins {
     id("goose.android.library")
 }
 
-android { namespace = "dev.goose.runtime" }
+android {
+    namespace = "dev.goose.runtime"
+    defaultConfig.consumerProguardFiles.add(file("consumer-rules.pro"))
+}
 
 dependencies {
     api(libs.nav3.runtime)

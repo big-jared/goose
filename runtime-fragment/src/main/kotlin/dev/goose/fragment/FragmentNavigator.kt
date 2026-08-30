@@ -59,8 +59,16 @@ class FragmentNavigationRequest internal constructor(
     val backStackEntryName: String,
     private val resultRouter: ResultRouter,
 ) {
-    /** For destinations that bypass the back stack: answer a caller awaiting this screen. */
-    fun deliverResult(result: PopResult?) = resultRouter.complete(backStackEntryName, result)
+    private val delivered = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /**
+     * For destinations that bypass the back stack: answer a caller awaiting this screen.
+     * One-shot per request — a second call no-ops, so a dismiss callback firing after a
+     * result callback cannot consume some OTHER pending request for the same screen.
+     */
+    fun deliverResult(result: PopResult?) {
+        if (delivered.compareAndSet(false, true)) resultRouter.complete(backStackEntryName, result)
+    }
 }
 
 /**
@@ -86,7 +94,12 @@ class FragmentNavigator(
     resultRouter: ResultRouter,
     override val parent: Navigator? = null,
     private val navigationOverrides: Map<KClass<*>, FragmentScreenNavigation> = emptyMap(),
+    private val stackTag: String? = null,
 ) : BaseNavigator(resultRouter) {
+
+    /** Scoped to this activity's stack (the tag is retained across rotation by the installer). */
+    override fun resultKeyFor(screen: Screen): String =
+        stackTag?.let { "${resultRouter.resultKeyOf(screen)}#$it" } ?: super.resultKeyFor(screen)
 
     private var knownEntryNames: List<String?> = currentEntryNames()
 
@@ -116,6 +129,7 @@ class FragmentNavigator(
     override val backStack: List<Screen> get() = emptyList()
 
     override fun goTo(screen: Screen) {
+        requireMainThread()
         // A contributed per-screen override wins: dialogs, custom transactions, other nav APIs.
         navigationOverrides[screen::class]?.let { override ->
             override.navigate(
@@ -141,6 +155,7 @@ class FragmentNavigator(
     }
 
     override fun pop(result: PopResult?): Boolean {
+        requireMainThread()
         val count = fragmentManager.backStackEntryCount
         if (count > 0) {
             val name = fragmentManager.getBackStackEntryAt(count - 1).name
@@ -152,6 +167,7 @@ class FragmentNavigator(
     }
 
     override fun resetRoot(screen: Screen) {
+        requireMainThread()
         // The listener delivers null to every awaited entry this clears.
         fragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE)
         goTo(screen)

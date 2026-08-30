@@ -46,4 +46,10 @@ interface TabNavigator : Navigator {
      * Re-selecting the current tab pops it to its root.
      */
     fun selectTab(key: StackKey)
+
+    /**
+     * Atomically selects [tab] and pushes [screen] onto it — for cross-tab navigation ("open
+     * this order in the Orders tab") without an intermediate frame of the tab's old top.
+     */
+    fun goTo(tab: StackKey, screen: Screen)
 }

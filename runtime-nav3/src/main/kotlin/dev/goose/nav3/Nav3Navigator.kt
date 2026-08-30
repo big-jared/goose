@@ -10,21 +10,31 @@ import dev.goose.runtime.Screen
 /**
  * A [Navigator] over a Nav3 back stack (any snapshot-backed MutableList of NavKeys, typically a
  * `NavBackStack` from `rememberNavBackStack`). Mutating the list is the navigation.
+ *
+ * [stackTag] scopes result routing to THIS stack instance: it must be stable across recreation
+ * (hosts persist one with rememberSaveable), so same-class result requests in two stacks — or
+ * two activities — never cross-deliver.
  */
 class Nav3Navigator(
     private val stack: MutableList<NavKey>,
     resultRouter: ResultRouter,
     override val parent: Navigator? = null,
+    private val stackTag: String? = null,
 ) : BaseNavigator(resultRouter) {
+
+    override fun resultKeyFor(screen: Screen): String =
+        stackTag?.let { "${resultRouter.resultKeyOf(screen)}#$it" } ?: super.resultKeyFor(screen)
 
     override val backStack: List<Screen>
         get() = stack.filterIsInstance<Screen>()
 
     override fun goTo(screen: Screen) {
+        requireMainThread()
         stack.add(screen)
     }
 
     override fun pop(result: PopResult?): Boolean {
+        requireMainThread()
         if (stack.size > 1) {
             val popped = stack.removeAt(stack.lastIndex)
             (popped as? Screen)?.let { deliverPopResult(it, result) }
@@ -36,6 +46,7 @@ class Nav3Navigator(
     }
 
     override fun resetRoot(screen: Screen) {
+        requireMainThread()
         // Every removed screen is "dismissed without answering" — resume any awaiting callers
         // with null instead of leaving their goToForResult suspended forever.
         stack.asReversed().forEach { key -> (key as? Screen)?.let { deliverPopResult(it, null) } }

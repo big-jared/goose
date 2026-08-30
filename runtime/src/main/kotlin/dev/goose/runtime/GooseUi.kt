@@ -23,7 +23,19 @@ import kotlin.reflect.KClass
  *
  * Flow-shared ViewModels are acquired explicitly with `flowViewModel()` inside the function,
  * never as parameters.
+ *
+ * Supported grammar (compile errors otherwise): a public or internal, top-level, non-suspend,
+ * non-generic, non-extension `@Composable` function. Default parameter values are allowed but
+ * the generated registration always supplies every argument. Injected parameters may carry
+ * Metro qualifier annotations (`@Named` etc.); they are copied to the generated provider.
+ *
+ * [scope] is the Metro scope to contribute to; the default (`Unit::class` sentinel) means
+ * `AppScope`. Pass a custom scope class for registrations that belong to a narrower graph
+ * (a logged-in scope, an SDK graph).
  */
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.SOURCE)
-annotation class GooseUi(val screen: KClass<out Screen>)
+annotation class GooseUi(
+    val screen: KClass<out Screen>,
+    val scope: KClass<*> = Unit::class,
+)

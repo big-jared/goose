@@ -91,6 +91,18 @@ Ordered roughly by dependency. See [GOALS.md](GOALS.md) for milestone definition
 
 ## 7. Hardening / later
 
+- [ ] goose-compiler compile-testing fixtures for the @GooseUi error grammar (blocked on a
+      compile-testing harness for this Kotlin/KSP2 toolchain; rules are enforced, samples cover
+      the happy path, serialization/restore rules covered by :runtime-nav3 tests)
+- [ ] True kill-and-relaunch instrumented process-death test (the serialization layer is unit
+      tested; this machine's emulator wedge makes an instrumented gate flaky)
+- [ ] Host-level default transition override (screen-owned ScreenTransitions is the contract;
+      see DESIGN.md #33)
+- [ ] Session/logged-in graphs: @GraphExtension + @GooseUi(scope = ...) registries resolved from
+      child graphs (DESIGN.md #36)
+- [ ] Per-push instance identity for equal screens on one stack, if/when Nav3 offers it
+      (DESIGN.md #21)
+
 - [x] Deep links → back stack synthesis (`rememberGooseBackStack(List<Screen>)`;
       URI parsing stays app-side)
 - [x] Overlay/dialog screens: `OverlayScreen` marker → DialogSceneStrategy

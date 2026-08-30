@@ -1,7 +1,6 @@
 package dev.goose.compiler
 
 import com.google.devtools.ksp.getAllSuperTypes
-import com.google.devtools.ksp.getDeclaredFunctions
 import com.google.devtools.ksp.isAbstract
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
@@ -10,19 +9,29 @@ import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
 import com.google.devtools.ksp.processing.SymbolProcessorProvider
+import com.google.devtools.ksp.symbol.FunctionKind
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSValueParameter
+import com.google.devtools.ksp.symbol.Modifier
 import com.google.devtools.ksp.symbol.Nullability
 import com.google.devtools.ksp.validate
 
 private const val GOOSE_UI = "dev.goose.runtime.GooseUi"
 private const val MODIFIER = "androidx.compose.ui.Modifier"
+private const val COMPOSABLE = "androidx.compose.runtime.Composable"
 private const val MAVERICKS_VM = "com.airbnb.mvrx.MavericksViewModel"
 private const val NAVIGATOR = "dev.goose.runtime.Navigator"
+private const val ASSISTED_FACTORY = "dev.zacsweers.metro.AssistedFactory"
+private const val QUALIFIER = "dev.zacsweers.metro.Qualifier"
+private const val APP_SCOPE = "dev.zacsweers.metro.AppScope"
+
+/** Internal names in the generated ScreenEntry lambda, reserved so user params can't shadow them. */
+private val RESERVED_PARAM_NAMES = setOf("gooseScreen", "gooseModifier")
 
 /**
  * Turns `@GooseUi(SomeScreen::class)` composable functions into the full Goose registration:
@@ -30,15 +39,22 @@ private const val NAVIGATOR = "dev.goose.runtime.Navigator"
  * the screen class. Parameters are wired by type:
  * - the screen class -> the screen being rendered
  * - [Modifier] -> the host's modifier
- * - a MavericksViewModel with a nested assisted factory `(State, Navigator) -> VM` -> a generated
+ * - a MavericksViewModel with a nested @AssistedFactory `(State, Navigator) -> VM` -> a generated
  *   `screenViewModel` call (the factory itself is injected from the graph)
- * - that ViewModel's state class -> a generated `collectAsState().value`
- * - anything else -> an injected provider parameter, resolved from the graph at compile time
+ * - that ViewModel's state class (exact type) -> a generated `collectAsState().value`
+ * - anything else -> an injected provider parameter, resolved from the graph at compile time,
+ *   with Metro qualifier annotations copied over
+ *
+ * Supported grammar: public or internal, top-level, non-suspend, non-generic, non-extension
+ * `@Composable` functions. Anything else is a compile error with a message naming the rule.
  */
 class GooseUiProcessor(
     private val codeGenerator: CodeGenerator,
     private val logger: KSPLogger,
 ) : SymbolProcessor {
+
+    /** (package, module name) pairs generated so far, to fail fast on name collisions. */
+    private val generatedModules = mutableSetOf<Pair<String, String>>()
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
         val symbols = resolver.getSymbolsWithAnnotation(GOOSE_UI)
@@ -57,9 +73,39 @@ class GooseUiProcessor(
         return deferred
     }
 
+    private fun validateShape(function: KSFunctionDeclaration): Boolean {
+        fun err(message: String): Boolean {
+            logger.error("@GooseUi: $message", function)
+            return false
+        }
+        if (function.functionKind != FunctionKind.TOP_LEVEL) {
+            return err("must be a top-level function (member and local functions are not supported)")
+        }
+        if (Modifier.PRIVATE in function.modifiers) {
+            return err("must not be private (the generated registration lives in a separate file)")
+        }
+        if (function.extensionReceiver != null) {
+            return err("must not be an extension function")
+        }
+        if (function.typeParameters.isNotEmpty()) {
+            return err("must not be generic")
+        }
+        if (Modifier.SUSPEND in function.modifiers) {
+            return err("must not be suspend")
+        }
+        val composable = function.annotations.any {
+            it.annotationType.resolve().declaration.qualifiedName?.asString() == COMPOSABLE
+        }
+        if (!composable) {
+            return err("must be @Composable")
+        }
+        return true
+    }
+
     private fun generate(function: KSFunctionDeclaration) {
+        if (!validateShape(function)) return
         val annotation = function.annotations.first { it.annotationType.resolve().declaration.qualifiedName?.asString() == GOOSE_UI }
-        val screenType = annotation.screenArgument() ?: run {
+        val screenType = annotation.classArgument("screen", index = 0) ?: run {
             logger.error("@GooseUi requires a screen class argument", function)
             return
         }
@@ -67,12 +113,32 @@ class GooseUiProcessor(
             logger.error("@GooseUi screen class has no qualified name", function)
             return
         }
+        val scopeFqn = annotation.classArgument("scope", index = 1)
+            ?.declaration?.qualifiedName?.asString()
+            .let { if (it == null || it == "kotlin.Unit") APP_SCOPE else it }
+
         val packageName = function.packageName.asString()
         val functionName = function.simpleName.asString()
         val moduleName = "${functionName}GooseModule"
+        if (!generatedModules.add(packageName to moduleName)) {
+            logger.error(
+                "@GooseUi: two annotated functions named '$functionName' in package '$packageName'. " +
+                    "Generated registrations are named after the function; rename one.",
+                function,
+            )
+            return
+        }
 
-        data class Injected(val name: String, val type: String)
+        data class Injected(val name: String, val type: String, val qualifiers: String)
         data class VmParam(val name: String, val vmFqn: String, val stateFqn: String, val factoryFqn: String, val createName: String)
+
+        val paramNames = function.parameters.mapNotNull { it.name?.asString() }
+        for (reserved in RESERVED_PARAM_NAMES) {
+            if (reserved in paramNames) {
+                logger.error("@GooseUi: parameter name '$reserved' is reserved for generated code", function)
+                return
+            }
+        }
 
         var hasScreenParam = false
         var hasModifierParam = false
@@ -93,12 +159,14 @@ class GooseUiProcessor(
                 logger.error("Cannot resolve the state type of $vmFqn", param)
                 return
             }
-            val factory = decl.findGooseFactory(stateFqn, vmFqn) ?: run {
+            val factory = findGooseFactory(decl, stateFqn, vmFqn, param) ?: return
+            if (factory.first.isEmpty()) {
                 logger.error(
-                    "@GooseUi cannot wire '$name: ${decl.simpleName.asString()}': no nested assisted " +
-                        "factory with a `(initialState, navigator)` create function. For a screen-scoped " +
-                        "ViewModel, add one (see the goose README). For a flow-shared ViewModel, call " +
-                        "flowViewModel() inside the function instead of taking it as a parameter.",
+                    "@GooseUi cannot wire '$name: ${decl.simpleName.asString()}': no nested " +
+                        "@AssistedFactory with a `(initialState, navigator)` create function. For a " +
+                        "screen-scoped ViewModel, add one (see the goose README). For a flow-shared " +
+                        "ViewModel, call flowViewModel() inside the function instead of taking it as " +
+                        "a parameter.",
                     param,
                 )
                 return
@@ -118,11 +186,11 @@ class GooseUiProcessor(
             when {
                 typeFqn == screenFqn -> {
                     hasScreenParam = true
-                    callArgs += "$name = screen as $screenFqn"
+                    callArgs += "$name = gooseScreen as $screenFqn"
                 }
                 typeFqn == MODIFIER -> {
                     hasModifierParam = true
-                    callArgs += "$name = modifier"
+                    callArgs += "$name = gooseModifier"
                 }
                 vmParams.any { it.name == name } -> callArgs += "$name = $name"
                 stateOwners.size == 1 -> callArgs += "$name = ${stateOwners.single().name}.collectAsState().value"
@@ -134,21 +202,27 @@ class GooseUiProcessor(
                     return
                 }
                 else -> {
-                    injected += Injected(name, type.render())
+                    injected += Injected(name, type.render(), param.renderQualifiers(function) ?: return)
                     callArgs += "$name = $name"
                 }
             }
         }
 
+        val usedNames = paramNames.toMutableSet()
+        val factoryParamNames = vmParams.associate { vm ->
+            var candidate = "${vm.name}Factory"
+            while (!usedNames.add(candidate)) candidate += "_"
+            vm.name to candidate
+        }
         for (vm in vmParams) {
-            injected += Injected("${vm.name}Factory", vm.factoryFqn)
+            injected += Injected(factoryParamNames.getValue(vm.name), vm.factoryFqn, "")
         }
 
-        val providerParams = injected.joinToString(",\n            ") { "${it.name}: ${it.type}" }
+        val providerParams = injected.joinToString(",\n            ") { "${it.qualifiers}${it.name}: ${it.type}" }
         val lambdaParams = buildString {
-            append(if (hasScreenParam || vmParams.isNotEmpty()) "screen" else "_")
+            append(if (hasScreenParam || vmParams.isNotEmpty()) "gooseScreen" else "_")
             append(", ")
-            append(if (hasModifierParam) "modifier" else "_")
+            append(if (hasModifierParam) "gooseModifier" else "_")
         }
         val imports = buildString {
             if (vmParams.isNotEmpty()) {
@@ -157,7 +231,7 @@ class GooseUiProcessor(
             }
         }
         val vmDeclarations = vmParams.joinToString("") { vm ->
-            "\n            val ${vm.name} = screenViewModel(screen, ${vm.vmFqn}::class.java, ${vm.stateFqn}::class.java, ${vm.name}Factory::${vm.createName})"
+            "\n            val ${vm.name} = screenViewModel(gooseScreen, ${vm.vmFqn}::class.java, ${vm.stateFqn}::class.java, ${factoryParamNames.getValue(vm.name)}::${vm.createName})"
         }
 
         val file = codeGenerator.createNewFile(
@@ -173,7 +247,7 @@ class GooseUiProcessor(
                 |package $packageName
                 |$imports
                 |
-                |@dev.zacsweers.metro.ContributesTo(dev.zacsweers.metro.AppScope::class)
+                |@dev.zacsweers.metro.ContributesTo($scopeFqn::class)
                 |public interface $moduleName {
                 |    public companion object {
                 |        @dev.zacsweers.metro.Provides
@@ -194,26 +268,98 @@ class GooseUiProcessor(
     }
 
     /**
-     * Finds the ViewModel's goose assisted factory: a nested classifier with exactly one abstract
-     * function of shape `(stateType, Navigator) -> vmType`. Returns (factory FQN, create-function
-     * name), or null when the VM has none (flow-shared VMs deliberately don't).
+     * Finds the ViewModel's goose assisted factory among nested classifiers annotated
+     * `@AssistedFactory`: an abstract function of shape `(stateType, Navigator) -> vmType`
+     * (declared or inherited; other non-abstract members are fine). Returns (factory FQN,
+     * create-function name), ("" to "") when the VM has none (flow-shared VMs deliberately
+     * don't), or null after logging when more than one matches.
      */
-    private fun KSClassDeclaration.findGooseFactory(stateFqn: String, vmFqn: String): Pair<String, String>? {
-        for (nested in declarations.filterIsInstance<KSClassDeclaration>()) {
+    private fun findGooseFactory(
+        vm: KSClassDeclaration,
+        stateFqn: String,
+        vmFqn: String,
+        errorSite: KSValueParameter,
+    ): Pair<String, String>? {
+        val matches = mutableListOf<Pair<String, String>>()
+        for (nested in vm.declarations.filterIsInstance<KSClassDeclaration>()) {
+            val isAssistedFactory = nested.annotations.any {
+                it.annotationType.resolve().declaration.qualifiedName?.asString() == ASSISTED_FACTORY
+            }
+            if (!isAssistedFactory) continue
             val factoryFqn = nested.qualifiedName?.asString() ?: continue
-            val create = nested.getDeclaredFunctions().singleOrNull { it.isAbstract } ?: continue
-            val params = create.parameters
-            if (params.size != 2) continue
-            if (params[0].type.resolve().declaration.qualifiedName?.asString() != stateFqn) continue
-            if (params[1].type.resolve().declaration.qualifiedName?.asString() != NAVIGATOR) continue
-            if (create.returnType?.resolve()?.declaration?.qualifiedName?.asString() != vmFqn) continue
-            return factoryFqn to create.simpleName.asString()
+            for (create in nested.getAllFunctions().filter { it.isAbstract }) {
+                val params = create.parameters
+                if (params.size != 2) continue
+                if (params[0].type.resolve().declaration.qualifiedName?.asString() != stateFqn) continue
+                if (params[1].type.resolve().declaration.qualifiedName?.asString() != NAVIGATOR) continue
+                if (create.returnType?.resolve()?.declaration?.qualifiedName?.asString() != vmFqn) continue
+                matches += factoryFqn to create.simpleName.asString()
+            }
         }
-        return null
+        return when {
+            matches.isEmpty() -> "" to ""
+            matches.size == 1 -> matches.single()
+            else -> {
+                logger.error(
+                    "@GooseUi: $vmFqn has ${matches.size} @AssistedFactory create functions matching " +
+                        "(state, navigator); keep exactly one",
+                    errorSite,
+                )
+                null
+            }
+        }
     }
 
-    private fun KSAnnotation.screenArgument(): KSType? =
-        arguments.firstOrNull { it.name?.asString() == "screen" || it.name == null }?.value as? KSType
+    /**
+     * Renders the Metro qualifier annotations on an injected parameter (`@Named("x") ` etc.) so
+     * they carry over to the generated provider parameter. Returns "" when there are none, null
+     * after logging when a qualifier has arguments the generator cannot render.
+     */
+    private fun KSValueParameter.renderQualifiers(function: KSFunctionDeclaration): String? {
+        val rendered = StringBuilder()
+        for (ann in annotations) {
+            val annDecl = ann.annotationType.resolve().declaration
+            val isQualifier = annDecl.annotations.any {
+                it.annotationType.resolve().declaration.qualifiedName?.asString() == QUALIFIER
+            }
+            if (!isQualifier) continue
+            val fqn = annDecl.qualifiedName?.asString() ?: continue
+            val args = ann.arguments.mapNotNull { arg ->
+                val value = arg.value ?: return@mapNotNull null
+                val renderedValue = renderAnnotationValue(value) ?: run {
+                    logger.error(
+                        "@GooseUi: cannot render qualifier @${annDecl.simpleName.asString()} argument " +
+                            "'${arg.name?.asString()}' (${value::class.simpleName}); use a hand-written " +
+                            "@Provides registration for this screen",
+                        function,
+                    )
+                    return null
+                }
+                arg.name?.asString()?.let { "$it = $renderedValue" } ?: renderedValue
+            }
+            rendered.append("@$fqn")
+            if (args.isNotEmpty()) rendered.append(args.joinToString(", ", "(", ")"))
+            rendered.append(" ")
+        }
+        return rendered.toString()
+    }
+
+    private fun renderAnnotationValue(value: Any): String? = when (value) {
+        is String -> "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        is Char -> "'$value'"
+        is Boolean, is Int, is Short, is Byte, is Double -> value.toString()
+        is Long -> "${value}L"
+        is Float -> "${value}f"
+        is KSType -> value.declaration.qualifiedName?.asString()?.let { "$it::class" }
+        is KSDeclaration -> value.qualifiedName?.asString()
+        is List<*> -> value.map { it?.let(::renderAnnotationValue) ?: return null }
+            .joinToString(", ", "[", "]")
+        else -> null
+    }
+
+    private fun KSAnnotation.classArgument(name: String, index: Int): KSType? =
+        (arguments.firstOrNull { it.name?.asString() == name }
+            ?: arguments.getOrNull(index)?.takeIf { it.name == null })?.value as? KSType
 
     /** Renders a type with qualified names, generics, and nullability. */
     private fun KSType.render(): String {

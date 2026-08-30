@@ -56,11 +56,35 @@ interface GooseRuntimeAccessors {
                     value::class.serializerOrNull() as SerializationStrategy<NavKey>?
                 }
                 polymorphicDefaultDeserializer(NavKey::class) { className ->
+                    // An unknown class (renamed/removed in an app update, unloaded dynamic
+                    // feature, or a custom @SerialName without explicit registration) returns
+                    // null; the decode then fails as a SerializationException, which the
+                    // resilient stack saver treats as "restart fresh" instead of crashing.
                     className?.let {
                         @Suppress("UNCHECKED_CAST")
-                        Class.forName(it).kotlin.serializerOrNull() as DeserializationStrategy<NavKey>?
+                        classForSerialName(it)?.kotlin?.serializerOrNull()
+                            as DeserializationStrategy<NavKey>?
                     }
                 }
             }
+    }
+}
+
+/**
+ * Resolves a kotlinx serial-name discriminator to a JVM class. The default serial name is the
+ * dot-separated Kotlin name, so nested classes ("a.b.Outer.Inner") need progressive dollar
+ * substitution toward the JVM binary name before Class.forName finds them. Returns null when no
+ * candidate resolves.
+ */
+private fun classForSerialName(name: String): Class<*>? {
+    var candidate = name
+    while (true) {
+        try {
+            return Class.forName(candidate)
+        } catch (_: ClassNotFoundException) {
+        }
+        val lastDot = candidate.lastIndexOf('.')
+        if (lastDot < 0) return null
+        candidate = candidate.substring(0, lastDot) + '$' + candidate.substring(lastDot + 1)
     }
 }

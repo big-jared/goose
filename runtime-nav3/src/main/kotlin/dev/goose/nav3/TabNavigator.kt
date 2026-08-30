@@ -42,6 +42,7 @@ class GooseTabNavigator internal constructor(
     private val currentTabState: MutableState<StackKey>,
     resultRouter: ResultRouter,
     override val parent: Navigator? = null,
+    private val hostTag: String? = null,
 ) : BaseNavigator(resultRouter), TabNavigator {
 
     override val currentTab: StackKey by currentTabState
@@ -50,11 +51,12 @@ class GooseTabNavigator internal constructor(
         get() = stacks.getValue(currentTab)
 
     /**
-     * Scope result routing per tab: pushes and pops both happen on the current tab's stack, so
-     * same-class awaits in different tabs get distinct, recreation-stable keys.
+     * Scope result routing per host instance AND per tab: pushes and pops both happen on the
+     * current tab's stack, so same-class awaits in different tabs (or another activity's host)
+     * get distinct, recreation-stable keys.
      */
     override fun resultKeyFor(screen: Screen): String =
-        "${resultRouter.resultKeyOf(screen)}#${currentTab.value}"
+        "${resultRouter.resultKeyOf(screen)}#${hostTag.orEmpty()}#${currentTab.value}"
 
     val displayStack: List<NavKey>
         get() = buildList {
@@ -68,7 +70,15 @@ class GooseTabNavigator internal constructor(
     /** True when [key] is the root entry of ANY tab's stack. */
     fun isStackRoot(key: NavKey): Boolean = stacks.values.any { it.firstOrNull() === key }
 
+    override fun goTo(tab: StackKey, screen: Screen) {
+        requireMainThread()
+        require(tab in stacks) { "Unknown tab $tab" }
+        currentTabState.value = tab
+        stacks.getValue(tab).add(screen)
+    }
+
     override fun selectTab(key: StackKey) {
+        requireMainThread()
         require(key in stacks) { "Unknown tab $key" }
         if (key == currentTab) {
             // Re-select pops the tab to its root.
@@ -82,10 +92,12 @@ class GooseTabNavigator internal constructor(
     }
 
     override fun goTo(screen: Screen) {
+        requireMainThread()
         currentStack.add(screen)
     }
 
     override fun pop(result: PopResult?): Boolean {
+        requireMainThread()
         val stack = currentStack
         if (stack.size > 1) {
             popTopOf(stack, result)
@@ -99,6 +111,7 @@ class GooseTabNavigator internal constructor(
     }
 
     override fun resetRoot(screen: Screen) {
+        requireMainThread()
         val stack = currentStack
         stack.asReversed().forEach { key -> (key as? Screen)?.let { deliverPopResult(it, null) } }
         stack.clear()
@@ -121,13 +134,26 @@ fun rememberTabNavigator(
     parent: Navigator? = null,
 ): GooseTabNavigator {
     require(tabs.isNotEmpty()) { "At least one tab required" }
+    require(tabs.distinctBy { it.key }.size == tabs.size) {
+        "Tab keys must be unique: ${tabs.map { it.key }}"
+    }
+    // Distinct roots: all tabs' entries share one NavDisplay, and two EQUAL root screens would
+    // collide in entry state (and ViewModel) ownership.
+    require(tabs.distinctBy { it.root }.size == tabs.size) {
+        "Tab root screens must be distinct (equal screens share entry state): ${tabs.map { it.root }}"
+    }
     val resultRouter = gooseGraph<GooseRuntimeAccessors>().resultRouter
     val stacks = tabs.associate { spec -> spec.key to rememberGooseBackStack(spec.root) }
+    // A restored selection naming a tab this release no longer has falls back to the first tab.
     val currentTabState = rememberSaveable(
-        stateSaver = Saver({ it.value }, { StackKey(it) }),
+        stateSaver = Saver(
+            { it.value },
+            { raw -> StackKey(raw).takeIf { k -> tabs.any { it.key == k } } ?: tabs.first().key },
+        ),
     ) { mutableStateOf(tabs.first().key) }
+    val hostTag = rememberSaveable { java.util.UUID.randomUUID().toString() }
     return remember(tabs, parent) {
-        GooseTabNavigator(stacks, tabs.map { it.key }, currentTabState, resultRouter, parent)
+        GooseTabNavigator(stacks, tabs.map { it.key }, currentTabState, resultRouter, parent, hostTag)
     }
 }
 

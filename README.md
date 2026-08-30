@@ -290,9 +290,16 @@ fun changeAddress() = viewModelScope.launch {
 fun onAddressChosen(address: ShippingAddress) = navigator.pop(address)
 ```
 
-Results are typed, survive rotation, and can't cross between tabs. Every way a user can dismiss
-the screen resumes the caller with `null` instead of hanging it, including a legacy fragment
-popping itself.
+Results are typed, survive rotation, and can't cross between stacks, tabs, or activities.
+Every way a user can dismiss the screen resumes the caller with `null` instead of hanging it,
+including a legacy fragment popping itself.
+
+Two contracts to know. Suspended `goToForResult` callers do not survive process death: the
+coroutine dies with the process, so treat a restart as "no answer", the same deal as a
+coroutine-wrapped ActivityResult (stacks, tabs, and `@PersistState` fields all DO come back).
+And two equal screen values on the same stack share one ViewModel (inherited from Navigation 3's
+entry identity); if the same destination can be pushed twice at once, give the screen a
+distinguishing field.
 
 ## Nested flows and deep links
 
@@ -334,6 +341,16 @@ The `CheckoutUi` above reads `startAtPayment` and synthesizes its child stack wi
 beneath payment. The user lands on payment; back walks down exactly what was built: payment to
 shipping, shipping out of the flow to home. State restoration uses the same mechanism, so if
 this survives process death (it does, the stacks serialize), a deep link does too.
+
+A deep link arriving while the app is already running (`onNewIntent`) is just a navigator
+mutation: parse the intent, then call `resetRoot` and `goTo` (or `goTo(tab, screen)` on a tab
+host, which switches and pushes atomically) to build the same stack. The list overload above is
+only the cold-start half.
+
+One more restoration guarantee, because deep links and app updates meet here: if a saved stack
+cannot be decoded on launch (a screen class was renamed or removed in an update), the stack
+restarts at its roots instead of crash-looping. Losing navigation state is recoverable; a crash
+loop is not.
 
 ## Keeping your existing navigation APIs
 
@@ -470,6 +487,12 @@ Two things dialogs cannot do:
   still running on fragments, it shows through a normal fragment transaction. To get a dialog
   there during migration, contribute a `FragmentScreenNavigation` adapter (previous section)
   that shows a `DialogFragment`.
+
+## Design decisions
+
+The sharp edges are decided, not accidental: result-request identity, the exact `@GooseUi`
+grammar, thread contracts, saved-state compatibility across releases, R8, tabs, and scoping are
+all written down with their reasoning in [DESIGN.md](DESIGN.md).
 
 ## License
 

@@ -16,6 +16,9 @@ import dev.goose.runtime.NavigatorHandle
  */
 internal class ActivityNavigatorHandleHolder : ViewModel() {
     val handle = NavigatorHandle()
+
+    /** Rotation-stable identity for this activity's stack, scoping its result routing. */
+    val stackTag: String = java.util.UUID.randomUUID().toString()
     var installed = false
 }
 
@@ -54,6 +57,7 @@ fun FragmentActivity.installGooseNavigator(@IdRes containerId: Int): NavigatorHa
         binders = (graph as GooseFragmentAccessors).fragmentBinders,
         resultRouter = (graph as GooseRuntimeAccessors).resultRouter,
         navigationOverrides = graph.fragmentNavigationOverrides,
+        stackTag = holder.stackTag,
     )
     handle.bind(navigator)
     onBackPressedDispatcher.addCallback(this) {
