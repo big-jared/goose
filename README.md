@@ -4,14 +4,19 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-The risky part of a mature app isn't its views, it's the state machines behind them. So keep
-your Mavericks ViewModels exactly as they are (`setState`, `execute`, `Async`, `@PersistState`
-all work unchanged) and replace what's around them: **Navigation 3** owns the back stack (a
-plain list you can print), **[Metro](https://zacsweers.github.io/metro/)** wires features
-together at compile time, and a **`Navigator` interface** is the only thing your ViewModels ever
-see. Because they never touch a FragmentManager or NavController, the same ViewModel works
-fragment-hosted today and Compose-hosted after migration. Each screen migrates in one small,
-revertable PR.
+Goose moves a Mavericks (MvRx) + fragments app to Compose one screen at a time.
+
+Your ViewModels don't change. `setState`, `execute`, `Async`, and `@PersistState` all keep
+working. What changes is the stuff around them:
+
+- **Navigation 3** owns the back stack. It's just a list.
+- **[Metro](https://zacsweers.github.io/metro/)** connects your feature modules at compile time.
+- ViewModels navigate through a small **`Navigator`** interface. They never see a
+  FragmentManager or a NavController.
+
+Because a ViewModel only knows the Navigator, it doesn't care whether its screen is a fragment
+today or Compose tomorrow. So you migrate one screen per PR, ship it, and roll it back if you
+have to.
 
 ## Migrating a screen
 
@@ -72,11 +77,12 @@ class ProfileUi(private val vmFactory: ProfileViewModel.Factory) : ScreenUi<Prof
 **5. Delete** the fragment, the XML, and the nav-graph entry. Fragment transactions at call
 sites become `navigator.goTo(ProfileScreen(userId))`.
 
-You converted a screen, not the flow. The FragmentManager still owns the back stack; the new
-Compose screen rides it inside an auto-created `ScreenFragment` and behaves like any other
-fragment. When a whole flow is converted, point its host at `NavigableGooseContent` and the
-fragment layer disappears. Until then, half-migrated is a stable place to live. (The reverse
-works too: a Nav3 flow carries stragglers as `FragmentScreen.of<LegacyAboutFragment>()`.)
+Note what you did NOT do: convert the whole flow. The FragmentManager still owns the back
+stack. Goose wraps your new Compose screen in an invisible `ScreenFragment`, so it acts like any
+other fragment. Once every screen in a flow is converted, swap the flow's host to
+`NavigableGooseContent` and the fragments are gone. Until then, half-migrated works fine. (The
+reverse also works: a Compose flow can carry leftover fragments with
+`FragmentScreen.of<LegacyAboutFragment>()`.)
 
 ## The annotations, decoded
 
@@ -86,17 +92,16 @@ works too: a Nav3 flow carries stragglers as `FragmentScreen.of<LegacyAboutFragm
 @Inject
 ```
 
-`@Inject`: the graph may construct this class, and its constructor is the DI point for the
-screen. Any binding works; a screen with no ViewModel just injects what it renders.
-`@ContributesIntoMap`: at compile time, add this class to an app-wide map assembled by the app's
-`@DependencyGraph`, which is how the app renders screens from modules it never imports.
-`@ClassKey`: the map key navigation looks up. `binding = binding<ScreenEntry>()`: store it as
-the interface the registry collects (Metro's default, the direct supertype `ScreenUi<S>`, isn't
-it; forgetting this produces a first-navigation error naming the fix).
+- `@Inject`: the graph builds this class. The constructor is where a screen gets its
+  dependencies. A screen with no ViewModel just injects whatever it renders.
+- `@ContributesIntoMap(AppScope::class)`: adds this class to an app-wide map at compile time.
+  That's how the app shows screens from modules it never imports.
+- `@ClassKey(ProfileScreen::class)`: the map key. `goTo(ProfileScreen(...))` looks this up.
+- `binding = binding<ScreenEntry>()`: store it as `ScreenEntry`, the type the registry reads.
+  If you forget this one, the error at first navigation tells you.
 
-Everything else fails at compile time: wrong constructor deps fail the feature's build with a
-trace, duplicate screen keys fail the app's build, and an `:impl` module depending on another
-feature's `:impl` fails at configuration.
+Everything else fails at build time: a wrong constructor dependency, a duplicate screen key, or
+an `:impl` module depending on another feature's `:impl`.
 
 ## Typed results
 
@@ -113,18 +118,20 @@ val address = navigator.goToForResult(                navigator.pop(address)
     PickShippingAddressScreen(orderId)) ?: return@launch   // null = backed out
 ```
 
-Typed end to end, rotation-proof, routed per stack, and every dismissal path (back gesture,
-`resetRoot`, a legacy fragment's own `popBackStack()`) resumes the caller with `null` instead of
-hanging it.
+Results are typed, survive rotation, and can't cross between tabs. If the user backs out in any
+way at all, the caller gets `null` instead of hanging.
 
 ## Also in the box
 
-One persisted stack per tab (`TabbedGooseContent`), nested flows with shared
-`flowViewModel()`s, dialog screens (`OverlayScreen`) on the same stack, shared-element keys
-declared in `:api` modules, and deep-link stacks via `rememberGooseBackStack(List<Screen>)`.
-Three sample apps in [`samples/`](samples) are the spec: happy path (`m1`), multi-module tabs +
-wizard (`m2`), and a 50% migrated fragment app (`m3`), each verified on-device and on
-Robolectric.
+- Tabs with one saved stack each: `TabbedGooseContent`
+- Nested flows (wizards) that share a `flowViewModel()`
+- Dialog screens on the same stack: `OverlayScreen`
+- Shared-element transitions with keys declared in `:api` modules
+- Deep links: `rememberGooseBackStack(List<Screen>)`
+
+Three sample apps in [`samples/`](samples) show all of it: the happy path (`m1`), multi-module
+tabs plus a wizard (`m2`), and a half-migrated fragment app (`m3`). Each is covered by tests on
+a real emulator and on Robolectric.
 
 <p align="center">
   <img src="docs/screenshots/m2_catalog.png" width="200" alt="M2 catalog tab" />
