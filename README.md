@@ -21,7 +21,7 @@ have to.
 ## Setup (once per app)
 
 Not on Maven yet; include the `runtime*` modules with Gradle's `includeBuild` or as a
-submodule. Then there are three pieces, all shown working in [`samples/m3`](samples/m3):
+submodule. Then two steps:
 
 **1. Give your Application a graph.** The graph interface stays empty; features fill it by
 contribution:
@@ -36,55 +36,25 @@ class MyApp : Application(), GooseGraphHolder {
 }
 ```
 
-**2. Provide one shared `NavigatorHandle`.** ViewModels outlive activities, so they hold this
-stable handle; the activity plugs the real navigator into it on every (re)create:
-
-```kotlin
-@ContributesTo(AppScope::class)
-interface MainNavModule {
-    val mainNavigatorHandle: NavigatorHandle
-    companion object {
-        @Provides @SingleIn(AppScope::class)
-        fun provideMainNavigatorHandle() = NavigatorHandle()
-    }
-}
-```
-
-**3. Wire your existing activity.** Build a `FragmentNavigator` over the FragmentManager and
-container you already have, bind it into the handle, and route back presses through it:
+**2. Install a navigator in your existing activity.** One call. It builds a navigator over the
+FragmentManager and fragment container you already have, and routes back presses through it.
+There is no new nav stack here: during migration, your FragmentManager back stack IS the stack.
 
 ```kotlin
 class MainActivity : FragmentActivity(), FragmentNavigatorOwner {
-    private lateinit var fragmentNavigator: FragmentNavigator
-
-    override val gooseNavigator: Navigator
-        get() = ((application as GooseGraphHolder).gooseGraph as MainNavModule).mainNavigatorHandle
+    override lateinit var gooseNavigator: Navigator
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // ... your existing setContentView and root fragment ...
-
-        val graph = (application as GooseGraphHolder).gooseGraph
-        fragmentNavigator = FragmentNavigator(
-            fragmentManager = supportFragmentManager,
-            containerId = R.id.fragment_container,        // your existing container
-            binders = (graph as GooseFragmentAccessors).fragmentBinders,
-            resultRouter = (graph as GooseRuntimeAccessors).resultRouter,
-        )
-        (graph as MainNavModule).mainNavigatorHandle.bind(fragmentNavigator)
-
-        onBackPressedDispatcher.addCallback(this) {
-            if (supportFragmentManager.backStackEntryCount > 0) gooseNavigator.pop() else finish()
-        }
-    }
-
-    override fun onDestroy() {
-        ((application as GooseGraphHolder).gooseGraph as MainNavModule)
-            .mainNavigatorHandle.unbind(fragmentNavigator)
-        super.onDestroy()
+        setContentView(R.layout.activity_main)                        // your existing layout
+        gooseNavigator = installGooseNavigator(R.id.fragment_container)  // your existing container
     }
 }
 ```
+
+Have multiple activities? Call `installGooseNavigator` in each one that owns a fragment stack.
+Each activity gets its own independent navigator; separate activities are separate navigation
+roots, stacked by Android itself, same as today.
 
 That's it. Nothing about your existing fragments changes yet.
 
