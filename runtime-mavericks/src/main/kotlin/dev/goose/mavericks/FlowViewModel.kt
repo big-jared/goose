@@ -51,8 +51,9 @@ fun <VM : MavericksViewModel<S>, S : MavericksState> flowViewModel(
         key = "goose:ssrCleanup:$key",
     )
     SideEffect {
-        val registry = flowScope.savedStateRegistryOwner.savedStateRegistry
-        cleanupHolder.onClearedAction = { registry.unregisterSavedStateProvider(key) }
+        val registryRef =
+            java.lang.ref.WeakReference(flowScope.savedStateRegistryOwner.savedStateRegistry)
+        cleanupHolder.onClearedAction = { registryRef.get()?.unregisterSavedStateProvider(key) }
     }
 
     return remember(flowScope, vmClass) {

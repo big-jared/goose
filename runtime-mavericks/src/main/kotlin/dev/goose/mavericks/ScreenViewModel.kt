@@ -23,21 +23,17 @@ import dev.goose.runtime.NavigatorHandle
 import dev.goose.runtime.Screen
 import java.util.UUID
 
-/**
- * Retains the [NavigatorHandle] alongside the VM in the entry's ViewModelStore, and runs cleanup
- * exactly when the entry is popped (its store cleared) — notably unregistering the Mavericks
- * SavedStateProvider so popped entries don't leak their VM through the activity's registry.
- */
+/** Retains the [NavigatorHandle] alongside the VM in the entry's ViewModelStore. */
 internal class NavigatorHandleHolder : ViewModel() {
     val handle = NavigatorHandle()
-    var onClearedAction: (() -> Unit)? = null
-
-    override fun onCleared() {
-        onClearedAction?.invoke()
-    }
 }
 
-/** Same cleanup hook for flow-scoped VMs, keyed per flow VM in the flow entry's store. */
+/**
+ * Runs cleanup exactly when the owning store clears (entry popped / flow finished) — notably
+ * unregistering a Mavericks SavedStateProvider so popped entries don't leak their VM through the
+ * activity's registry. One holder PER VM KEY: a screen using several ViewModels gets several
+ * holders, so no cleanup is lost to last-writer-wins.
+ */
 internal class SavedStateCleanupHolder : ViewModel() {
     var onClearedAction: (() -> Unit)? = null
 
@@ -98,10 +94,15 @@ fun <VM : MavericksViewModel<S>, S : MavericksState> screenViewModel(
         handleHolder.handle.bind(navigator)
         onDispose { handleHolder.handle.unbind(navigator) }
     }
-    // Reassign each composition so the cleanup always targets the CURRENT activity's registry.
+    // Per-VM cleanup holder; the WeakReference keeps a covered entry's retained holder from
+    // pinning a destroyed activity's registry after a configuration change.
+    val cleanupHolder = viewModel<SavedStateCleanupHolder>(
+        viewModelStoreOwner = vmStoreOwner,
+        key = "goose:ssrCleanup:" + key,
+    )
     SideEffect {
-        val registry = savedStateRegistryOwner.savedStateRegistry
-        handleHolder.onClearedAction = { registry.unregisterSavedStateProvider(key) }
+        val registryRef = java.lang.ref.WeakReference(savedStateRegistryOwner.savedStateRegistry)
+        cleanupHolder.onClearedAction = { registryRef.get()?.unregisterSavedStateProvider(key) }
     }
 
     return remember(screen, entryId) {
