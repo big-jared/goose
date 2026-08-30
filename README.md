@@ -142,32 +142,30 @@ class ProfileViewModel(
 }
 ```
 
-**3. Replace the fragment + XML with a composable, registered in the feature's module.**
-`screenUi` binds the screen to its UI; `screenViewModel` is `fragmentViewModel` for this world
-(same instance across rotation, cleared when the screen pops, `@PersistState` restored):
+**3. Replace the fragment + XML with an annotated composable.** One annotation is the entire
+registration; the goose-compiler KSP processor generates the wiring. `screenViewModel` is
+`fragmentViewModel` for this world (same instance across rotation, cleared when the screen pops,
+`@PersistState` restored):
 
 ```kotlin
-@ContributesTo(AppScope::class)
-interface ProfileModule {
-    companion object {
-        @Provides
-        @IntoMap
-        @ClassKey(ProfileScreen::class)
-        fun profileUi(vmFactory: ProfileViewModel.Factory): ScreenEntry =
-            screenUi<ProfileScreen> { screen, modifier ->
-                val vm = screenViewModel<ProfileViewModel, ProfileState>(screen, vmFactory::create)
-                val state by vm.collectAsState()
-                Column(modifier) {
-                    Text(state.name)
-                    OutlinedButton(onClick = vm::toggleFollow) {
-                        Text(if (state.followed) "Following" else "Follow")
-                    }
-                    TextButton(onClick = vm::openFollowers) { Text("Followers") }
-                }
-            }
+@GooseUi(ProfileScreen::class)
+@Composable
+fun ProfileUi(screen: ProfileScreen, modifier: Modifier, vmFactory: ProfileViewModel.Factory) {
+    val vm = screenViewModel<ProfileViewModel, ProfileState>(screen, vmFactory::create)
+    val state by vm.collectAsState()
+    Column(modifier) {
+        Text(state.name)
+        OutlinedButton(onClick = vm::toggleFollow) {
+            Text(if (state.followed) "Following" else "Follow")
+        }
+        TextButton(onClick = vm::openFollowers) { Text("Followers") }
     }
 }
 ```
+
+Parameter rules: the screen-typed parameter receives the screen, the `Modifier` receives the
+host's modifier, and every other parameter is injected from the app graph, checked at compile
+time. A screen with no ViewModel just asks for whatever it renders.
 
 **4. Delete the fragment and its XML, and update the call sites that opened it.** A legacy
 fragment opens the new screen through the activity's navigator:
@@ -281,7 +279,7 @@ that bypass the back stack.
 | Wrong or missing constructor dependency | Feature module fails to compile, with a Metro dependency trace |
 | Two screens contributed with the same key | App module fails to compile, duplicate map key |
 | An `:impl` module depending on another feature's `:impl` | Build fails at configuration with an explanation |
-| Class-style entry missing `binding = binding<ScreenEntry>()` | First navigation to that screen throws, and the message names this exact fix |
+| Hand-written class entry missing `binding = binding<ScreenEntry>()` (not possible with `@GooseUi`) | First navigation to that screen throws, and the message names this exact fix |
 | Created a Goose VM outside `screenViewModel` | Throws immediately, with the message pointing at the right API |
 
 **Can I revert a migrated screen?** Yes. Restore the fragment, delete the `ScreenUi`, and point
@@ -297,23 +295,27 @@ precedence.
 sample apps' suites are the templates: navigation, typed results, recreation, and fragment
 interop are all covered there.
 
-## The annotations, decoded
+## What @GooseUi generates
+
+The annotation expands (via KSP, at compile time, no reflection) to a plain Metro contribution
+you could write by hand:
 
 ```kotlin
-@Provides @IntoMap @ClassKey(ProfileScreen::class)
-fun profileUi(vmFactory: ProfileViewModel.Factory): ScreenEntry = screenUi<ProfileScreen> { ... }
+@ContributesTo(AppScope::class)
+interface ProfileUiGooseModule {
+    companion object {
+        @Provides @IntoMap @ClassKey(ProfileScreen::class)
+        fun provideProfileUi(vmFactory: ProfileViewModel.Factory): ScreenEntry =
+            ScreenEntry { screen, modifier -> ProfileUi(screen as ProfileScreen, modifier, vmFactory) }
+    }
+}
 ```
 
-- `@Provides`: a factory function on the graph. Its parameters are your screen's dependencies,
-  injected and checked at compile time. A screen with no ViewModel just asks for what it renders.
-- `@IntoMap` + `@ClassKey(ProfileScreen::class)`: put the result in an app-wide map under this
-  key. That's how the app shows screens from modules it never imports, and what
-  `goTo(ProfileScreen(...))` looks up.
-- The return type `ScreenEntry` is the binding. Nothing else to declare.
-
-Prefer classes? `class ProfileUi(...) : ScreenUi<ProfileScreen>()` with
-`@ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())` + `@ClassKey` +
-`@Inject` does the same thing (the `m2` sample uses this style).
+Which is to say: your function's extra parameters become graph-injected factory parameters, and
+the result lands in an app-wide map keyed by the screen class. That map is how the app renders
+screens from modules it never imports, and what `goTo(ProfileScreen(...))` looks up. Both
+hand-written forms remain supported: the `@Provides` function with `screenUi { }`, and a
+`ScreenUi<S>` class (the `m2` sample uses the class style).
 
 ## Typed results
 

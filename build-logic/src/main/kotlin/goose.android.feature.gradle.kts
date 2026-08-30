@@ -5,6 +5,11 @@ plugins {
     id("goose.android.library")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("dev.zacsweers.metro")
+    id("com.google.devtools.ksp")
+}
+
+dependencies {
+    "ksp"(project(":goose-compiler"))
 }
 
 dev.goose.buildlogic.GooseModuleChecks.forbidImplProjectDependencies(project, "Feature impl")

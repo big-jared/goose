@@ -4,6 +4,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
     id("dev.zacsweers.metro")
+    id("com.google.devtools.ksp")
 }
 
 apply(plugin = "goose.android.base")
@@ -23,6 +24,8 @@ val libs = extensions.getByType<VersionCatalogsExtension>().named("libs")
 val composeBom = libs.findLibrary("compose-bom").get()
 
 dependencies {
+    "ksp"(project(":goose-compiler"))
+
     "androidTestImplementation"(platform(composeBom))
     "androidTestImplementation"("androidx.compose.ui:ui-test-junit4")
     "androidTestImplementation"("androidx.test.ext:junit:1.3.0")

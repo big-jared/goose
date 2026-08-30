@@ -19,28 +19,19 @@ import com.airbnb.mvrx.Success
 import com.airbnb.mvrx.Uninitialized
 import com.airbnb.mvrx.compose.collectAsState
 import dev.goose.mavericks.screenViewModel
-import dev.goose.runtime.ScreenEntry
-import dev.goose.runtime.screenUi
+import dev.goose.runtime.GooseUi
 import dev.goose.sample.m1.home.api.HomeScreen
-import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.ClassKey
-import dev.zacsweers.metro.ContributesTo
-import dev.zacsweers.metro.IntoMap
-import dev.zacsweers.metro.Provides
 
-@ContributesTo(AppScope::class)
-interface HomeModule {
-    companion object {
-        @Provides
-        @IntoMap
-        @ClassKey(HomeScreen::class)
-        fun homeUi(vmFactory: HomeViewModel.Factory): ScreenEntry =
-            screenUi<HomeScreen> { screen, modifier ->
-                val viewModel = screenViewModel<HomeViewModel, HomeState>(screen, vmFactory::create)
-                val state by viewModel.collectAsState()
-                HomeContent(state, onUserClicked = viewModel::onUserClicked, modifier = modifier)
-            }
-    }
+/**
+ * The entire registration is this one annotation: goose-compiler generates the Metro
+ * contribution keyed by HomeScreen, injecting vmFactory from the graph.
+ */
+@GooseUi(HomeScreen::class)
+@Composable
+fun HomeUi(screen: HomeScreen, modifier: Modifier, vmFactory: HomeViewModel.Factory) {
+    val viewModel = screenViewModel<HomeViewModel, HomeState>(screen, vmFactory::create)
+    val state by viewModel.collectAsState()
+    HomeContent(state, onUserClicked = viewModel::onUserClicked, modifier = modifier)
 }
 
 @Composable

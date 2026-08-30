@@ -13,34 +13,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.airbnb.mvrx.compose.collectAsState
 import dev.goose.mavericks.screenViewModel
-import dev.goose.runtime.ScreenEntry
-import dev.goose.runtime.screenUi
+import dev.goose.runtime.GooseUi
 import dev.goose.sample.m1.profile.api.ProfileScreen
-import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.ClassKey
-import dev.zacsweers.metro.ContributesTo
-import dev.zacsweers.metro.IntoMap
-import dev.zacsweers.metro.Provides
 
-@ContributesTo(AppScope::class)
-interface ProfileModule {
-    companion object {
-        @Provides
-        @IntoMap
-        @ClassKey(ProfileScreen::class)
-        fun profileUi(vmFactory: ProfileViewModel.Factory): ScreenEntry =
-            screenUi<ProfileScreen> { screen, modifier ->
-                val viewModel = screenViewModel<ProfileViewModel, ProfileState>(screen, vmFactory::create)
-                val state by viewModel.collectAsState()
-                ProfileContent(
-                    state = state,
-                    onToggleFollow = viewModel::toggleFollow,
-                    onAppendNote = viewModel::appendNote,
-                    onDone = viewModel::done,
-                    modifier = modifier,
-                )
-            }
-    }
+@GooseUi(ProfileScreen::class)
+@Composable
+fun ProfileUi(screen: ProfileScreen, modifier: Modifier, vmFactory: ProfileViewModel.Factory) {
+    val viewModel = screenViewModel<ProfileViewModel, ProfileState>(screen, vmFactory::create)
+    val state by viewModel.collectAsState()
+    ProfileContent(
+        state = state,
+        onToggleFollow = viewModel::toggleFollow,
+        onAppendNote = viewModel::appendNote,
+        onDone = viewModel::done,
+        modifier = modifier,
+    )
 }
 
 @Composable

@@ -18,6 +18,7 @@ dependencyResolutionManagement {
 rootProject.name = "goose"
 
 include(
+    ":goose-compiler",
     ":runtime",
     ":runtime-metro",
     ":runtime-mavericks",
