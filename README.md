@@ -142,42 +142,34 @@ class ProfileViewModel(
 }
 ```
 
-**3. Replace the fragment + XML with a `ScreenUi`.** `screenViewModel` is `fragmentViewModel`
-for this world: same instance across rotation, cleared when the screen pops, `@PersistState`
-restored after process death:
-
-```kotlin
-@ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
-@ClassKey(ProfileScreen::class)
-@Inject
-class ProfileUi(private val vmFactory: ProfileViewModel.Factory) : ScreenUi<ProfileScreen>() {
-    @Composable override fun Content(screen: ProfileScreen, modifier: Modifier) {
-        val vm = screenViewModel<ProfileViewModel, ProfileState>(screen, vmFactory::create)
-        val state by vm.collectAsState()
-        Column(modifier) {
-            Text(state.name)
-            OutlinedButton(onClick = vm::toggleFollow) {
-                Text(if (state.followed) "Following" else "Follow")
-            }
-            TextButton(onClick = vm::openFollowers) { Text("Followers") }
-        }
-    }
-}
-```
-
-**4. Register the screen for back-stack persistence** (one block per feature module):
+**3. Replace the fragment + XML with a composable, registered in the feature's module.**
+`screenUi` binds the screen to its UI; `screenViewModel` is `fragmentViewModel` for this world
+(same instance across rotation, cleared when the screen pops, `@PersistState` restored):
 
 ```kotlin
 @ContributesTo(AppScope::class)
 interface ProfileModule {
     companion object {
-        @Provides @IntoSet fun serializers(): SerializersModule =
-            screenSerializers { subclass(ProfileScreen::class) }
+        @Provides
+        @IntoMap
+        @ClassKey(ProfileScreen::class)
+        fun profileUi(vmFactory: ProfileViewModel.Factory): ScreenEntry =
+            screenUi<ProfileScreen> { screen, modifier ->
+                val vm = screenViewModel<ProfileViewModel, ProfileState>(screen, vmFactory::create)
+                val state by vm.collectAsState()
+                Column(modifier) {
+                    Text(state.name)
+                    OutlinedButton(onClick = vm::toggleFollow) {
+                        Text(if (state.followed) "Following" else "Follow")
+                    }
+                    TextButton(onClick = vm::openFollowers) { Text("Followers") }
+                }
+            }
     }
 }
 ```
 
-**5. Delete the fragment and its XML, and update the call sites that opened it.** A legacy
+**4. Delete the fragment and its XML, and update the call sites that opened it.** A legacy
 fragment opens the new screen through the activity's navigator:
 
 ```kotlin
@@ -272,6 +264,13 @@ question for a Hilt app; if that's you, open an issue with your setup before com
 **Dialogs and bottom sheets?** Mark the screen `OverlayScreen` and it renders as a dialog on
 the same back stack, with the same result semantics.
 
+**A screen that shouldn't use the default fragment transaction?** The default (`replace` +
+`addToBackStack`) is only a default. Contribute a `FragmentScreenNavigation` for a screen and
+you decide how it navigates: show a DialogFragment, use custom animations, hand off to your
+existing navigation framework, or start an activity. The request hands you the FragmentManager,
+the container, the back-stack entry name results ride on, and a `deliverResult` for destinations
+that bypass the back stack.
+
 **Deep links?** Build the stack you want to land on:
 `rememberGooseBackStack(listOf(HomeScreen, ProfileScreen(id)))`.
 
@@ -282,12 +281,17 @@ the same back stack, with the same result semantics.
 | Wrong or missing constructor dependency | Feature module fails to compile, with a Metro dependency trace |
 | Two screens contributed with the same key | App module fails to compile, duplicate map key |
 | An `:impl` module depending on another feature's `:impl` | Build fails at configuration with an explanation |
-| Forgot `binding = binding<ScreenEntry>()` | First navigation to that screen throws, and the message names this exact fix |
-| Forgot the serializer registration (step 4) | First background of the app throws a `SerializationException` naming the class |
+| Class-style entry missing `binding = binding<ScreenEntry>()` | First navigation to that screen throws, and the message names this exact fix |
 | Created a Goose VM outside `screenViewModel` | Throws immediately, with the message pointing at the right API |
 
 **Can I revert a migrated screen?** Yes. Restore the fragment, delete the `ScreenUi`, and point
 call sites back. Nothing else in the app referenced the change.
+
+**Anything to know about R8?** Back stacks persist by serializing screens reflectively (class
+name + each screen's own `@Serializable` serializer), so minified builds need kotlinx
+serialization's standard keep rules. If you'd rather have zero reflection, register screens
+explicitly with a contributed `screenSerializers { subclass(...) }`; explicit registrations take
+precedence.
 
 **How do I test migrated screens?** Compose UI tests, on device or on Robolectric. The three
 sample apps' suites are the templates: navigation, typed results, recreation, and fragment
@@ -296,18 +300,20 @@ interop are all covered there.
 ## The annotations, decoded
 
 ```kotlin
-@ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
-@ClassKey(ProfileScreen::class)
-@Inject
+@Provides @IntoMap @ClassKey(ProfileScreen::class)
+fun profileUi(vmFactory: ProfileViewModel.Factory): ScreenEntry = screenUi<ProfileScreen> { ... }
 ```
 
-- `@Inject`: the graph builds this class. The constructor is where a screen gets its
-  dependencies. A screen with no ViewModel just injects whatever it renders.
-- `@ContributesIntoMap(AppScope::class)`: adds this class to an app-wide map at compile time.
-  That's how the app shows screens from modules it never imports.
-- `@ClassKey(ProfileScreen::class)`: the map key. `goTo(ProfileScreen(...))` looks this up.
-- `binding = binding<ScreenEntry>()`: store it as `ScreenEntry`, the type the registry reads.
-  If you forget this one, the error at first navigation tells you.
+- `@Provides`: a factory function on the graph. Its parameters are your screen's dependencies,
+  injected and checked at compile time. A screen with no ViewModel just asks for what it renders.
+- `@IntoMap` + `@ClassKey(ProfileScreen::class)`: put the result in an app-wide map under this
+  key. That's how the app shows screens from modules it never imports, and what
+  `goTo(ProfileScreen(...))` looks up.
+- The return type `ScreenEntry` is the binding. Nothing else to declare.
+
+Prefer classes? `class ProfileUi(...) : ScreenUi<ProfileScreen>()` with
+`@ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())` + `@ClassKey` +
+`@Inject` does the same thing (the `m2` sample uses this style).
 
 ## Typed results
 

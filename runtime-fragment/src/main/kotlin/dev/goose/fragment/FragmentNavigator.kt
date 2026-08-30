@@ -27,6 +27,43 @@ fun interface ScreenFragmentBinder {
 }
 
 /**
+ * Full-control navigation for one screen on the fragment host, for when the default
+ * replace+addToBackStack transaction isn't right: show a DialogFragment, use custom animations,
+ * hand off to an existing navigation framework, or start an activity. Contribute keyed by
+ * screen class:
+ * ```
+ * @ContributesIntoMap(AppScope::class, binding = binding<FragmentScreenNavigation>())
+ * @ClassKey(HelpScreen::class)
+ * @Inject
+ * class HelpNavigation : FragmentScreenNavigation {
+ *   override fun navigate(request: FragmentNavigationRequest) {
+ *     HelpDialogFragment().show(request.fragmentManager, "help")
+ *   }
+ * }
+ * ```
+ * If the destination is pushed onto the FragmentManager back stack, use
+ * [FragmentNavigationRequest.backStackEntryName] as the `addToBackStack` name so awaited results
+ * resolve when it pops. If it bypasses the back stack (a dialog, an activity), answer awaiting
+ * callers with [FragmentNavigationRequest.deliverResult].
+ */
+fun interface FragmentScreenNavigation {
+    fun navigate(request: FragmentNavigationRequest)
+}
+
+/** Everything a [FragmentScreenNavigation] needs to execute one navigation. */
+class FragmentNavigationRequest internal constructor(
+    val screen: Screen,
+    val fragmentManager: FragmentManager,
+    @param:IdRes val containerId: Int,
+    /** The back stack entry name results ride on; pass to addToBackStack for awaited screens. */
+    val backStackEntryName: String,
+    private val resultRouter: ResultRouter,
+) {
+    /** For destinations that bypass the back stack: answer a caller awaiting this screen. */
+    fun deliverResult(result: PopResult?) = resultRouter.complete(backStackEntryName, result)
+}
+
+/**
  * A [Navigator] over a FragmentManager back stack — the legacy half of a migration. ViewModels
  * navigating through this cannot tell it apart from a Nav3 host, which is the whole point:
  * migrating a screen from fragment-hosted to compose-hosted swaps the host, not the VM.
@@ -48,6 +85,7 @@ class FragmentNavigator(
     private val binders: Map<KClass<*>, ScreenFragmentBinder>,
     resultRouter: ResultRouter,
     override val parent: Navigator? = null,
+    private val navigationOverrides: Map<KClass<*>, FragmentScreenNavigation> = emptyMap(),
 ) : BaseNavigator(resultRouter) {
 
     private var knownEntryNames: List<String?> = currentEntryNames()
@@ -78,6 +116,21 @@ class FragmentNavigator(
     override val backStack: List<Screen> get() = emptyList()
 
     override fun goTo(screen: Screen) {
+        // A contributed per-screen override wins: dialogs, custom transactions, other nav APIs.
+        navigationOverrides[screen::class]?.let { override ->
+            override.navigate(
+                FragmentNavigationRequest(
+                    screen = screen,
+                    fragmentManager = fragmentManager,
+                    containerId = containerId,
+                    backStackEntryName = resultKeyFor(screen),
+                    resultRouter = resultRouter,
+                )
+            )
+            return
+        }
+        // Default: the bound legacy fragment (or a ScreenFragment for migrated screens),
+        // replaced into the container and pushed onto the back stack.
         val fragment = binders[screen::class]?.createFragment(screen)
             ?: ScreenFragment.newInstance(screen)
         fragmentManager.commit {

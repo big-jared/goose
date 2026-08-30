@@ -13,38 +13,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.airbnb.mvrx.compose.collectAsState
 import dev.goose.mavericks.screenViewModel
-import dev.goose.metro.screenSerializers
 import dev.goose.runtime.ScreenEntry
-import dev.goose.runtime.ScreenUi
+import dev.goose.runtime.screenUi
 import dev.goose.sample.m1.profile.api.ProfileScreen
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ClassKey
-import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.ContributesTo
-import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.IntoSet
+import dev.zacsweers.metro.IntoMap
 import dev.zacsweers.metro.Provides
-import dev.zacsweers.metro.binding
-import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.subclass
 
-@ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
-@ClassKey(ProfileScreen::class)
-@Inject
-class ProfileUi(
-    private val vmFactory: ProfileViewModel.Factory,
-) : ScreenUi<ProfileScreen>() {
-    @Composable
-    override fun Content(screen: ProfileScreen, modifier: Modifier) {
-        val viewModel = screenViewModel<ProfileViewModel, ProfileState>(screen, vmFactory::create)
-        val state by viewModel.collectAsState()
-        ProfileContent(
-            state = state,
-            onToggleFollow = viewModel::toggleFollow,
-            onAppendNote = viewModel::appendNote,
-            onDone = viewModel::done,
-            modifier = modifier,
-        )
+@ContributesTo(AppScope::class)
+interface ProfileModule {
+    companion object {
+        @Provides
+        @IntoMap
+        @ClassKey(ProfileScreen::class)
+        fun profileUi(vmFactory: ProfileViewModel.Factory): ScreenEntry =
+            screenUi<ProfileScreen> { screen, modifier ->
+                val viewModel = screenViewModel<ProfileViewModel, ProfileState>(screen, vmFactory::create)
+                val state by viewModel.collectAsState()
+                ProfileContent(
+                    state = state,
+                    onToggleFollow = viewModel::toggleFollow,
+                    onAppendNote = viewModel::appendNote,
+                    onDone = viewModel::done,
+                    modifier = modifier,
+                )
+            }
     }
 }
 
@@ -64,16 +59,5 @@ private fun ProfileContent(
         Text("Notes (persisted): ${state.notes.ifEmpty { "—" }}")
         OutlinedButton(onClick = onAppendNote) { Text("Add a goose to notes") }
         Button(onClick = onDone) { Text("Done") }
-    }
-}
-
-@ContributesTo(AppScope::class)
-interface ProfileModule {
-    companion object {
-        @Provides
-        @IntoSet
-        fun profileSerializers(): SerializersModule = screenSerializers {
-            subclass(ProfileScreen::class)
-        }
     }
 }

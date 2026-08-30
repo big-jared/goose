@@ -53,6 +53,7 @@ fun FragmentActivity.installGooseNavigator(@IdRes containerId: Int): NavigatorHa
         containerId = containerId,
         binders = (graph as GooseFragmentAccessors).fragmentBinders,
         resultRouter = (graph as GooseRuntimeAccessors).resultRouter,
+        navigationOverrides = graph.fragmentNavigationOverrides,
     )
     handle.bind(navigator)
     onBackPressedDispatcher.addCallback(this) {

@@ -6,7 +6,6 @@ import androidx.compose.ui.Modifier
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.compose.AndroidFragment
-import dev.goose.metro.screenSerializers
 import dev.goose.runtime.Screen
 import dev.goose.runtime.ScreenEntry
 import dev.goose.runtime.ScreenUi
@@ -14,13 +13,8 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.binding
 import dev.zacsweers.metro.ClassKey
 import dev.zacsweers.metro.ContributesIntoMap
-import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.IntoSet
-import dev.zacsweers.metro.Provides
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.subclass
 
 /**
  * Direction 2 of the migration: a LEGACY fragment hosted on a Nav3-owned back stack. Lets a
@@ -50,16 +44,5 @@ class FragmentScreenEntry : ScreenUi<FragmentScreen>() {
             bundleOf(*screen.stringArgs.map { (k, v) -> k to v }.toTypedArray())
         }
         AndroidFragment(clazz = clazz, modifier = modifier, arguments = arguments)
-    }
-}
-
-@ContributesTo(AppScope::class)
-interface FragmentScreenModule {
-    companion object {
-        @Provides
-        @IntoSet
-        fun fragmentScreenSerializers(): SerializersModule = screenSerializers {
-            subclass(FragmentScreen::class)
-        }
     }
 }

@@ -25,7 +25,6 @@ import androidx.fragment.app.Fragment
 import dev.goose.fragment.FragmentScreen
 import dev.goose.metro.GooseCompositionLocals
 import dev.goose.metro.GooseGraphHolder
-import dev.goose.metro.screenSerializers
 import dev.goose.nav3.NavigableGooseContent
 import dev.goose.nav3.rememberGooseBackStack
 import dev.goose.runtime.LocalNavigator
@@ -35,13 +34,8 @@ import dev.goose.sample.m3.SettingsHomeScreen
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ClassKey
 import dev.zacsweers.metro.ContributesIntoMap
-import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.IntoSet
-import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.binding
-import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.subclass
 
 /**
  * The CONVERTED flow: this activity's stack is Nav3-owned (NavigableGooseContent). The one screen not
@@ -95,16 +89,5 @@ class AboutFragment : Fragment() {
             textSize = 20f
             gravity = Gravity.CENTER
         })
-    }
-}
-
-@ContributesTo(AppScope::class)
-interface M3SerializersModule {
-    companion object {
-        @Provides
-        @IntoSet
-        fun m3Serializers(): SerializersModule = screenSerializers {
-            subclass(SettingsHomeScreen::class)
-        }
     }
 }

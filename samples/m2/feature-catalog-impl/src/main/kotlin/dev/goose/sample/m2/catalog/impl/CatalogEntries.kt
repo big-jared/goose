@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.dp
 import com.airbnb.mvrx.compose.collectAsState
 import dev.goose.mavericks.screenViewModel
 import dev.goose.metro.gooseGraph
-import dev.goose.metro.screenSerializers
 import dev.goose.runtime.ScreenEntry
 import dev.goose.runtime.ScreenUi
 import dev.goose.runtime.sharedScreenElement
@@ -39,11 +38,7 @@ import dev.zacsweers.metro.ClassKey
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.IntoSet
-import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.binding
-import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.subclass
 
 internal fun itemColor(itemId: String): Color {
     val hues = listOf(0xFF7E57C2, 0xFF26A69A, 0xFFEF5350, 0xFF5C6BC0, 0xFFFFA726, 0xFF66BB6A)
@@ -119,18 +114,6 @@ class ItemDetailUi(
             Text("Price: $price", style = MaterialTheme.typography.titleLarge)
             Button(onClick = viewModel::buyNow) { Text("Buy now") }
             state.lastPurchaseAddress?.let { Text("Shipped to: $it") }
-        }
-    }
-}
-
-@ContributesTo(AppScope::class)
-interface CatalogModule {
-    companion object {
-        @Provides
-        @IntoSet
-        fun catalogSerializers(): SerializersModule = screenSerializers {
-            subclass(CatalogScreen::class)
-            subclass(ItemDetailScreen::class)
         }
     }
 }

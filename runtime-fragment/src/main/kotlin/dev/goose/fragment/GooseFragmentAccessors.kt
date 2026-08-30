@@ -10,4 +10,7 @@ import kotlin.reflect.KClass
 interface GooseFragmentAccessors {
     @Multibinds(allowEmpty = true)
     val fragmentBinders: Map<KClass<*>, ScreenFragmentBinder>
+
+    @Multibinds(allowEmpty = true)
+    val fragmentNavigationOverrides: Map<KClass<*>, FragmentScreenNavigation>
 }

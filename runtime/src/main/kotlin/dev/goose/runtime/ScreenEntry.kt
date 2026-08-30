@@ -56,3 +56,19 @@ abstract class ScreenUi<S : Screen> : ScreenEntry {
 val LocalNavigator = staticCompositionLocalOf<Navigator> {
     error("No Navigator provided. Screens must be hosted by a Goose host (NavigableGooseContent or ScreenFragment).")
 }
+
+/**
+ * Function form of a screen UI, for the @Provides registration style: the class, @Inject, and
+ * binding parameter all disappear because the provider's return type IS the binding:
+ * ```
+ * @Provides @IntoMap @ClassKey(ProfileScreen::class)
+ * fun profileUi(vmFactory: ProfileViewModel.Factory): ScreenEntry =
+ *     screenUi<ProfileScreen> { screen, modifier -> ... }
+ * ```
+ */
+inline fun <reified S : Screen> screenUi(
+    crossinline content: @Composable (screen: S, modifier: Modifier) -> Unit,
+): ScreenEntry = ScreenEntry { screen, modifier ->
+    @Suppress("UNCHECKED_CAST")
+    content(screen as S, modifier)
+}

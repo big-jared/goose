@@ -19,32 +19,27 @@ import com.airbnb.mvrx.Success
 import com.airbnb.mvrx.Uninitialized
 import com.airbnb.mvrx.compose.collectAsState
 import dev.goose.mavericks.screenViewModel
-import dev.goose.metro.screenSerializers
 import dev.goose.runtime.ScreenEntry
-import dev.goose.runtime.ScreenUi
+import dev.goose.runtime.screenUi
 import dev.goose.sample.m1.home.api.HomeScreen
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ClassKey
-import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.ContributesTo
-import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.IntoSet
+import dev.zacsweers.metro.IntoMap
 import dev.zacsweers.metro.Provides
-import dev.zacsweers.metro.binding
-import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.subclass
 
-@ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
-@ClassKey(HomeScreen::class)
-@Inject
-class HomeUi(
-    private val vmFactory: HomeViewModel.Factory,
-) : ScreenUi<HomeScreen>() {
-    @Composable
-    override fun Content(screen: HomeScreen, modifier: Modifier) {
-        val viewModel = screenViewModel<HomeViewModel, HomeState>(screen, vmFactory::create)
-        val state by viewModel.collectAsState()
-        HomeContent(state, onUserClicked = viewModel::onUserClicked, modifier = modifier)
+@ContributesTo(AppScope::class)
+interface HomeModule {
+    companion object {
+        @Provides
+        @IntoMap
+        @ClassKey(HomeScreen::class)
+        fun homeUi(vmFactory: HomeViewModel.Factory): ScreenEntry =
+            screenUi<HomeScreen> { screen, modifier ->
+                val viewModel = screenViewModel<HomeViewModel, HomeState>(screen, vmFactory::create)
+                val state by viewModel.collectAsState()
+                HomeContent(state, onUserClicked = viewModel::onUserClicked, modifier = modifier)
+            }
     }
 }
 
@@ -73,17 +68,6 @@ private fun HomeContent(
                 }
             }
             else -> Text("Failed to load users")
-        }
-    }
-}
-
-@ContributesTo(AppScope::class)
-interface HomeModule {
-    companion object {
-        @Provides
-        @IntoSet
-        fun homeSerializers(): SerializersModule = screenSerializers {
-            subclass(HomeScreen::class)
         }
     }
 }

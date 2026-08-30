@@ -19,7 +19,6 @@ import androidx.compose.ui.unit.dp
 import com.airbnb.mvrx.compose.collectAsState
 import dev.goose.mavericks.flowViewModel
 import dev.goose.mavericks.screenViewModel
-import dev.goose.metro.screenSerializers
 import dev.goose.nav3.NavigableGooseContent
 import dev.goose.nav3.rememberGooseBackStack
 import dev.goose.runtime.FlowViewModelScope
@@ -36,12 +35,8 @@ import dev.zacsweers.metro.ClassKey
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.IntoSet
-import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.binding
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.subclass
 
 // Wizard steps stay private to the cart feature by module structure: they live in :impl, which
 // no other module may depend on (enforced at configuration time). They must be PUBLIC Kotlin
@@ -180,21 +175,6 @@ class ConfirmStepUi : ScreenUi<ConfirmStepScreen>() {
                 enabled = flowState.address.isNotBlank(),
             ) { Text("Confirm order") }
             OutlinedButton(onClick = { navigator.pop() }) { Text("Back") }
-        }
-    }
-}
-
-@ContributesTo(AppScope::class)
-interface CartModule {
-    companion object {
-        @Provides
-        @IntoSet
-        fun cartSerializers(): SerializersModule = screenSerializers {
-            subclass(CartScreen::class)
-            subclass(CheckoutScreen::class)
-            subclass(ShippingStepScreen::class)
-            subclass(ConfirmStepScreen::class)
-            subclass(CartInfoScreen::class)
         }
     }
 }
