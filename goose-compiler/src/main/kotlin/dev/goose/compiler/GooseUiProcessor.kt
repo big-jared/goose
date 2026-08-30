@@ -28,7 +28,7 @@ private const val MAVERICKS_VM = "com.airbnb.mvrx.MavericksViewModel"
 private const val NAVIGATOR = "dev.goose.runtime.Navigator"
 private const val ASSISTED_FACTORY = "dev.zacsweers.metro.AssistedFactory"
 private const val QUALIFIER = "dev.zacsweers.metro.Qualifier"
-private const val APP_SCOPE = "dev.zacsweers.metro.AppScope"
+private const val SERIALIZABLE = "kotlinx.serialization.Serializable"
 
 /** Internal names in the generated ScreenEntry lambda, reserved so user params can't shadow them. */
 private val RESERVED_PARAM_NAMES = setOf("gooseScreen", "gooseModifier")
@@ -46,7 +46,10 @@ private val RESERVED_PARAM_NAMES = setOf("gooseScreen", "gooseModifier")
  *   with Metro qualifier annotations copied over
  *
  * Supported grammar: public or internal, top-level, non-suspend, non-generic, non-extension
- * `@Composable` functions. Anything else is a compile error with a message naming the rule.
+ * `@Composable` functions taking a `@Serializable` screen. Anything else is a compile error
+ * with a message naming the rule. Same-name functions are detected within a module; two Gradle
+ * modules sharing one package could still generate colliding class names, so keep feature
+ * packages distinct per module (the namespace every Android library module already declares).
  */
 class GooseUiProcessor(
     private val codeGenerator: CodeGenerator,
@@ -113,9 +116,18 @@ class GooseUiProcessor(
             logger.error("@GooseUi screen class has no qualified name", function)
             return
         }
-        val scopeFqn = annotation.classArgument("scope", index = 1)
-            ?.declaration?.qualifiedName?.asString()
-            .let { if (it == null || it == "kotlin.Unit") APP_SCOPE else it }
+        // Fail here, not on the first state save: back-stack persistence needs the serializer.
+        val screenSerializable = screenType.declaration.annotations.any {
+            it.annotationType.resolve().declaration.qualifiedName?.asString() == SERIALIZABLE
+        }
+        if (!screenSerializable) {
+            logger.error(
+                "@GooseUi screen ${screenType.declaration.simpleName.asString()} must be " +
+                    "@Serializable (back stacks persist screens across process death)",
+                function,
+            )
+            return
+        }
 
         val packageName = function.packageName.asString()
         val functionName = function.simpleName.asString()
@@ -247,7 +259,7 @@ class GooseUiProcessor(
                 |package $packageName
                 |$imports
                 |
-                |@dev.zacsweers.metro.ContributesTo($scopeFqn::class)
+                |@dev.zacsweers.metro.ContributesTo(dev.zacsweers.metro.AppScope::class)
                 |public interface $moduleName {
                 |    public companion object {
                 |        @dev.zacsweers.metro.Provides

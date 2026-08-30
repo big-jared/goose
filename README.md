@@ -20,6 +20,10 @@ have to.
 
 ## Setup (once per app)
 
+Build requirement first, because it fails confusingly otherwise: Gradle must run on JDK 21 or
+newer (Metro's compiler plugin requires it). On JDK 17 the build fails before configuration.
+
+
 Not on Maven yet; include the `runtime*` modules with Gradle's `includeBuild` or as a
 submodule. Then two steps:
 

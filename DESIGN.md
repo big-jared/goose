@@ -7,9 +7,11 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
 ## @GooseUi
 
 1. **Supported grammar. Fixed.** `@GooseUi` requires a public or internal, top-level,
-   non-suspend, non-generic, non-extension `@Composable` function. Anything else is a KSP error
-   naming the rule. Private functions are rejected because the generated registration lives in a
-   separate file; member and extension functions because the generated adapter has no receiver.
+   non-suspend, non-generic, non-extension `@Composable` function, and its screen class must be
+   `@Serializable` (caught at the annotation, not at the first state save). Anything else is a
+   KSP error naming the rule. Private functions are rejected because the generated registration
+   lives in a separate file; member and extension functions because the generated adapter has no
+   receiver.
 
 2. **Qualified dependencies. Fixed.** Metro qualifier annotations (any annotation itself
    annotated `@Qualifier`, such as `@Named`) on injected parameters are copied onto the generated
@@ -22,10 +24,12 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
    know whether an omitted graph binding was intentional, so "missing binding" stays a Metro
    compile error rather than a silent fallback to the default.
 
-4. **Same-name functions. Fixed.** Two `@GooseUi` functions with the same name in one package
-   are a KSP error telling you to rename one. Generated modules are named after the function
-   (`ProfileUiGooseModule`) because readable names beat collision-proof mangled ones; the
-   collision is detected instead of tolerated.
+4. **Same-name functions. Fixed within a module, decided across modules.** Two `@GooseUi`
+   functions with the same name in one package are a KSP error telling you to rename one.
+   Generated modules are named after the function (`ProfileUiGooseModule`) because readable
+   names beat collision-proof mangled ones. Across Gradle modules the processor cannot see, so
+   two modules sharing one package could still collide; the rule is one package per module,
+   which the Android namespace every library module declares already encourages.
 
 5. **Generated identifier hygiene. Fixed.** Generated lambda locals use reserved names
    (`gooseScreen`, `gooseModifier`); using those as parameter names is a compile error. Generated
@@ -43,9 +47,10 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
    state class. Assignability matching (interfaces, supertypes) invites ambiguity between two
    VMs whose states share an interface; exactness keeps the rule explainable in one sentence.
 
-9. **Scope. Fixed.** `@GooseUi(ProfileScreen::class, scope = LoggedInScope::class)` contributes
-   to that scope; the default is `AppScope`. (`Unit::class` is the default sentinel so `:runtime`
-   stays Metro-free.)
+9. **Scope. Deferred, deliberately.** A scope parameter briefly existed and was removed: it
+   contributed entries to a scope that no ScreenRegistry reads, which is an annotation-shaped
+   trap. Registrations are `AppScope` until child-graph registries land (item 36); the parameter
+   returns with them.
 
 10. **Compile-testing fixtures. Deferred.** The grammar rules are enforced but exercised only
     through the samples (happy path) today. A compile-testing suite for the error cases is
@@ -55,11 +60,19 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
 ## Navigation and results
 
 11. **Request identity. Fixed.** A result request is keyed by screen class + owning stack
-    instance. Every stack host generates a saveable per-instance tag (`rememberSaveable` UUID on
-    the compose side, a retained-ViewModel UUID on the fragment side), so keys are stable across
-    recreation but unique per stack and per activity. Within one stack, same-class requests
-    resolve LIFO, which matches stack discipline. Identity-based keys were rejected because a
-    restored stack holds new-but-equal instances (this was a real bug, caught by test).
+    instance. Every stack host generates a saveable per-instance tag (`rememberSaveable` UUID
+    keyed on the stack instance on the compose side, a retained-ViewModel UUID on the fragment
+    side), so keys are stable across recreation but unique per stack, per activity, and per
+    swapped-in stack. The tags are mandatory constructor parameters on the concrete navigators,
+    so hand-built hosts cannot silently lose the isolation. Within one stack, same-class
+    requests resolve LIFO, which is CORRECT for stack-disciplined destinations (a stack removes
+    its most recent same-class screen first). Destinations that bypass the stack, i.e. custom
+    fragment adapters showing dialogs or activities, do not get LIFO assumptions: each
+    `FragmentNavigationRequest` captures its exact awaiter at navigation time (registration
+    happens-before goTo on one main-thread chain) and `deliverResult` completes that caller
+    specifically, so two same-class dialogs answering out of order each resolve their own
+    request. Identity-based ROUTING KEYS were still rejected because a restored stack holds
+    new-but-equal instances (a real bug, caught by test).
 
 12. **Simultaneous activities. Fixed.** Covered by 11: two activities awaiting the same screen
     class no longer share a routing key, even though `ResultRouter` remains app-scoped.
@@ -71,9 +84,10 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
 14. **Adapters that forget to deliver. Decided.** Accepted adapter responsibility, stated in the
     `FragmentScreenNavigation` KDoc: push onto the FragmentManager back stack under
     `backStackEntryName` (delivery is then automatic on pop, whoever pops), or call
-    `deliverResult` from your dismissal path. The backstop is that awaiting is done from
-    presenter coroutine scopes, which cancel when the caller is cleared, so a forgotten delivery
-    leaks nothing; it just resumes nobody.
+    `deliverResult` from your dismissal path. A forgotten delivery leaves the caller suspended
+    until its presenter scope is cleared (screen popped, flow finished, activity done); the
+    coroutine is cancelled then, so nothing leaks beyond that lifetime, but the caller does
+    stay parked in the meantime.
 
 15. **Typed answering. Decided.** `ScreenWithResult<R>` types the caller; the destination's
     `pop(result)` is untyped by design, because the destination's own screen type makes the
@@ -85,10 +99,11 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
     alone; the user is still looking at it. When it eventually pops, delivery no-ops. This is the
     same contract as a coroutine-wrapped ActivityResult.
 
-17. **Sequential consistency. Decided.** Both hosts execute commands in call order on the main
-    thread: Nav3 synchronously against the snapshot list, the fragment host through the
-    FragmentManager's transaction queue (async but strictly ordered). What differs is only when
-    effects become observable, which navigation logic should not depend on.
+17. **Sequential consistency. Fixed.** Nav3 mutates synchronously. The fragment host queues
+    commits, which made `goTo(A); pop()` in one main-loop turn read the stale pre-commit stack
+    and drop the pop; `FragmentNavigator.pop` now flushes pending transactions first (guarded
+    for saved state and reentrancy), covered by an m3 test. Writes remain strictly ordered
+    through the FragmentManager queue; only observation timing differs between hosts.
 
 18. **backStack introspection. Decided.** `Navigator.backStack` is best-effort, documented as
     such: the fragment host returns an empty list because Screen instances cannot be
@@ -113,8 +128,9 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
     just an internal comment.
 
 22. **Saved-stack migration across releases. Fixed.** Restoration is resilient by design: a
-    stack that cannot be decoded (renamed or removed screen class, incompatible field change)
-    restarts at its initial roots instead of crash-looping. Covered by tests in `:runtime-nav3`.
+    stack that cannot be decoded (renamed or removed screen class, incompatible field change,
+    or a class-loading LinkageError from a broken split or static initializer) restarts at its
+    initial roots instead of crash-looping. Covered by tests in `:runtime-nav3`.
 
 23. **@SerialName and reflection. Fixed/decided.** The reflective fallback resolves default
     serial names, including nested classes (progressive dollar substitution to the JVM binary

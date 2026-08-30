@@ -76,6 +76,10 @@ internal fun decodeBackStackOrNull(
 } catch (e: Exception) {
     Log.w("Goose", "Back stack restore failed (app update removed a screen class?); starting fresh", e)
     null
+} catch (e: LinkageError) {
+    // Class loading itself failed (partial dynamic-feature install, broken static init).
+    Log.w("Goose", "Back stack restore failed loading a screen class; starting fresh", e)
+    null
 }
 
 /**
@@ -100,8 +104,10 @@ fun NavigableGooseContent(
     val resultRouter = gooseGraph<GooseRuntimeAccessors>().resultRouter
     // Stable per-stack-instance identity: scopes result routing to this stack, so equal screen
     // classes awaited in different stacks or activities never cross-deliver. Saveable, so
-    // pending awaiters survive recreation.
-    val stackTag = rememberSaveable { UUID.randomUUID().toString() }
+    // pending awaiters survive recreation (restore ignores the input key, so the restored stack
+    // being a new instance is fine); keyed on the stack so SWAPPING a different stack into this
+    // slot mid-composition gets a fresh tag instead of inheriting the old stack's requests.
+    val stackTag = rememberSaveable(backStack) { UUID.randomUUID().toString() }
     val navigator = remember(backStack, parent) { Nav3Navigator(backStack, resultRouter, parent, stackTag) }
     GooseNavDisplay(
         displayStack = backStack,

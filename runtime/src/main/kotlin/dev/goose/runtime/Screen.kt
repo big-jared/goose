@@ -6,8 +6,10 @@ import androidx.navigation3.runtime.NavKey
  * A navigation destination. Screens are the only currency of navigation: they live in `:api`
  * modules so features can navigate to each other without depending on implementations.
  *
- * Concrete screens must be `@Serializable` (kotlinx) so back stacks can survive process death,
- * and must be registered polymorphically against [NavKey] via a contributed `SerializersModule`.
+ * Concrete screens must be `@Serializable` (kotlinx) so back stacks can survive process death.
+ * Registration is reflective by default (the runtime resolves each screen's serializer by class
+ * name); explicit registration via a contributed `screenSerializers { }` module is optional and
+ * takes precedence, and is required only for custom `@SerialName`s.
  *
  * Screens are also [java.io.Serializable] because they double as Mavericks args
  * (ViewModelContext.args must be Parcelable or Serializable for saved-state persistence) —

@@ -42,7 +42,7 @@ class GooseTabNavigator internal constructor(
     private val currentTabState: MutableState<StackKey>,
     resultRouter: ResultRouter,
     override val parent: Navigator? = null,
-    private val hostTag: String? = null,
+    private val hostTag: String,
 ) : BaseNavigator(resultRouter), TabNavigator {
 
     override val currentTab: StackKey by currentTabState
@@ -56,7 +56,7 @@ class GooseTabNavigator internal constructor(
      * get distinct, recreation-stable keys.
      */
     override fun resultKeyFor(screen: Screen): String =
-        "${resultRouter.resultKeyOf(screen)}#${hostTag.orEmpty()}#${currentTab.value}"
+        "${resultRouter.resultKeyOf(screen)}#$hostTag#${currentTab.value}"
 
     val displayStack: List<NavKey>
         get() = buildList {

@@ -13,6 +13,7 @@ import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import dev.goose.fragment.gooseNavigator
 import dev.goose.sample.m3.settings.SettingsActivity
 import org.hamcrest.CoreMatchers.containsString
 import org.junit.Rule
@@ -56,6 +57,27 @@ class M3MigrationRobolectricTest {
             // Compose pops a typed result back to the legacy home fragment's VM.
             composeRule.onNodeWithText("Done").performClick()
             onView(withText("profile → counter was 2")).check(matches(isDisplayed()))
+        }
+    }
+
+    /**
+     * Sequential consistency on the fragment host: goTo immediately followed by pop in the SAME
+     * main-loop turn must pop the screen just pushed, even though FragmentManager commits are
+     * queued. Without the pending-transaction flush in FragmentNavigator.pop, the pop reads the
+     * stale pre-commit stack, returns false, and the pushed screen wrongly survives.
+     */
+    @Test
+    fun goToThenPopInOneTurnIsOrdered() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            onView(withText(containsString("Shared counter: 0"))).check(matches(isDisplayed()))
+            scenario.onActivity { activity ->
+                val navigator = activity.gooseNavigator
+                navigator.goTo(ProfileScreen("same-turn"))
+                check(navigator.pop()) { "pop must handle the just-pushed screen" }
+            }
+            composeRule.waitForIdle()
+            // Back on legacy home, profile never stuck.
+            onView(withText(containsString("Shared counter: 0"))).check(matches(isDisplayed()))
         }
     }
 

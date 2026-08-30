@@ -98,8 +98,10 @@ Ordered roughly by dependency. See [GOALS.md](GOALS.md) for milestone definition
       tested; this machine's emulator wedge makes an instrumented gate flaky)
 - [ ] Host-level default transition override (screen-owned ScreenTransitions is the contract;
       see DESIGN.md #33)
-- [ ] Session/logged-in graphs: @GraphExtension + @GooseUi(scope = ...) registries resolved from
-      child graphs (DESIGN.md #36)
+- [ ] Session/logged-in graphs: @GraphExtension child registries, plus a @GooseUi scope
+      parameter once a child ScreenRegistry exists to read it (the parameter was briefly added
+      and removed: an annotation that contributes to a scope nothing consumes is a trap, see
+      DESIGN.md #9/#36)
 - [ ] Per-push instance identity for equal screens on one stack, if/when Nav3 offers it
       (DESIGN.md #21)
 
@@ -107,7 +109,7 @@ Ordered roughly by dependency. See [GOALS.md](GOALS.md) for milestone definition
       URI parsing stays app-side)
 - [x] Overlay/dialog screens: `OverlayScreen` marker → DialogSceneStrategy
       (M2 cart-info dialog)
-- [x] Instrumentation tests: retention, result delivery, process death, back
+- [x] Instrumentation tests: retention, result delivery, recreation, back
 - [x] Build-time rule: goose.android.feature fails configuration on
       `:feature:*:impl` → `*-impl` project deps (verified with a synthetic violation)
 - [x] README: migration cookbook ("migrate one screen" recipe, before/after diff)

@@ -61,13 +61,21 @@ class FragmentNavigationRequest internal constructor(
 ) {
     private val delivered = java.util.concurrent.atomic.AtomicBoolean(false)
 
+    // The exact caller this request answers, captured at navigation time: goToForResult
+    // registers before calling goTo on the same main-thread chain, so the newest awaiter for
+    // this key is ours. Correlating by identity (not key LIFO) means two same-class dialogs
+    // answering out of order each resolve their own caller.
+    private val awaiter = resultRouter.peekMostRecent(backStackEntryName)
+
     /**
-     * For destinations that bypass the back stack: answer a caller awaiting this screen.
+     * For destinations that bypass the back stack: answer the caller awaiting this screen.
      * One-shot per request — a second call no-ops, so a dismiss callback firing after a
      * result callback cannot consume some OTHER pending request for the same screen.
      */
     fun deliverResult(result: PopResult?) {
-        if (delivered.compareAndSet(false, true)) resultRouter.complete(backStackEntryName, result)
+        if (!delivered.compareAndSet(false, true)) return
+        val awaiter = awaiter ?: return // plain goTo, nobody awaiting
+        resultRouter.completeExact(backStackEntryName, awaiter, result)
     }
 }
 
@@ -94,12 +102,12 @@ class FragmentNavigator(
     resultRouter: ResultRouter,
     override val parent: Navigator? = null,
     private val navigationOverrides: Map<KClass<*>, FragmentScreenNavigation> = emptyMap(),
-    private val stackTag: String? = null,
+    private val stackTag: String,
 ) : BaseNavigator(resultRouter) {
 
     /** Scoped to this activity's stack (the tag is retained across rotation by the installer). */
     override fun resultKeyFor(screen: Screen): String =
-        stackTag?.let { "${resultRouter.resultKeyOf(screen)}#$it" } ?: super.resultKeyFor(screen)
+        "${resultRouter.resultKeyOf(screen)}#$stackTag"
 
     private var knownEntryNames: List<String?> = currentEntryNames()
 
@@ -156,6 +164,15 @@ class FragmentNavigator(
 
     override fun pop(result: PopResult?): Boolean {
         requireMainThread()
+        // A goTo from this same main-loop turn is still a queued FragmentManager transaction;
+        // flush it so this pop sees the stack as ordered, not the stale pre-commit view
+        // (goTo(A); pop() must pop A, not report an empty stack). Skipped when the FM cannot
+        // execute (state saved, or already mid-execution): the queue itself is still ordered,
+        // the stale read is only possible from a same-turn sequence, which composition and
+        // ViewModel code paths issue from plain main-looper turns.
+        if (!fragmentManager.isStateSaved) {
+            runCatching { fragmentManager.executePendingTransactions() }
+        }
         val count = fragmentManager.backStackEntryCount
         if (count > 0) {
             val name = fragmentManager.getBackStackEntryAt(count - 1).name

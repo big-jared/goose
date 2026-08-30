@@ -82,6 +82,9 @@ private fun classForSerialName(name: String): Class<*>? {
         try {
             return Class.forName(candidate)
         } catch (_: ClassNotFoundException) {
+        } catch (_: LinkageError) {
+            // A class that exists but cannot load (a dynamic-feature split's dangling
+            // reference, a broken static init) is as gone as a missing one for restoration.
         }
         val lastDot = candidate.lastIndexOf('.')
         if (lastDot < 0) return null
