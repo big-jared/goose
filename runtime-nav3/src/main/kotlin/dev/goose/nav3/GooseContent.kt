@@ -25,6 +25,7 @@ import dev.goose.runtime.LocalSharedTransitionScope
 import dev.goose.runtime.Navigator
 import dev.goose.runtime.OverlayScreen
 import dev.goose.runtime.Screen
+import dev.goose.runtime.ScreenTransitions
 
 /**
  * A persisted back stack whose serializers come from every feature module's contributed
@@ -104,12 +105,16 @@ internal fun GooseNavDisplay(
                     // A stack's ROOT never renders as a dialog: nav3 requires a non-empty scene
                     // beneath an overlay, and in a tab host the entry beneath would belong to
                     // ANOTHER tab. Root overlays degrade to full-screen entries.
-                    val metadata =
+                    var metadata: Map<String, Any> =
                         if (screen is OverlayScreen && !isStackRoot(key)) {
                             DialogSceneStrategy.dialog()
                         } else {
                             emptyMap()
                         }
+                    if (screen is ScreenTransitions) {
+                        screen.enterTransition()?.let { t -> metadata = metadata + NavDisplay.transitionSpec { t } }
+                        screen.exitTransition()?.let { t -> metadata = metadata + NavDisplay.popTransitionSpec { t } }
+                    }
                     NavEntry(key, metadata = metadata) {
                         CompositionLocalProvider(
                             LocalScreenAnimatedContentScope provides LocalNavAnimatedContentScope.current,

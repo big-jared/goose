@@ -8,19 +8,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.airbnb.mvrx.compose.collectAsState
-import dev.goose.mavericks.screenViewModel
 import dev.goose.runtime.GooseUi
 import dev.goose.sample.m1.profile.api.ProfileScreen
 
 @GooseUi(ProfileScreen::class)
 @Composable
-fun ProfileUi(screen: ProfileScreen, modifier: Modifier, vmFactory: ProfileViewModel.Factory) {
-    val viewModel = screenViewModel<ProfileViewModel, ProfileState>(screen, vmFactory::create)
-    val state by viewModel.collectAsState()
+fun ProfileUi(state: ProfileState, viewModel: ProfileViewModel, modifier: Modifier) {
     ProfileContent(
         state = state,
         onToggleFollow = viewModel::toggleFollow,
