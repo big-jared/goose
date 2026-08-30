@@ -91,11 +91,16 @@ Ordered roughly by dependency. See [GOALS.md](GOALS.md) for milestone definition
 
 ## 7. Hardening / later
 
-- [ ] goose-compiler compile-testing fixtures for the @GooseUi error grammar (blocked on a
-      compile-testing harness for this Kotlin/KSP2 toolchain; rules are enforced, samples cover
-      the happy path, serialization/restore rules covered by :runtime-nav3 tests)
-- [ ] True kill-and-relaunch instrumented process-death test (the serialization layer is unit
-      tested; this machine's emulator wedge makes an instrumented gate flaky)
+- [x] goose-compiler compile-testing fixtures for the @GooseUi error grammar (kctfork 0.13 +
+      KSP2: 10 tests, one per rejected shape plus the happy path)
+- [x] True kill-and-relaunch process-death verification: tools/process-death-test.sh drives the
+      real thing over adb (new pid, stack + @PersistState restored); host-side because killing
+      an instrumented target kills the test too. Run on the emulator 2026-08-30, passing.
+- [x] Real-FragmentNavigationRequest integration tests (out-of-order same-class dialogs, plain
+      goTo isolation, one-shot delivery) in :runtime-fragment
+- [x] CI (GitHub Actions: tests + assemble + publishToMavenLocal on every push/PR)
+- [x] Maven Central publication: io.github.big-jared:goose-* via the vanniktech plugin;
+      label-driven release workflow (see RELEASE.md). First release not yet run.
 - [ ] Host-level default transition override (screen-owned ScreenTransitions is the contract;
       see DESIGN.md #33)
 - [ ] Session/logged-in graphs: @GraphExtension child registries, plus a @GooseUi scope

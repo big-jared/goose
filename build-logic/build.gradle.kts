@@ -8,4 +8,5 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-serialization:${libs.versions.kotlin.get()}")
     implementation("dev.zacsweers.metro:gradle-plugin:${libs.versions.metro.get()}")
     implementation("com.google.devtools.ksp:symbol-processing-gradle-plugin:${libs.versions.ksp.get()}")
+    implementation("com.vanniktech:gradle-maven-publish-plugin:0.37.0")
 }

@@ -161,10 +161,12 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
     callers (the coroutine dies with the process; a restart reads as "no answer", same as
     ActivityResult).
 
-27. **Kill-and-restore testing. Partially addressed, deferred.** The serialization layer of
-    process death is now tested directly (encode, decode in a fresh context, corrupt-input
-    degradation). A true kill-and-relaunch instrumented test remains tracked in TODO.md; this
-    machine's emulator wedge makes it a poor gate.
+27. **Kill-and-restore testing. Done.** Two layers: the serialization layer is unit tested
+    (encode, decode in a fresh context, corrupt-input degradation), and
+    `tools/process-death-test.sh` performs the real thing on a device over adb: background,
+    `am kill` (verified new pid), relaunch, assert the pushed stack and `@PersistState` fields
+    restored. Host-side by necessity: instrumentation dies with the process it kills. Not a CI
+    gate (needs an emulator); run it before releases.
 
 ## Tabs and deep links
 

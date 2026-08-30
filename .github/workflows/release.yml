@@ -1,0 +1,154 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.2.0, 1.0.0)'
+        required: true
+        type: string
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  release:
+    name: Create release
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: |
+      (github.event_name == 'workflow_dispatch') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'release'))
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+
+    - name: Calculate next version
+      if: github.event_name == 'pull_request'
+      id: auto_version
+      run: |
+        CURRENT_VERSION=$(grep "^VERSION_NAME=" gradle.properties | cut -d= -f2 | sed 's/-SNAPSHOT//')
+        MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+        MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
+        PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
+        NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+        echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+        echo "Next version: $NEW_VERSION"
+
+    - name: Set version variable
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+        else
+          echo "version=${{ steps.auto_version.outputs.version }}" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Validate version format
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+          echo "Error: invalid version format: $VERSION (use semantic versioning, e.g. 1.0.0)"
+          exit 1
+        fi
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: 22
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v4
+
+    - name: Install Android SDK platform 37
+      run: |
+        yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+        "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37"
+
+    - name: Run tests
+      run: ./gradlew test
+
+    - name: Update version in gradle.properties and README
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        sed -i "s/^VERSION_NAME=.*/VERSION_NAME=$VERSION/" gradle.properties
+        sed -i "s/gooseVersion = \"[0-9][^\"]*\"/gooseVersion = \"$VERSION\"/" README.md
+        echo "Updated version to $VERSION"
+
+    - name: Generate changelog
+      run: |
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)
+        {
+          echo "## What's Changed"
+          echo ""
+          git log "${LAST_TAG}"..HEAD --no-merges --pretty=format:"* %s (%h)" --reverse
+          echo ""
+        } > CHANGELOG.md
+
+    - name: Configure git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Commit release changes
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        git add gradle.properties README.md || true
+        if git diff --cached --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "chore: release version $VERSION"
+        fi
+
+    - name: Create and push tag
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        git tag -a "v$VERSION" -m "Release v$VERSION"
+        git push origin main
+        git push origin "v$VERSION"
+
+    - name: Import GPG key
+      env:
+        SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+      run: |
+        echo "$SIGNING_KEY" | gpg --dearmor > "$HOME/secring.gpg"
+
+    - name: Add Gradle properties
+      env:
+        MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+        MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+        SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
+        SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+      run: |
+        {
+          echo "mavenCentralUsername=${MAVEN_CENTRAL_USERNAME}"
+          echo "mavenCentralPassword=${MAVEN_CENTRAL_PASSWORD}"
+          echo "signing.keyId=${SIGNING_KEY_ID}"
+          echo "signing.password=${SIGNING_KEY_PASSWORD}"
+          echo "signing.secretKeyRingFile=${HOME}/secring.gpg"
+          echo "goose.releaseSigning=true"
+        } >> gradle.properties
+
+    - name: Publish to Maven Central
+      run: ./gradlew publishAllPublicationsToMavenCentralRepository --no-configuration-cache
+
+    - name: Create GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        gh release create "v$VERSION" --title "v$VERSION" --notes-file CHANGELOG.md
+
+    - name: Cleanup
+      if: always()
+      run: rm -f CHANGELOG.md

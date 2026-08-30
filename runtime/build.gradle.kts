@@ -1,4 +1,5 @@
 plugins {
+    id("goose.publish")
     id("goose.android.library")
 }
 

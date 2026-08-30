@@ -1,0 +1,290 @@
+@file:OptIn(ExperimentalCompilerApi::class)
+
+package dev.goose.compiler
+
+import com.tschuchort.compiletesting.JvmCompilationResult
+import com.tschuchort.compiletesting.KotlinCompilation
+import com.tschuchort.compiletesting.SourceFile
+import com.tschuchort.compiletesting.configureKsp
+import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * The @GooseUi grammar, enforced: every rejected shape produces a compile error naming the rule,
+ * and the happy path generates a registration that itself compiles. Stub declarations stand in
+ * for compose/metro/goose types; the processor matches by qualified name only.
+ */
+class GooseUiProcessorTest {
+
+    private val stubs = SourceFile.kotlin(
+        "Stubs.kt",
+        """
+        package dev.goose.runtime
+        import kotlin.reflect.KClass
+        annotation class GooseUi(val screen: KClass<out Screen>)
+        interface Screen
+        interface Navigator
+        fun interface ScreenEntry {
+            fun Content(screen: Screen, modifier: androidx.compose.ui.Modifier)
+        }
+        """.trimIndent(),
+    )
+    private val composeStub = SourceFile.kotlin(
+        "ComposeStub.kt",
+        """
+        package androidx.compose.runtime
+        annotation class Composable
+        """.trimIndent(),
+    )
+    private val modifierStub = SourceFile.kotlin(
+        "ModifierStub.kt",
+        """
+        package androidx.compose.ui
+        class Modifier
+        """.trimIndent(),
+    )
+    private val serializationStub = SourceFile.kotlin(
+        "SerializationStub.kt",
+        """
+        package kotlinx.serialization
+        annotation class Serializable
+        """.trimIndent(),
+    )
+    private val metroStub = SourceFile.kotlin(
+        "MetroStub.kt",
+        """
+        package dev.zacsweers.metro
+        import kotlin.reflect.KClass
+        annotation class ContributesTo(val scope: KClass<*>)
+        annotation class Provides
+        annotation class IntoMap
+        annotation class ClassKey(val value: KClass<*>)
+        annotation class AssistedFactory
+        annotation class Qualifier
+        abstract class AppScope
+        """.trimIndent(),
+    )
+    private val mavericksStub = SourceFile.kotlin(
+        "MavericksStub.kt",
+        """
+        package com.airbnb.mvrx
+        abstract class MavericksViewModel<S>(initialState: S)
+        """.trimIndent(),
+    )
+
+    private fun compile(source: String): JvmCompilationResult {
+        val compilation = KotlinCompilation().apply {
+            sources = listOf(
+                stubs, composeStub, modifierStub, serializationStub, metroStub, mavericksStub,
+                SourceFile.kotlin("Test.kt", source),
+            )
+            configureKsp {
+                symbolProcessorProviders += GooseUiProcessorProvider()
+            }
+            inheritClassPath = true
+            messageOutputStream = java.io.OutputStream.nullOutputStream()
+        }
+        return compilation.compile()
+    }
+
+    private fun assertError(source: String, expectedMessage: String) {
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.COMPILATION_ERROR, result.exitCode)
+        assertTrue(
+            "expected \"$expectedMessage\" in:\n${result.messages}",
+            result.messages.contains(expectedMessage),
+        )
+    }
+
+    @Test
+    fun validFunctionCompilesAndRegisters() {
+        val result = compile(
+            """
+            package test
+            import androidx.compose.runtime.Composable
+            import androidx.compose.ui.Modifier
+            import dev.goose.runtime.GooseUi
+            import dev.goose.runtime.Screen
+            import kotlinx.serialization.Serializable
+
+            @Serializable class HomeScreen : Screen
+
+            @GooseUi(HomeScreen::class)
+            @Composable
+            fun HomeUi(screen: HomeScreen, modifier: Modifier) { }
+            """.trimIndent(),
+        )
+        assertEquals(result.messages, KotlinCompilation.ExitCode.OK, result.exitCode)
+    }
+
+    @Test
+    fun screenMustBeSerializable() = assertError(
+        """
+        package test
+        import androidx.compose.runtime.Composable
+        import dev.goose.runtime.GooseUi
+        import dev.goose.runtime.Screen
+
+        class HomeScreen : Screen
+
+        @GooseUi(HomeScreen::class)
+        @Composable
+        fun HomeUi(screen: HomeScreen) { }
+        """.trimIndent(),
+        "must be @Serializable",
+    )
+
+    @Test
+    fun functionMustBeComposable() = assertError(
+        """
+        package test
+        import dev.goose.runtime.GooseUi
+        import dev.goose.runtime.Screen
+        import kotlinx.serialization.Serializable
+
+        @Serializable class HomeScreen : Screen
+
+        @GooseUi(HomeScreen::class)
+        fun HomeUi(screen: HomeScreen) { }
+        """.trimIndent(),
+        "must be @Composable",
+    )
+
+    @Test
+    fun functionMustNotBePrivate() = assertError(
+        """
+        package test
+        import androidx.compose.runtime.Composable
+        import dev.goose.runtime.GooseUi
+        import dev.goose.runtime.Screen
+        import kotlinx.serialization.Serializable
+
+        @Serializable class HomeScreen : Screen
+
+        @GooseUi(HomeScreen::class)
+        @Composable
+        private fun HomeUi(screen: HomeScreen) { }
+        """.trimIndent(),
+        "must not be private",
+    )
+
+    @Test
+    fun functionMustBeTopLevel() = assertError(
+        """
+        package test
+        import androidx.compose.runtime.Composable
+        import dev.goose.runtime.GooseUi
+        import dev.goose.runtime.Screen
+        import kotlinx.serialization.Serializable
+
+        @Serializable class HomeScreen : Screen
+
+        class Holder {
+            @GooseUi(HomeScreen::class)
+            @Composable
+            fun HomeUi(screen: HomeScreen) { }
+        }
+        """.trimIndent(),
+        "must be a top-level function",
+    )
+
+    @Test
+    fun functionMustNotBeExtension() = assertError(
+        """
+        package test
+        import androidx.compose.runtime.Composable
+        import dev.goose.runtime.GooseUi
+        import dev.goose.runtime.Screen
+        import kotlinx.serialization.Serializable
+
+        @Serializable class HomeScreen : Screen
+
+        @GooseUi(HomeScreen::class)
+        @Composable
+        fun String.HomeUi(screen: HomeScreen) { }
+        """.trimIndent(),
+        "must not be an extension function",
+    )
+
+    @Test
+    fun functionMustNotBeGeneric() = assertError(
+        """
+        package test
+        import androidx.compose.runtime.Composable
+        import dev.goose.runtime.GooseUi
+        import dev.goose.runtime.Screen
+        import kotlinx.serialization.Serializable
+
+        @Serializable class HomeScreen : Screen
+
+        @GooseUi(HomeScreen::class)
+        @Composable
+        fun <T> HomeUi(screen: HomeScreen, unused: T) { }
+        """.trimIndent(),
+        "must not be generic",
+    )
+
+    @Test
+    fun sameNameFunctionsInOnePackageCollide() = assertError(
+        """
+        package test
+        import androidx.compose.runtime.Composable
+        import dev.goose.runtime.GooseUi
+        import dev.goose.runtime.Screen
+        import kotlinx.serialization.Serializable
+
+        @Serializable class HomeScreen : Screen
+        @Serializable class OtherScreen : Screen
+
+        @GooseUi(HomeScreen::class)
+        @Composable
+        fun Content(screen: HomeScreen) { }
+
+        @GooseUi(OtherScreen::class)
+        @Composable
+        fun Content(screen: OtherScreen) { }
+        """.trimIndent(),
+        "two annotated functions named",
+    )
+
+    @Test
+    fun reservedParameterNamesAreRejected() = assertError(
+        """
+        package test
+        import androidx.compose.runtime.Composable
+        import dev.goose.runtime.GooseUi
+        import dev.goose.runtime.Screen
+        import kotlinx.serialization.Serializable
+
+        @Serializable class HomeScreen : Screen
+
+        @GooseUi(HomeScreen::class)
+        @Composable
+        fun HomeUi(screen: HomeScreen, gooseScreen: String) { }
+        """.trimIndent(),
+        "reserved for generated code",
+    )
+
+    @Test
+    fun viewModelWithoutAssistedFactoryIsRejected() = assertError(
+        """
+        package test
+        import androidx.compose.runtime.Composable
+        import com.airbnb.mvrx.MavericksViewModel
+        import dev.goose.runtime.GooseUi
+        import dev.goose.runtime.Screen
+        import kotlinx.serialization.Serializable
+
+        @Serializable class HomeScreen : Screen
+        class HomeState
+        class HomeViewModel(initialState: HomeState) : MavericksViewModel<HomeState>(initialState)
+
+        @GooseUi(HomeScreen::class)
+        @Composable
+        fun HomeUi(screen: HomeScreen, vm: HomeViewModel) { }
+        """.trimIndent(),
+        "no nested @AssistedFactory",
+    )
+}

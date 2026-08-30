@@ -23,6 +23,22 @@ have to.
 Build requirement first, because it fails confusingly otherwise: Gradle must run on JDK 21 or
 newer (Metro's compiler plugin requires it). On JDK 17 the build fails before configuration.
 
+Goose publishes to Maven Central under `io.github.big-jared` (until the first release lands
+there, `./gradlew publishToMavenLocal` from a checkout gives you the same artifacts):
+
+```kotlin
+val gooseVersion = "0.1.0"
+
+dependencies {
+    implementation("io.github.big-jared:goose-runtime:$gooseVersion")
+    implementation("io.github.big-jared:goose-runtime-metro:$gooseVersion")
+    implementation("io.github.big-jared:goose-runtime-mavericks:$gooseVersion")
+    implementation("io.github.big-jared:goose-runtime-nav3:$gooseVersion")
+    implementation("io.github.big-jared:goose-runtime-fragment:$gooseVersion") // during migration
+    ksp("io.github.big-jared:goose-compiler:$gooseVersion")
+}
+```
+
 
 Not on Maven yet; include the `runtime*` modules with Gradle's `includeBuild` or as a
 submodule. Then two steps:
