@@ -32,11 +32,13 @@ import dev.goose.mavericks.screenViewModel
 import dev.goose.metro.gooseGraph
 import dev.goose.runtime.Screen
 import dev.goose.runtime.ScreenEntry
+import dev.goose.runtime.TypedScreenEntry
 import dev.goose.runtime.sharedScreenElement
 import dev.goose.sample.m2.catalog.api.CatalogScreen
 import dev.goose.sample.m2.catalog.api.CatalogSharedKeys
 import dev.goose.sample.m2.catalog.api.ItemDetailScreen
 import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.binding
 import dev.zacsweers.metro.ClassKey
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.ContributesTo
@@ -93,13 +95,12 @@ class CatalogEntry : ScreenEntry {
     }
 }
 
-@ContributesIntoMap(AppScope::class)
+@ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
 @ClassKey(ItemDetailScreen::class)
 @Inject
-class ItemDetailEntry : ScreenEntry {
+class ItemDetailEntry : TypedScreenEntry<ItemDetailScreen>() {
     @Composable
-    override fun Content(screen: Screen, modifier: Modifier) {
-        screen as ItemDetailScreen
+    override fun ScreenContent(screen: ItemDetailScreen, modifier: Modifier) {
         val viewModel = screenViewModel<ItemDetailViewModel, ItemDetailState>(screen)
         val state by viewModel.collectAsState()
         val pricingService = gooseGraph<PricingAccessor>().pricingService

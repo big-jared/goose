@@ -17,10 +17,11 @@ import com.airbnb.mvrx.compose.collectAsState
 import dev.goose.mavericks.MavericksVmCreator
 import dev.goose.mavericks.mavericksVmCreator
 import dev.goose.mavericks.screenViewModel
-import dev.goose.runtime.Screen
 import dev.goose.runtime.ScreenEntry
+import dev.goose.runtime.TypedScreenEntry
 import dev.goose.sample.m1.profile.api.ProfileScreen
 import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.binding
 import dev.zacsweers.metro.ClassKey
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.ContributesTo
@@ -32,12 +33,12 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 
-@ContributesIntoMap(AppScope::class)
+@ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
 @ClassKey(ProfileScreen::class)
 @Inject
-class ProfileEntry : ScreenEntry {
+class ProfileEntry : TypedScreenEntry<ProfileScreen>() {
     @Composable
-    override fun Content(screen: Screen, modifier: Modifier) {
+    override fun ScreenContent(screen: ProfileScreen, modifier: Modifier) {
         val viewModel = screenViewModel<ProfileViewModel, ProfileState>(screen)
         val state by viewModel.collectAsState()
         ProfileUi(

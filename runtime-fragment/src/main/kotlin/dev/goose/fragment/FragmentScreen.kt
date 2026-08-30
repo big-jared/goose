@@ -9,7 +9,9 @@ import androidx.fragment.compose.AndroidFragment
 import androidx.navigation3.runtime.NavKey
 import dev.goose.runtime.Screen
 import dev.goose.runtime.ScreenEntry
+import dev.goose.runtime.TypedScreenEntry
 import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.binding
 import dev.zacsweers.metro.ClassKey
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.ContributesTo
@@ -36,13 +38,12 @@ data class FragmentScreen(
     }
 }
 
-@ContributesIntoMap(AppScope::class)
+@ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
 @ClassKey(FragmentScreen::class)
 @Inject
-class FragmentScreenEntry : ScreenEntry {
+class FragmentScreenEntry : TypedScreenEntry<FragmentScreen>() {
     @Composable
-    override fun Content(screen: Screen, modifier: Modifier) {
-        screen as FragmentScreen
+    override fun ScreenContent(screen: FragmentScreen, modifier: Modifier) {
         val clazz = remember(screen.fragmentClassName) {
             Class.forName(screen.fragmentClassName).asSubclass(Fragment::class.java)
         }
