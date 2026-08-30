@@ -451,6 +451,11 @@ fun ConfirmDeleteUi(screen: ConfirmDeleteScreen, modifier: Modifier) {
 }
 ```
 
+There is no custom dialog machinery here. `OverlayScreen` forwards to Nav3's
+`DialogSceneStrategy`, which renders a regular Compose `Dialog`; `DialogProperties` is passed
+straight through, not wrapped. Goose only moves the "I am a dialog" declaration onto the screen
+class, so a feature can say it in its `:api` module and every host renders it right.
+
 Why not skip `OverlayScreen` and call `Dialog()` inside a normal screen? Because a normal
 screen replaces the one before it: your dialog would float over an empty background.
 `OverlayScreen` is what keeps the previous screen visible underneath.
