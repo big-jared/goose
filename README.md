@@ -113,12 +113,64 @@ class ProfileUi(private val vmFactory: ProfileViewModel.Factory) : ScreenUi<Prof
 **5. Delete** the fragment, the XML, and the nav-graph entry. Fragment transactions at call
 sites become `navigator.goTo(ProfileScreen(userId))`.
 
-Note what you did NOT do: convert the whole flow. The FragmentManager still owns the back
-stack. Goose wraps your new Compose screen in an invisible `ScreenFragment`, so it acts like any
-other fragment. Once every screen in a flow is converted, swap the flow's host to
-`NavigableGooseContent` and the fragments are gone. Until then, half-migrated works fine. (The
-reverse also works: a Compose flow can carry leftover fragments with
-`FragmentScreen.of<LegacyAboutFragment>()`.)
+### What's on the stack now?
+
+You deleted `ProfileFragment`, but the FragmentManager still owns navigation. So what happens
+when something calls this?
+
+```kotlin
+navigator.goTo(ProfileScreen("ada"))
+```
+
+The `FragmentNavigator` looks for a fragment registered for that screen. There isn't one
+anymore, so it wraps your Compose `ProfileUi` in an invisible host fragment and pushes that:
+
+```kotlin
+// inside FragmentNavigator.goTo, simplified
+val fragment = binders[screen::class]?.createFragment(screen)   // legacy screens land here
+    ?: ScreenFragment.newInstance(screen)                       // migrated screens land here
+fragmentManager.commit {
+    replace(containerId, fragment)
+    addToBackStack(resultKey(screen))
+}
+```
+
+Your back stack is now a mix, and everything on it pushes, pops, and rotates like a fragment:
+
+```
+FragmentManager back stack
+├── HomeFragment                      // legacy
+├── ScreenFragment(ProfileScreen)     // your new Compose screen, riding along
+└── DetailFragment                    // legacy
+```
+
+### Flipping a flow once it's fully converted
+
+When every screen in a flow is Compose, delete the fragment host and let a plain list own that
+stack instead:
+
+```kotlin
+// before: fragments own the stack
+gooseNavigator = installGooseNavigator(R.id.fragment_container)
+
+// after: a list owns the stack
+setContent {
+    GooseCompositionLocals(graph) {
+        NavigableGooseContent(rememberGooseBackStack(HomeScreen))
+    }
+}
+```
+
+No screen code changes in the flip. The same `ProfileUi` that rode in a `ScreenFragment`
+yesterday renders as a Nav3 entry today, driven by the same ViewModel.
+
+### The reverse also works
+
+A converted flow can still carry a fragment you haven't gotten to yet:
+
+```kotlin
+navigator.goTo(FragmentScreen.of<LegacyAboutFragment>())    // a fragment on a Compose stack
+```
 
 ## The annotations, decoded
 
