@@ -20,10 +20,18 @@ interface Screen : NavKey, java.io.Serializable
  * it like any screen ([Navigator.goToForResult] works too — a dialog is a natural answerer);
  * tapping outside or system back pops it with a null result.
  *
+ * The dialog window is configured by [dialogProperties]; the dialog's SIZE is whatever the
+ * screen's composable measures (combine `usePlatformDefaultWidth = false` with width modifiers
+ * for full control). Like [ScreenTransitions], the override is behavior, not serialized state.
+ *
  * An overlay at the ROOT of a stack (deep link, resetRoot) has nothing to overlay and renders as
  * a plain full-screen entry instead.
  */
-interface OverlayScreen : Screen
+interface OverlayScreen : Screen {
+    /** Window-level dialog configuration: outside-tap/back dismissal, width policy, security. */
+    fun dialogProperties(): androidx.compose.ui.window.DialogProperties =
+        androidx.compose.ui.window.DialogProperties()
+}
 
 /** A result a [ScreenWithResult] can answer with when popped. Concrete types are `@Serializable`. */
 interface PopResult

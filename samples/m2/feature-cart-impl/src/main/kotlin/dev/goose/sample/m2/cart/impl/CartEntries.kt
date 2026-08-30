@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.airbnb.mvrx.compose.collectAsState
 import dev.goose.mavericks.flowViewModel
 import dev.goose.mavericks.screenViewModel
@@ -50,7 +51,11 @@ data object ConfirmStepScreen : Screen
 
 /** Rendered as a dialog over the cart (OverlayScreen → DialogSceneStrategy). */
 @Serializable
-data object CartInfoScreen : OverlayScreen
+data object CartInfoScreen : OverlayScreen {
+    // Window config lives on the screen; SIZE is whatever the content measures (the Card in
+    // CartInfoUi sizes itself against the full window once platform width is off).
+    override fun dialogProperties() = DialogProperties(usePlatformDefaultWidth = false)
+}
 
 @ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
 @ClassKey(CartScreen::class)
@@ -86,7 +91,8 @@ class CartInfoUi : ScreenUi<CartInfoScreen>() {
     @Composable
     override fun Content(screen: CartInfoScreen, modifier: Modifier) {
         val navigator = LocalNavigator.current
-        Card {
+        // With usePlatformDefaultWidth off (see CartInfoScreen), the content owns its size.
+        Card(Modifier.fillMaxWidth(0.92f)) {
             Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("About this cart", style = MaterialTheme.typography.titleLarge)
                 Text("A dialog screen on the same back stack — push, pop, results all work.")

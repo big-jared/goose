@@ -415,9 +415,48 @@ hosted inside a fragment mid-migration), so it is safe to add before the app is 
 converted.
 
 **Dialogs.** Mark a screen `OverlayScreen` and it renders as a dialog above the previous
-screen, on the same back stack, with the same result semantics. While a screen still lives on
-the fragment host, a `FragmentScreenNavigation` adapter (previous section) controls its
-presentation instead, including custom fragment animations.
+screen, on the same back stack, with the same result semantics: push it with `goTo` or
+`goToForResult`, and tapping outside or pressing back pops it (a `null` result for anyone
+awaiting one). The window is configured on the screen; the size is whatever your composable
+measures:
+
+```kotlin
+@Serializable
+data class ConfirmDeleteScreen(val itemId: String) :
+    OverlayScreen, ScreenWithResult<ConfirmDeleteResult> {
+
+    override fun dialogProperties() = DialogProperties(
+        dismissOnClickOutside = false,        // force a real answer
+        usePlatformDefaultWidth = false,      // my content decides its own width
+    )
+}
+```
+
+```kotlin
+@GooseUi(ConfirmDeleteScreen::class)
+@Composable
+fun ConfirmDeleteUi(screen: ConfirmDeleteScreen, modifier: Modifier) {
+    val navigator = LocalNavigator.current
+    Card(Modifier.fillMaxWidth(0.92f)) {      // the dialog is exactly this size
+        Column(Modifier.padding(24.dp)) {
+            Text("Delete ${screen.itemId}?")
+            Row {
+                TextButton(onClick = { navigator.pop() }) { Text("Cancel") }
+                Button(onClick = { navigator.pop(ConfirmDeleteResult(confirmed = true)) }) {
+                    Text("Delete")
+                }
+            }
+        }
+    }
+}
+```
+
+`DialogProperties` is the standard Compose type, so back/outside dismissal, width policy, and
+secure-window flags all work. Two boundaries worth knowing. Dialog windows do not animate with
+`ScreenTransitions` (the platform shows the window immediately); if you want an animated
+entrance, make it a normal `ScreenTransitions` screen styled as a sheet instead of an overlay.
+And while a screen still lives on the fragment host, a `FragmentScreenNavigation` adapter
+(previous section) controls its presentation instead, including custom fragment animations.
 
 ## License
 

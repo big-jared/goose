@@ -107,7 +107,7 @@ internal fun GooseNavDisplay(
                     // ANOTHER tab. Root overlays degrade to full-screen entries.
                     var metadata: Map<String, Any> =
                         if (screen is OverlayScreen && !isStackRoot(key)) {
-                            DialogSceneStrategy.dialog()
+                            DialogSceneStrategy.dialog(screen.dialogProperties())
                         } else {
                             emptyMap()
                         }
