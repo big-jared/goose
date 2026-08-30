@@ -30,7 +30,7 @@ data class TabSpec(val key: StackKey, val root: Screen)
  * saveable state across tab switches — the ViewModelStore decorator only clears state for entries
  * that leave the list entirely (a real pop). One consequence: the display list always holds at
  * least one entry per tab, so the host NavDisplay intercepts system back even at the primary
- * tab's root — pass `onRootBack` to [ScreenTabNavDisplay] (e.g. `{ finish() }`) so an unhandled
+ * tab's root — pass `onRootBack` to [TabbedGooseContent] (e.g. `{ finish() }`) so an unhandled
  * root pop still exits.
  *
  * Back semantics: pop the current stack; at a non-primary tab's root, fall back to the primary
@@ -129,11 +129,12 @@ fun rememberTabNavigator(
 }
 
 /**
- * Renders a [GooseTabNavigator]'s combined stack. Pair with your own tab bar UI.
- * [onRootBack] fires when back is unhandled at the primary tab's root (typically `finish()`).
+ * Renders a [GooseTabNavigator]'s combined stack — the tabbed stack host. Pair with your own tab
+ * bar UI. [onRootBack] fires when back is unhandled at the primary tab's root (typically
+ * `finish()`).
  */
 @Composable
-fun ScreenTabNavDisplay(
+fun TabbedGooseContent(
     tabNavigator: GooseTabNavigator,
     modifier: Modifier = Modifier,
     onRootBack: (() -> Unit)? = null,

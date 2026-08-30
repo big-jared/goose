@@ -18,39 +18,40 @@ import com.airbnb.mvrx.Loading
 import com.airbnb.mvrx.Success
 import com.airbnb.mvrx.Uninitialized
 import com.airbnb.mvrx.compose.collectAsState
-import dev.goose.mavericks.MavericksVmCreator
-import dev.goose.mavericks.mavericksVmCreator
 import dev.goose.mavericks.screenViewModel
-import dev.goose.runtime.Screen
+import dev.goose.metro.screenSerializers
 import dev.goose.runtime.ScreenEntry
+import dev.goose.runtime.ScreenUi
 import dev.goose.sample.m1.home.api.HomeScreen
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ClassKey
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.IntoMap
 import dev.zacsweers.metro.IntoSet
 import dev.zacsweers.metro.Provides
-import androidx.navigation3.runtime.NavKey
+import dev.zacsweers.metro.binding
 import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 
-@ContributesIntoMap(AppScope::class)
+@ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
 @ClassKey(HomeScreen::class)
 @Inject
-class HomeEntry : ScreenEntry {
+class HomeUi(
+    private val vmFactory: HomeViewModel.Factory,
+) : ScreenUi<HomeScreen>() {
     @Composable
-    override fun Content(screen: Screen, modifier: Modifier) {
-        val viewModel = screenViewModel<HomeViewModel, HomeState>(screen)
+    override fun Content(screen: HomeScreen, modifier: Modifier) {
+        val viewModel = screenViewModel<HomeViewModel, HomeState>(screen) { state, navigator ->
+            vmFactory.create(state, navigator)
+        }
         val state by viewModel.collectAsState()
-        HomeUi(state, onUserClicked = viewModel::onUserClicked, modifier = modifier)
+        HomeContent(state, onUserClicked = viewModel::onUserClicked, modifier = modifier)
     }
 }
 
 @Composable
-private fun HomeUi(
+private fun HomeContent(
     state: HomeState,
     onUserClicked: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -82,15 +83,9 @@ private fun HomeUi(
 interface HomeModule {
     companion object {
         @Provides
-        @IntoMap
-        @ClassKey(HomeViewModel::class)
-        fun homeVmCreator(factory: HomeViewModel.Factory): MavericksVmCreator =
-            mavericksVmCreator<HomeState> { state, navigator -> factory.create(state, navigator) }
-
-        @Provides
         @IntoSet
-        fun homeSerializers(): SerializersModule = SerializersModule {
-            polymorphic(NavKey::class) { subclass(HomeScreen::class) }
+        fun homeSerializers(): SerializersModule = screenSerializers {
+            subclass(HomeScreen::class)
         }
     }
 }

@@ -2,7 +2,10 @@
 
 **Metro + Mavericks (MvRx) + Navigation 3, under a Circuit-like API, with a fragment interop
 migration path.** Multi-module by construction: features contribute screens, UIs, and ViewModel
-factories to the app graph via Metro; the app module assembles and knows nothing else.
+factories to the app graph via Metro; the app module assembles and knows nothing else. The
+compose surface mirrors Circuit's: `GooseCompositionLocals` ≈ CircuitCompositionLocals,
+`GooseContent` ≈ CircuitContent, `NavigableGooseContent` ≈ NavigableCircuitContent, and
+`ScreenUi.Content(screen, modifier)` ≈ `Ui.Content(state, modifier)`.
 
 See [GOALS.md](GOALS.md) for the milestone definitions and [TODO.md](TODO.md) for status.
 
@@ -11,15 +14,42 @@ See [GOALS.md](GOALS.md) for the milestone definitions and [TODO.md](TODO.md) fo
 ```
 Screen (kotlinx-@Serializable NavKey, lives in :feature:x:api)
    │  pushed onto a back stack owned by…
-   ├── ScreenNavDisplay (Nav3, compose)          ← end state
-   ├── ScreenTabNavDisplay (multi-stack tabs)    ← bottom-nav apps
+   ├── NavigableGooseContent (Nav3, compose)     ← end state
+   ├── TabbedGooseContent (multi-stack tabs)     ← bottom-nav apps
    └── FragmentNavigator + ScreenFragment        ← during migration
    │
 Navigator (goTo / pop(result) / resetRoot / suspend goToForResult, tree with parent)
-   │  injected (assisted) into…
+   │  handed (assisted) to…
 MavericksViewModel — your existing MvRx VMs, byte-for-byte
    │  rendered by…
-ScreenEntry (@ContributesIntoMap, keyed by screen class)
+ScreenUi<S> (@ContributesIntoMap, keyed by screen class; VM factory co-located)
+```
+
+One class per screen carries everything a feature contributes:
+
+```kotlin
+@ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
+@ClassKey(ProfileScreen::class)
+@Inject
+class ProfileUi(private val vmFactory: ProfileViewModel.Factory) : ScreenUi<ProfileScreen>() {
+    @Composable override fun Content(screen: ProfileScreen, modifier: Modifier) {
+        val vm = screenViewModel<ProfileViewModel, ProfileState>(screen) { state, navigator ->
+            vmFactory.create(state, navigator)
+        }
+        val state by vm.collectAsState()
+        ProfileContent(state, vm::toggleFollow, vm::done, modifier)
+    }
+}
+```
+
+A root host is a handful of lines:
+
+```kotlin
+setContent {
+    GooseCompositionLocals(graph) {
+        NavigableGooseContent(rememberGooseBackStack(HomeScreen))
+    }
+}
 ```
 
 - **Presenters are Mavericks ViewModels.** `setState`/`withState`/`execute`/`Async`/`@PersistState`
@@ -28,9 +58,10 @@ ScreenEntry (@ContributesIntoMap, keyed by screen class)
 - **Typed results:** `ScreenWithResult<R>` + `navigator.goToForResult(screen)` suspends the caller
   VM until the target pops with `navigator.pop(result)`. Back = null ("no answer"). Result routing
   is stack-scoped, so the same screen type awaited in two tabs can't cross-wire.
-- **Multi-module:** feature `:impl` modules contribute `ScreenEntry`s, `MavericksVmCreator`s and
-  their screens' `SerializersModule` (Nav3 persistence needs polymorphic NavKey registration);
-  `:api` modules hold only screens, results, and shared-element keys. Zero impl→impl edges.
+- **Multi-module:** feature `:impl` modules contribute one `ScreenUi` per screen (VM factory
+  injected right into it) plus a `screenSerializers { subclass(...) }` registration (Nav3
+  persistence needs polymorphic NavKey registration); `:api` modules hold only screens, results,
+  and shared-element keys. Zero impl→impl edges, enforced at configuration time.
 - **Fragment interop, both directions:** migrated compose screens ride a legacy FragmentManager
   stack via `ScreenFragment`; unconverted fragments ride a Nav3 stack via `FragmentScreen`.
   The `Navigator` interface is the seam — VMs never learn which world they're in.
@@ -66,11 +97,13 @@ ScreenEntry (@ContributesIntoMap, keyed by screen class)
 1. Keep the ViewModel file. Swap its companion for
    `companion object : MavericksViewModelFactory<VM, S> by gooseVmFactory(VM::class)` and its
    constructor to `@AssistedInject` (state + `Navigator` assisted, real deps injected).
-2. Write a `ScreenEntry` that calls `screenViewModel` and renders what the fragment rendered.
-3. Define the `@Serializable` screen in the feature's `:api`; contribute the entry, the VM
-   creator (`mavericksVmCreator { … }`), and the serializer registration.
+2. Write a `ScreenUi<S>` that injects the VM's factory, calls `screenViewModel(screen) { state,
+   navigator -> factory.create(state, navigator) }`, and renders what the fragment rendered.
+3. Define the `@Serializable` screen in the feature's `:api`; contribute the ui and the
+   `screenSerializers { subclass(...) }` registration.
 4. Delete the fragment. While its FLOW is still fragment-hosted, the screen runs in a
-   `ScreenFragment` automatically; when the flow converts, flip the host to `ScreenNavDisplay`.
+   `ScreenFragment` automatically; when the flow converts, flip the host to
+   `NavigableGooseContent`.
 
 ## Known limitations
 
@@ -82,7 +115,7 @@ ScreenEntry (@ContributesIntoMap, keyed by screen class)
 - `FragmentNavigator.backStack` is empty by design: screens can't be reconstructed from a
   restored FragmentManager. Result delivery still works after restore (it rides entry names via a
   back-stack-changed listener, so it fires for system back and direct `popBackStack()` calls too).
-- Tab hosts must pass `onRootBack` (e.g. `{ finish() }`) to `ScreenTabNavDisplay`: hidden tabs'
+- Tab hosts must pass `onRootBack` (e.g. `{ finish() }`) to `TabbedGooseContent`: hidden tabs'
   entries stay in the display list (that's what preserves their ViewModels), so NavDisplay
   intercepts back even at the primary tab's root.
 

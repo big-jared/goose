@@ -5,16 +5,13 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
+import dev.goose.metro.GooseCompositionLocals
+import dev.goose.metro.GooseContent
 import dev.goose.metro.GooseGraphHolder
-import dev.goose.metro.GooseRuntimeAccessors
-import dev.goose.metro.LocalGooseGraph
-import dev.goose.runtime.LocalNavigator
 import dev.goose.runtime.Navigator
 import dev.goose.runtime.Screen
 
@@ -45,13 +42,8 @@ class ScreenFragment : Fragment() {
         return ComposeView(requireContext()).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
-                CompositionLocalProvider(
-                    LocalGooseGraph provides graph,
-                    LocalNavigator provides navigator,
-                ) {
-                    val registry = (graph as GooseRuntimeAccessors).screenRegistry
-                    val entry = remember(screen) { registry.entryFor(screen) }
-                    entry.Content(screen, Modifier.fillMaxSize())
+                GooseCompositionLocals(graph) {
+                    GooseContent(screen, navigator, Modifier.fillMaxSize())
                 }
             }
         }

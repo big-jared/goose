@@ -5,47 +5,54 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 
 /**
- * The single unit a feature contributes per screen: how to render it (and, inside, how to obtain
- * its presenter). Contributed into a map keyed by the screen's class via Metro's
- * `@ContributesIntoMap` + `@ClassKey`.
+ * The erased, registry-facing unit a feature contributes per screen — how to render it (and,
+ * inside, how to obtain its presenter). Contributed into a map keyed by the screen's class via
+ * Metro's `@ContributesIntoMap` + `@ClassKey`.
+ *
+ * Implement [ScreenUi] rather than this interface: it restores the screen's type. The lambda form
+ * (`ScreenEntry { screen, modifier -> ... }`) suits tests and ad-hoc hosts. [UntypedContent] is
+ * the library's dispatch surface; feature code overrides [ScreenUi.Content].
  */
 fun interface ScreenEntry {
     @Composable
-    fun Content(screen: Screen, modifier: Modifier)
+    fun UntypedContent(screen: Screen, modifier: Modifier)
 }
 
 /**
- * [ScreenEntry] with the downcast absorbed: the registry only ever routes an entry the screen
- * type its `@ClassKey` names, so the cast is the library's single point of trust and feature
- * code stays fully typed. Prefer this for screens that carry arguments:
+ * A typed [ScreenEntry] — the unit features actually write, Circuit-`Ui`-shaped. The registry
+ * only ever routes an entry the screen type its `@ClassKey` names, so the downcast is the
+ * library's single point of trust and feature code stays fully typed:
  * ```
  * @ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
  * @ClassKey(ProfileScreen::class)
  * @Inject
- * class ProfileEntry : TypedScreenEntry<ProfileScreen>() {
- *   @Composable override fun ScreenContent(screen: ProfileScreen, modifier: Modifier) { ... }
+ * class ProfileUi(private val vmFactory: ProfileViewModel.Factory) : ScreenUi<ProfileScreen>() {
+ *   @Composable override fun Content(screen: ProfileScreen, modifier: Modifier) {
+ *     val vm = screenViewModel<ProfileViewModel, ProfileState>(screen) { state, navigator ->
+ *       vmFactory.create(state, navigator)
+ *     }
+ *     ...
+ *   }
  * }
  * ```
  * Note the explicit `binding` — Metro binds a contribution as its DIRECT supertype by default,
- * which for a typed entry would be `TypedScreenEntry<S>`, not the `ScreenEntry` the registry
- * collects.
- * The plain fun-interface form remains for argument-less `data object` screens.
+ * which here would be `ScreenUi<S>`, not the `ScreenEntry` the registry collects.
  */
-abstract class TypedScreenEntry<S : Screen> : ScreenEntry {
+abstract class ScreenUi<S : Screen> : ScreenEntry {
     @Composable
-    final override fun Content(screen: Screen, modifier: Modifier) {
+    final override fun UntypedContent(screen: Screen, modifier: Modifier) {
         @Suppress("UNCHECKED_CAST")
-        ScreenContent(screen as S, modifier)
+        Content(screen as S, modifier)
     }
 
     @Composable
-    protected abstract fun ScreenContent(screen: S, modifier: Modifier)
+    protected abstract fun Content(screen: S, modifier: Modifier)
 }
 
 /**
- * The navigator owning the stack this screen sits on. Set by hosts ([ScreenNavDisplay],
+ * The navigator owning the stack this screen sits on. Set by hosts (NavigableGooseContent,
  * ScreenFragment); read by presenter helpers so screens never plumb navigators manually.
  */
 val LocalNavigator = staticCompositionLocalOf<Navigator> {
-    error("No Navigator provided. Screens must be hosted by a Goose host (ScreenNavDisplay or ScreenFragment).")
+    error("No Navigator provided. Screens must be hosted by a Goose host (NavigableGooseContent or ScreenFragment).")
 }

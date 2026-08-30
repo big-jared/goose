@@ -10,11 +10,10 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import dev.goose.metro.GooseCompositionLocals
 import dev.goose.metro.GooseGraphHolder
-import dev.goose.metro.LocalGooseGraph
-import dev.goose.nav3.ScreenTabNavDisplay
+import dev.goose.nav3.TabbedGooseContent
 import dev.goose.nav3.TabSpec
 import dev.goose.nav3.rememberTabNavigator
 import dev.goose.runtime.StackKey
@@ -31,7 +30,7 @@ class MainActivity : ComponentActivity() {
         val graph = (application as GooseGraphHolder).gooseGraph
         setContent {
             MaterialTheme {
-                CompositionLocalProvider(LocalGooseGraph provides graph) {
+                GooseCompositionLocals(graph) {
                     val tabNavigator = rememberTabNavigator(
                         tabs = listOf(
                             TabSpec(CatalogTab, CatalogScreen),
@@ -56,7 +55,7 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                     ) { padding ->
-                        ScreenTabNavDisplay(
+                        TabbedGooseContent(
                             tabNavigator = tabNavigator,
                             modifier = Modifier.fillMaxSize().padding(padding),
                             onRootBack = { finish() },

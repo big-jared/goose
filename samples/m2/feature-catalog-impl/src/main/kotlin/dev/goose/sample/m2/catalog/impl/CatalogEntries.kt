@@ -24,30 +24,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.navigation3.runtime.NavKey
 import com.airbnb.mvrx.compose.collectAsState
-import dev.goose.mavericks.MavericksVmCreator
-import dev.goose.mavericks.mavericksVmCreator
 import dev.goose.mavericks.screenViewModel
 import dev.goose.metro.gooseGraph
-import dev.goose.runtime.Screen
+import dev.goose.metro.screenSerializers
 import dev.goose.runtime.ScreenEntry
-import dev.goose.runtime.TypedScreenEntry
+import dev.goose.runtime.ScreenUi
 import dev.goose.runtime.sharedScreenElement
 import dev.goose.sample.m2.catalog.api.CatalogScreen
 import dev.goose.sample.m2.catalog.api.CatalogSharedKeys
 import dev.goose.sample.m2.catalog.api.ItemDetailScreen
 import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.binding
 import dev.zacsweers.metro.ClassKey
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.IntoMap
 import dev.zacsweers.metro.IntoSet
 import dev.zacsweers.metro.Provides
+import dev.zacsweers.metro.binding
 import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 
 internal fun itemColor(itemId: String): Color {
@@ -61,13 +56,17 @@ interface PricingAccessor {
     val pricingService: PricingService
 }
 
-@ContributesIntoMap(AppScope::class)
+@ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
 @ClassKey(CatalogScreen::class)
 @Inject
-class CatalogEntry : ScreenEntry {
+class CatalogUi(
+    private val vmFactory: CatalogViewModel.Factory,
+) : ScreenUi<CatalogScreen>() {
     @Composable
-    override fun Content(screen: Screen, modifier: Modifier) {
-        val viewModel = screenViewModel<CatalogViewModel, CatalogState>(screen)
+    override fun Content(screen: CatalogScreen, modifier: Modifier) {
+        val viewModel = screenViewModel<CatalogViewModel, CatalogState>(screen) { state, navigator ->
+            vmFactory.create(state, navigator)
+        }
         val state by viewModel.collectAsState()
         Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Catalog", style = MaterialTheme.typography.headlineMedium)
@@ -98,10 +97,14 @@ class CatalogEntry : ScreenEntry {
 @ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
 @ClassKey(ItemDetailScreen::class)
 @Inject
-class ItemDetailEntry : TypedScreenEntry<ItemDetailScreen>() {
+class ItemDetailUi(
+    private val vmFactory: ItemDetailViewModel.Factory,
+) : ScreenUi<ItemDetailScreen>() {
     @Composable
-    override fun ScreenContent(screen: ItemDetailScreen, modifier: Modifier) {
-        val viewModel = screenViewModel<ItemDetailViewModel, ItemDetailState>(screen)
+    override fun Content(screen: ItemDetailScreen, modifier: Modifier) {
+        val viewModel = screenViewModel<ItemDetailViewModel, ItemDetailState>(screen) { state, navigator ->
+            vmFactory.create(state, navigator)
+        }
         val state by viewModel.collectAsState()
         val pricingService = gooseGraph<PricingAccessor>().pricingService
         val price = remember(screen.itemId) { pricingService.priceOf(screen.itemId) }
@@ -128,24 +131,10 @@ class ItemDetailEntry : TypedScreenEntry<ItemDetailScreen>() {
 interface CatalogModule {
     companion object {
         @Provides
-        @IntoMap
-        @ClassKey(CatalogViewModel::class)
-        fun catalogVmCreator(factory: CatalogViewModel.Factory): MavericksVmCreator =
-            mavericksVmCreator<CatalogState> { state, navigator -> factory.create(state, navigator) }
-
-        @Provides
-        @IntoMap
-        @ClassKey(ItemDetailViewModel::class)
-        fun itemDetailVmCreator(factory: ItemDetailViewModel.Factory): MavericksVmCreator =
-            mavericksVmCreator<ItemDetailState> { state, navigator -> factory.create(state, navigator) }
-
-        @Provides
         @IntoSet
-        fun catalogSerializers(): SerializersModule = SerializersModule {
-            polymorphic(NavKey::class) {
-                subclass(CatalogScreen::class)
-                subclass(ItemDetailScreen::class)
-            }
+        fun catalogSerializers(): SerializersModule = screenSerializers {
+            subclass(CatalogScreen::class)
+            subclass(ItemDetailScreen::class)
         }
     }
 }

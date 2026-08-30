@@ -16,19 +16,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.navigation3.runtime.NavKey
 import com.airbnb.mvrx.compose.collectAsState
-import dev.goose.mavericks.MavericksVmCreator
 import dev.goose.mavericks.flowViewModel
-import dev.goose.mavericks.mavericksVmCreator
 import dev.goose.mavericks.screenViewModel
-import dev.goose.nav3.ScreenNavDisplay
+import dev.goose.metro.screenSerializers
+import dev.goose.nav3.NavigableGooseContent
 import dev.goose.nav3.rememberGooseBackStack
 import dev.goose.runtime.FlowViewModelScope
 import dev.goose.runtime.LocalNavigator
 import dev.goose.runtime.OverlayScreen
 import dev.goose.runtime.Screen
 import dev.goose.runtime.ScreenEntry
+import dev.goose.runtime.ScreenUi
 import dev.goose.sample.m2.cart.api.CartScreen
 import dev.goose.sample.m2.cart.api.CheckoutResult
 import dev.goose.sample.m2.cart.api.CheckoutScreen
@@ -37,32 +36,38 @@ import dev.zacsweers.metro.ClassKey
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.IntoMap
 import dev.zacsweers.metro.IntoSet
 import dev.zacsweers.metro.Provides
+import dev.zacsweers.metro.binding
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 
-/** Internal wizard steps — private to the cart feature, never exposed in :api. */
+// Wizard steps stay private to the cart feature by module structure: they live in :impl, which
+// no other module may depend on (enforced at configuration time). They must be PUBLIC Kotlin
+// declarations, though — Metro merges contributions in the app module, which cannot see
+// internal classes from other modules.
 @Serializable
-internal data object ShippingStepScreen : Screen
+data object ShippingStepScreen : Screen
 
 @Serializable
-internal data object ConfirmStepScreen : Screen
+data object ConfirmStepScreen : Screen
 
 /** Rendered as a dialog over the cart (OverlayScreen → DialogSceneStrategy). */
 @Serializable
-internal data object CartInfoScreen : OverlayScreen
+data object CartInfoScreen : OverlayScreen
 
-@ContributesIntoMap(AppScope::class)
+@ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
 @ClassKey(CartScreen::class)
 @Inject
-class CartEntry : ScreenEntry {
+class CartUi(
+    private val vmFactory: CartViewModel.Factory,
+) : ScreenUi<CartScreen>() {
     @Composable
-    override fun Content(screen: Screen, modifier: Modifier) {
-        val viewModel = screenViewModel<CartViewModel, CartState>(screen)
+    override fun Content(screen: CartScreen, modifier: Modifier) {
+        val viewModel = screenViewModel<CartViewModel, CartState>(screen) { state, navigator ->
+            vmFactory.create(state, navigator)
+        }
         val navigator = LocalNavigator.current
         val state by viewModel.collectAsState()
         Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -81,12 +86,12 @@ class CartEntry : ScreenEntry {
     }
 }
 
-@ContributesIntoMap(AppScope::class)
+@ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
 @ClassKey(CartInfoScreen::class)
 @Inject
-class CartInfoEntry : ScreenEntry {
+class CartInfoUi : ScreenUi<CartInfoScreen>() {
     @Composable
-    override fun Content(screen: Screen, modifier: Modifier) {
+    override fun Content(screen: CartInfoScreen, modifier: Modifier) {
         val navigator = LocalNavigator.current
         Card {
             Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -104,12 +109,12 @@ class CartInfoEntry : ScreenEntry {
  * navigator's parent is the tab navigator, so root pops bubble out and the final step can answer
  * the awaiting caller by popping the parent with a [CheckoutResult].
  */
-@ContributesIntoMap(AppScope::class)
+@ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
 @ClassKey(CheckoutScreen::class)
 @Inject
-class CheckoutEntry : ScreenEntry {
+class CheckoutUi : ScreenUi<CheckoutScreen>() {
     @Composable
-    override fun Content(screen: Screen, modifier: Modifier) {
+    override fun Content(screen: CheckoutScreen, modifier: Modifier) {
         val parentNavigator = LocalNavigator.current
         FlowViewModelScope {
             val childStack = rememberGooseBackStack(ShippingStepScreen)
@@ -119,7 +124,7 @@ class CheckoutEntry : ScreenEntry {
                     style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier.padding(16.dp),
                 )
-                ScreenNavDisplay(
+                NavigableGooseContent(
                     backStack = childStack,
                     modifier = Modifier.fillMaxSize(),
                     parent = parentNavigator,
@@ -129,12 +134,12 @@ class CheckoutEntry : ScreenEntry {
     }
 }
 
-@ContributesIntoMap(AppScope::class)
+@ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
 @ClassKey(ShippingStepScreen::class)
 @Inject
-class ShippingStepEntry : ScreenEntry {
+class ShippingStepUi : ScreenUi<ShippingStepScreen>() {
     @Composable
-    override fun Content(screen: Screen, modifier: Modifier) {
+    override fun Content(screen: ShippingStepScreen, modifier: Modifier) {
         val navigator = LocalNavigator.current
         val flowViewModel = flowViewModel<CheckoutFlowViewModel, CheckoutFlowState>()
         val flowState by flowViewModel.collectAsState()
@@ -152,12 +157,12 @@ class ShippingStepEntry : ScreenEntry {
     }
 }
 
-@ContributesIntoMap(AppScope::class)
+@ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
 @ClassKey(ConfirmStepScreen::class)
 @Inject
-class ConfirmStepEntry : ScreenEntry {
+class ConfirmStepUi : ScreenUi<ConfirmStepScreen>() {
     @Composable
-    override fun Content(screen: Screen, modifier: Modifier) {
+    override fun Content(screen: ConfirmStepScreen, modifier: Modifier) {
         val navigator = LocalNavigator.current
         // The SAME flow VM the shipping step wrote to — shared via the enclosing FlowViewModelScope.
         val flowViewModel = flowViewModel<CheckoutFlowViewModel, CheckoutFlowState>()
@@ -179,21 +184,13 @@ class ConfirmStepEntry : ScreenEntry {
 interface CartModule {
     companion object {
         @Provides
-        @IntoMap
-        @ClassKey(CartViewModel::class)
-        fun cartVmCreator(factory: CartViewModel.Factory): MavericksVmCreator =
-            mavericksVmCreator<CartState> { state, navigator -> factory.create(state, navigator) }
-
-        @Provides
         @IntoSet
-        fun cartSerializers(): SerializersModule = SerializersModule {
-            polymorphic(NavKey::class) {
-                subclass(CartScreen::class)
-                subclass(CheckoutScreen::class)
-                subclass(ShippingStepScreen::class)
-                subclass(ConfirmStepScreen::class)
-                subclass(CartInfoScreen::class)
-            }
+        fun cartSerializers(): SerializersModule = screenSerializers {
+            subclass(CartScreen::class)
+            subclass(CheckoutScreen::class)
+            subclass(ShippingStepScreen::class)
+            subclass(ConfirmStepScreen::class)
+            subclass(CartInfoScreen::class)
         }
     }
 }

@@ -16,7 +16,6 @@ import com.airbnb.mvrx.ActivityViewModelContext
 import com.airbnb.mvrx.MavericksState
 import com.airbnb.mvrx.MavericksViewModel
 import com.airbnb.mvrx.MavericksViewModelProvider
-import dev.goose.metro.gooseGraph
 import dev.goose.runtime.LocalNavigator
 import dev.goose.runtime.Navigator
 import dev.goose.runtime.NavigatorHandle
@@ -30,18 +29,25 @@ internal class NavigatorHandleHolder : ViewModel() {
 
 /**
  * Obtains (or creates) the [MavericksViewModel] for [screen], scoped to the current nav entry.
- *
+ * [create] runs once, at first creation — inject the VM's assisted factory into your [ScreenUi]
+ * and delegate to it:
+ * ```
+ * val vm = screenViewModel<ProfileViewModel, ProfileState>(screen) { state, navigator ->
+ *   vmFactory.create(state, navigator)
+ * }
+ * ```
  * - Retention: the VM lives in the entry's ViewModelStoreOwner (provided by the host's
  *   ViewModelStore decorator), so it survives configuration changes and clears on pop.
  * - Process death: `@PersistState` restoration works through the entry's SavedStateRegistry with
  *   a per-entry stable key.
- * - Navigation: the VM's assisted [Navigator] is a [NavigatorHandle] retained with the VM and
- *   rebound to the live host navigator on every composition.
+ * - Navigation: the [Navigator] handed to [create] is a [NavigatorHandle] retained with the VM
+ *   and rebound to the live host navigator on every composition.
  */
 @Composable
 inline fun <reified VM : MavericksViewModel<S>, reified S : MavericksState> screenViewModel(
     screen: Screen,
-): VM = screenViewModel(screen, VM::class.java, S::class.java)
+    noinline create: (initialState: S, navigator: Navigator) -> VM,
+): VM = screenViewModel(screen, VM::class.java, S::class.java, create)
 
 @OptIn(com.airbnb.mvrx.InternalMavericksApi::class)
 @Composable
@@ -49,6 +55,7 @@ fun <VM : MavericksViewModel<S>, S : MavericksState> screenViewModel(
     screen: Screen,
     vmClass: Class<VM>,
     stateClass: Class<S>,
+    create: (initialState: S, navigator: Navigator) -> VM,
 ): VM {
     val navigator = LocalNavigator.current
     val activity = checkNotNull(LocalContext.current.findComponentActivity()) {
@@ -74,12 +81,10 @@ fun <VM : MavericksViewModel<S>, S : MavericksState> screenViewModel(
         onDispose { handleHolder.handle.unbind(navigator) }
     }
 
-    val accessors = gooseGraph<GooseMavericksAccessors>()
     return remember(screen, entryId) {
-        // Read the multibinding map inside remember: Metro materializes it (invoking every
-        // contributed provider) on each accessor read, so it must not run per recomposition.
-        val creators = accessors.mavericksVmCreators
-        GooseVmLocator.withScope(GooseVmLocator.Scope(screen, handleHolder.handle, creators)) {
+        @Suppress("UNCHECKED_CAST")
+        val erasedCreate = create as (MavericksState, Navigator) -> MavericksViewModel<*>
+        GooseVmLocator.withScope(GooseVmLocator.Scope(screen, handleHolder.handle, erasedCreate)) {
             MavericksViewModelProvider.get(
                 viewModelClass = vmClass,
                 stateClass = stateClass,

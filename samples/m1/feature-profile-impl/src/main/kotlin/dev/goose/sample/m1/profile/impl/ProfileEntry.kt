@@ -2,7 +2,6 @@ package dev.goose.sample.m1.profile.impl
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -12,36 +11,36 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.navigation3.runtime.NavKey
 import com.airbnb.mvrx.compose.collectAsState
-import dev.goose.mavericks.MavericksVmCreator
-import dev.goose.mavericks.mavericksVmCreator
 import dev.goose.mavericks.screenViewModel
+import dev.goose.metro.screenSerializers
 import dev.goose.runtime.ScreenEntry
-import dev.goose.runtime.TypedScreenEntry
+import dev.goose.runtime.ScreenUi
 import dev.goose.sample.m1.profile.api.ProfileScreen
 import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.binding
 import dev.zacsweers.metro.ClassKey
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.IntoMap
 import dev.zacsweers.metro.IntoSet
 import dev.zacsweers.metro.Provides
+import dev.zacsweers.metro.binding
 import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 
 @ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
 @ClassKey(ProfileScreen::class)
 @Inject
-class ProfileEntry : TypedScreenEntry<ProfileScreen>() {
+class ProfileUi(
+    private val vmFactory: ProfileViewModel.Factory,
+) : ScreenUi<ProfileScreen>() {
     @Composable
-    override fun ScreenContent(screen: ProfileScreen, modifier: Modifier) {
-        val viewModel = screenViewModel<ProfileViewModel, ProfileState>(screen)
+    override fun Content(screen: ProfileScreen, modifier: Modifier) {
+        val viewModel = screenViewModel<ProfileViewModel, ProfileState>(screen) { state, navigator ->
+            vmFactory.create(state, navigator)
+        }
         val state by viewModel.collectAsState()
-        ProfileUi(
+        ProfileContent(
             state = state,
             onToggleFollow = viewModel::toggleFollow,
             onAppendNote = viewModel::appendNote,
@@ -52,7 +51,7 @@ class ProfileEntry : TypedScreenEntry<ProfileScreen>() {
 }
 
 @Composable
-private fun ProfileUi(
+private fun ProfileContent(
     state: ProfileState,
     onToggleFollow: () -> Unit,
     onAppendNote: () -> Unit,
@@ -74,15 +73,9 @@ private fun ProfileUi(
 interface ProfileModule {
     companion object {
         @Provides
-        @IntoMap
-        @ClassKey(ProfileViewModel::class)
-        fun profileVmCreator(factory: ProfileViewModel.Factory): MavericksVmCreator =
-            mavericksVmCreator<ProfileState> { state, navigator -> factory.create(state, navigator) }
-
-        @Provides
         @IntoSet
-        fun profileSerializers(): SerializersModule = SerializersModule {
-            polymorphic(NavKey::class) { subclass(ProfileScreen::class) }
+        fun profileSerializers(): SerializersModule = screenSerializers {
+            subclass(ProfileScreen::class)
         }
     }
 }

@@ -11,20 +11,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.unit.dp
 import com.airbnb.mvrx.MavericksState
 import com.airbnb.mvrx.MavericksViewModel
 import com.airbnb.mvrx.MavericksViewModelFactory
 import com.airbnb.mvrx.compose.collectAsState
 import com.airbnb.mvrx.compose.mavericksViewModel
-import dev.goose.mavericks.MavericksVmCreator
-import dev.goose.mavericks.mavericksVmCreator
 import dev.goose.mavericks.findComponentActivity
 import dev.goose.mavericks.gooseVmFactory
 import dev.goose.mavericks.screenViewModel
 import dev.goose.runtime.Navigator
-import dev.goose.runtime.Screen
 import dev.goose.runtime.ScreenEntry
+import dev.goose.runtime.ScreenUi
 import dev.goose.sample.m3.DetailScreen
 import dev.goose.sample.m3.ProfileResult
 import dev.goose.sample.m3.ProfileScreen
@@ -36,11 +34,8 @@ import dev.zacsweers.metro.AssistedFactory
 import dev.zacsweers.metro.AssistedInject
 import dev.zacsweers.metro.ClassKey
 import dev.zacsweers.metro.ContributesIntoMap
-import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.IntoMap
-import dev.zacsweers.metro.Provides
-import androidx.compose.ui.unit.dp
+import dev.zacsweers.metro.binding
 import kotlinx.coroutines.launch
 
 data class M3ProfileState(
@@ -77,13 +72,17 @@ class M3ProfileViewModel(
     companion object : MavericksViewModelFactory<M3ProfileViewModel, M3ProfileState> by gooseVmFactory(M3ProfileViewModel::class)
 }
 
-@ContributesIntoMap(AppScope::class)
+@ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
 @ClassKey(ProfileScreen::class)
 @Inject
-class ProfileEntry : ScreenEntry {
+class ProfileUi(
+    private val vmFactory: M3ProfileViewModel.Factory,
+) : ScreenUi<ProfileScreen>() {
     @Composable
-    override fun Content(screen: Screen, modifier: Modifier) {
-        val viewModel = screenViewModel<M3ProfileViewModel, M3ProfileState>(screen)
+    override fun Content(screen: ProfileScreen, modifier: Modifier) {
+        val viewModel = screenViewModel<M3ProfileViewModel, M3ProfileState>(screen) { state, navigator ->
+            vmFactory.create(state, navigator)
+        }
         val state by viewModel.collectAsState()
 
         // The SAME CounterViewModel instance the legacy HomeFragment uses (activity-scoped).
@@ -100,16 +99,5 @@ class ProfileEntry : ScreenEntry {
             state.legacyAnswer?.let { Text("Legacy answered: $it") }
             Button(onClick = { viewModel.done(counterState.count) }) { Text("Done") }
         }
-    }
-}
-
-@ContributesTo(AppScope::class)
-interface ProfileVmModule {
-    companion object {
-        @Provides
-        @IntoMap
-        @ClassKey(M3ProfileViewModel::class)
-        fun profileVmCreator(factory: M3ProfileViewModel.Factory): MavericksVmCreator =
-            mavericksVmCreator<M3ProfileState> { state, navigator -> factory.create(state, navigator) }
     }
 }

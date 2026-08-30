@@ -17,9 +17,9 @@ import androidx.navigation3.scene.DialogSceneStrategy
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
+import dev.goose.metro.GooseContent
 import dev.goose.metro.GooseRuntimeAccessors
 import dev.goose.metro.gooseGraph
-import dev.goose.runtime.LocalNavigator
 import dev.goose.runtime.LocalScreenAnimatedContentScope
 import dev.goose.runtime.LocalSharedTransitionScope
 import dev.goose.runtime.Navigator
@@ -48,17 +48,19 @@ fun rememberGooseBackStack(initial: List<Screen>): NavBackStack<NavKey> {
 }
 
 /**
- * The Compose host: renders [backStack] with a NavDisplay wired for Goose screens.
+ * The stack host — the analogue of NavigableCircuitContent. Renders [backStack] with a NavDisplay
+ * wired for Goose screens:
  *
  * - Screens resolve through the app graph's ScreenRegistry (contributed by feature modules).
  * - Entries get a ViewModelStore + saveable-state decorator, so Mavericks VMs retain across
  *   config changes and clear on pop.
+ * - [OverlayScreen]s render in a dialog over the previous entry (DialogSceneStrategy).
  * - A [SharedTransitionLayout] wraps the display; screens opt in via Modifier.sharedScreenElement.
  * - Pass [parent] when nesting (a flow hosted inside another stack's entry): unhandled root pops
- *   bubble up the navigator tree.
+ *   bubble up the navigator tree. [onRootBack] fires when a back event goes entirely unhandled.
  */
 @Composable
-fun ScreenNavDisplay(
+fun NavigableGooseContent(
     backStack: MutableList<NavKey>,
     modifier: Modifier = Modifier,
     parent: Navigator? = null,
@@ -78,7 +80,6 @@ internal fun GooseNavDisplay(
     modifier: Modifier = Modifier,
     onRootBack: (() -> Unit)? = null,
 ) {
-    val registry = gooseGraph<GooseRuntimeAccessors>().screenRegistry
     SharedTransitionLayout(modifier) {
         CompositionLocalProvider(LocalSharedTransitionScope provides this) {
             NavDisplay(
@@ -97,11 +98,9 @@ internal fun GooseNavDisplay(
                         if (screen is OverlayScreen) DialogSceneStrategy.dialog() else emptyMap()
                     NavEntry(key, metadata = metadata) {
                         CompositionLocalProvider(
-                            LocalNavigator provides navigator,
                             LocalScreenAnimatedContentScope provides LocalNavAnimatedContentScope.current,
                         ) {
-                            val entry = remember(screen) { registry.entryFor(screen) }
-                            entry.Content(screen, Modifier.fillMaxSize())
+                            GooseContent(screen, navigator, Modifier.fillMaxSize())
                         }
                     }
                 },

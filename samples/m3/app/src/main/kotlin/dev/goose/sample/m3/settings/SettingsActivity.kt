@@ -19,19 +19,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.Fragment
-import androidx.navigation3.runtime.NavKey
 import dev.goose.fragment.FragmentScreen
+import dev.goose.metro.GooseCompositionLocals
 import dev.goose.metro.GooseGraphHolder
-import dev.goose.metro.LocalGooseGraph
-import dev.goose.nav3.ScreenNavDisplay
+import dev.goose.metro.screenSerializers
+import dev.goose.nav3.NavigableGooseContent
 import dev.goose.nav3.rememberGooseBackStack
 import dev.goose.runtime.LocalNavigator
-import dev.goose.runtime.Screen
 import dev.goose.runtime.ScreenEntry
+import dev.goose.runtime.ScreenUi
 import dev.goose.sample.m3.SettingsHomeScreen
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ClassKey
@@ -40,8 +39,8 @@ import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.IntoSet
 import dev.zacsweers.metro.Provides
+import dev.zacsweers.metro.binding
 import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 
 /**
@@ -54,10 +53,10 @@ class SettingsActivity : FragmentActivity() {
         val graph = (application as GooseGraphHolder).gooseGraph
         setContent {
             MaterialTheme {
-                CompositionLocalProvider(LocalGooseGraph provides graph) {
+                GooseCompositionLocals(graph) {
                     Surface(Modifier.fillMaxSize()) {
                         val backStack = rememberGooseBackStack(SettingsHomeScreen)
-                        ScreenNavDisplay(backStack, Modifier.fillMaxSize())
+                        NavigableGooseContent(backStack, Modifier.fillMaxSize())
                     }
                 }
             }
@@ -65,12 +64,12 @@ class SettingsActivity : FragmentActivity() {
     }
 }
 
-@ContributesIntoMap(AppScope::class)
+@ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
 @ClassKey(SettingsHomeScreen::class)
 @Inject
-class SettingsHomeEntry : ScreenEntry {
+class SettingsHomeUi : ScreenUi<SettingsHomeScreen>() {
     @Composable
-    override fun Content(screen: Screen, modifier: Modifier) {
+    override fun Content(screen: SettingsHomeScreen, modifier: Modifier) {
         val navigator = LocalNavigator.current
         Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Settings (converted, Nav3 stack)", style = MaterialTheme.typography.headlineMedium)
@@ -104,10 +103,8 @@ interface M3SerializersModule {
     companion object {
         @Provides
         @IntoSet
-        fun m3Serializers(): SerializersModule = SerializersModule {
-            polymorphic(NavKey::class) {
-                subclass(SettingsHomeScreen::class)
-            }
+        fun m3Serializers(): SerializersModule = screenSerializers {
+            subclass(SettingsHomeScreen::class)
         }
     }
 }

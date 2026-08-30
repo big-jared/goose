@@ -6,10 +6,10 @@ import androidx.compose.ui.Modifier
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.compose.AndroidFragment
-import androidx.navigation3.runtime.NavKey
+import dev.goose.metro.screenSerializers
 import dev.goose.runtime.Screen
 import dev.goose.runtime.ScreenEntry
-import dev.goose.runtime.TypedScreenEntry
+import dev.goose.runtime.ScreenUi
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.binding
 import dev.zacsweers.metro.ClassKey
@@ -20,7 +20,6 @@ import dev.zacsweers.metro.IntoSet
 import dev.zacsweers.metro.Provides
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 
 /**
@@ -41,9 +40,9 @@ data class FragmentScreen(
 @ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
 @ClassKey(FragmentScreen::class)
 @Inject
-class FragmentScreenEntry : TypedScreenEntry<FragmentScreen>() {
+class FragmentScreenEntry : ScreenUi<FragmentScreen>() {
     @Composable
-    override fun ScreenContent(screen: FragmentScreen, modifier: Modifier) {
+    override fun Content(screen: FragmentScreen, modifier: Modifier) {
         val clazz = remember(screen.fragmentClassName) {
             Class.forName(screen.fragmentClassName).asSubclass(Fragment::class.java)
         }
@@ -59,8 +58,8 @@ interface FragmentScreenModule {
     companion object {
         @Provides
         @IntoSet
-        fun fragmentScreenSerializers(): SerializersModule = SerializersModule {
-            polymorphic(NavKey::class) { subclass(FragmentScreen::class) }
+        fun fragmentScreenSerializers(): SerializersModule = screenSerializers {
+            subclass(FragmentScreen::class)
         }
     }
 }

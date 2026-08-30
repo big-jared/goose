@@ -6,11 +6,10 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import dev.goose.metro.GooseCompositionLocals
 import dev.goose.metro.GooseGraphHolder
-import dev.goose.metro.LocalGooseGraph
-import dev.goose.nav3.ScreenNavDisplay
+import dev.goose.nav3.NavigableGooseContent
 import dev.goose.nav3.rememberGooseBackStack
 import dev.goose.sample.m1.home.api.HomeScreen
 
@@ -20,10 +19,10 @@ class MainActivity : ComponentActivity() {
         val graph = (application as GooseGraphHolder).gooseGraph
         setContent {
             MaterialTheme {
-                CompositionLocalProvider(LocalGooseGraph provides graph) {
+                GooseCompositionLocals(graph) {
                     Surface(Modifier.fillMaxSize()) {
                         val backStack = rememberGooseBackStack(HomeScreen)
-                        ScreenNavDisplay(backStack, Modifier.fillMaxSize())
+                        NavigableGooseContent(backStack, Modifier.fillMaxSize())
                     }
                 }
             }
