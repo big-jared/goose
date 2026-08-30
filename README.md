@@ -60,35 +60,88 @@ That's it. Nothing about your existing fragments changes yet.
 
 ## Migrating a screen
 
-**1. Define the screen** in the feature's `:api` module, so other features can navigate to it
-without depending on your implementation:
+Here's a screen the way most Mavericks apps have it. The fragment renders state and also does
+the navigating:
+
+```kotlin
+class ProfileFragment : Fragment(R.layout.fragment_profile), MavericksView {
+    private val viewModel: ProfileViewModel by fragmentViewModel()
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        binding.followButton.setOnClickListener { viewModel.toggleFollow() }
+        binding.followersRow.setOnClickListener {
+            parentFragmentManager.commit {                   // navigation lives in the view layer
+                replace(R.id.container, FollowersFragment.newInstance(userId))
+                addToBackStack(null)
+            }
+        }
+    }
+
+    override fun invalidate() = withState(viewModel) { state ->
+        binding.userName.text = state.name
+        binding.followButton.isSelected = state.followed
+    }
+}
+
+data class ProfileState(
+    val userId: String = "",
+    val name: String = "",
+    val followed: Boolean = false,
+) : MavericksState {
+    constructor(args: ProfileArgs) : this(userId = args.userId)  // the fragment-args convention
+}
+
+class ProfileViewModel(initialState: ProfileState) :
+    MavericksViewModel<ProfileState>(initialState) {
+    fun toggleFollow() = setState { copy(followed = !followed) }
+}
+```
+
+Five steps to migrate it.
+
+**1. Define the screen.** This replaces the args Bundle. It's a data class in the feature's
+`:api` module, so other features can navigate to it without depending on your implementation:
 
 ```kotlin
 @Serializable data class ProfileScreen(val userId: String) : Screen
 ```
 
-**2. Change the ViewModel's front door. Nothing else about it:**
+Initial state keeps the fragment-args convention you already use, with the screen as the args:
+
+```kotlin
+data class ProfileState(...) : MavericksState {
+    constructor(screen: ProfileScreen) : this(userId = screen.userId)
+}
+```
+
+**2. Move navigation into the ViewModel, and change how it's built. The state logic doesn't
+change:**
 
 ```kotlin
 @AssistedInject                                            // was: nothing
 class ProfileViewModel(
     @Assisted initialState: ProfileState,
-    @Assisted private val navigator: Navigator,            // replaces fragment-side navigation
+    @Assisted private val navigator: Navigator,            // new
     private val repo: ProfileRepository,                   // real deps, from the graph
 ) : MavericksViewModel<ProfileState>(initialState) {
 
     fun toggleFollow() = setState { copy(followed = !followed) }   // unchanged
 
+    fun openFollowers() = viewModelScope.launch {          // was: a fragment transaction
+        navigator.goTo(FollowersScreen(awaitState().userId))  //    in the fragment's click listener
+    }
+
     @AssistedFactory fun interface Factory {
         fun create(initialState: ProfileState, navigator: Navigator): ProfileViewModel
     }
     companion object : MavericksViewModelFactory<ProfileViewModel, ProfileState>
-        by gooseVmFactory(ProfileViewModel::class)
+        by gooseVmFactory(ProfileViewModel::class)         // was: your hand-rolled factory
 }
 ```
 
-**3. Replace the fragment + XML with a `ScreenUi`.** `screenViewModel` gives the same retention
-as `fragmentViewModel`: survives rotation, cleared on pop, `@PersistState` restored:
+**3. Replace the fragment + XML with a `ScreenUi`.** `screenViewModel` is `fragmentViewModel`
+for this world: same instance across rotation, cleared when the screen pops, `@PersistState`
+restored after process death:
 
 ```kotlin
 @ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
@@ -98,20 +151,41 @@ class ProfileUi(private val vmFactory: ProfileViewModel.Factory) : ScreenUi<Prof
     @Composable override fun Content(screen: ProfileScreen, modifier: Modifier) {
         val vm = screenViewModel<ProfileViewModel, ProfileState>(screen, vmFactory::create)
         val state by vm.collectAsState()
-        // compose what the XML rendered
+        Column(modifier) {
+            Text(state.name)
+            OutlinedButton(onClick = vm::toggleFollow) {
+                Text(if (state.followed) "Following" else "Follow")
+            }
+            TextButton(onClick = vm::openFollowers) { Text("Followers") }
+        }
     }
 }
 ```
 
-**4. Register it for back-stack persistence** (one block per feature):
+**4. Register the screen for back-stack persistence** (one block per feature module):
 
 ```kotlin
-@Provides @IntoSet fun serializers(): SerializersModule =
-    screenSerializers { subclass(ProfileScreen::class) }
+@ContributesTo(AppScope::class)
+interface ProfileModule {
+    companion object {
+        @Provides @IntoSet fun serializers(): SerializersModule =
+            screenSerializers { subclass(ProfileScreen::class) }
+    }
+}
 ```
 
-**5. Delete** the fragment, the XML, and the nav-graph entry. Fragment transactions at call
-sites become `navigator.goTo(ProfileScreen(userId))`.
+**5. Delete the fragment and its XML, and update the call sites that opened it.** A legacy
+fragment opens the new screen through the activity's navigator:
+
+```kotlin
+// in a legacy fragment that used to push ProfileFragment
+binding.profileRow.setOnClickListener {
+    (requireActivity() as FragmentNavigatorOwner)
+        .gooseNavigator.goTo(ProfileScreen(user.id))
+}
+```
+
+Migrated ViewModels just call `navigator.goTo(ProfileScreen(user.id))`.
 
 ### What's on the stack now?
 
@@ -172,6 +246,51 @@ A converted flow can still carry a fragment you haven't gotten to yet:
 navigator.goTo(FragmentScreen.of<LegacyAboutFragment>())    // a fragment on a Compose stack
 ```
 
+## Will this work in my app?
+
+The questions a real codebase asks:
+
+**Rotation and process death?** Migrated screens keep the Mavericks contract exactly: the VM
+survives rotation, `@PersistState` fields come back after process death, and the back stack
+itself is serialized and restored (that's what step 4 registers). The `m1` sample has tests for
+all three.
+
+**We share ViewModels with `activityViewModel()`.** Still works, including across the boundary.
+In the `m3` sample the same activity-scoped `CounterViewModel`, one file, unchanged, drives a
+legacy fragment and a migrated Compose screen at the same time.
+
+**Our VMs get dependencies through companion `MavericksViewModelFactory`s.** That companion is
+exactly what you swap in step 2. Dependencies move to the constructor, provided by the graph.
+Unmigrated ViewModels are untouched; the two styles coexist per screen.
+
+**We're on Dagger or Hilt, not Metro.** Goose's screen registry runs on Metro, which ships
+Dagger interop for consuming an existing graph's bindings. This is the biggest integration
+question for a Hilt app; if that's you, open an issue with your setup before committing.
+
+**Dialogs and bottom sheets?** Mark the screen `OverlayScreen` and it renders as a dialog on
+the same back stack, with the same result semantics.
+
+**Deep links?** Build the stack you want to land on:
+`rememberGooseBackStack(listOf(HomeScreen, ProfileScreen(id)))`.
+
+**What if I wire something wrong?** Almost everything fails at build time with a message:
+
+| Mistake | What happens |
+|---|---|
+| Wrong or missing constructor dependency | Feature module fails to compile, with a Metro dependency trace |
+| Two screens contributed with the same key | App module fails to compile, duplicate map key |
+| An `:impl` module depending on another feature's `:impl` | Build fails at configuration with an explanation |
+| Forgot `binding = binding<ScreenEntry>()` | First navigation to that screen throws, and the message names this exact fix |
+| Forgot the serializer registration (step 4) | First background of the app throws a `SerializationException` naming the class |
+| Created a Goose VM outside `screenViewModel` | Throws immediately, with the message pointing at the right API |
+
+**Can I revert a migrated screen?** Yes. Restore the fragment, delete the `ScreenUi`, and point
+call sites back. Nothing else in the app referenced the change.
+
+**How do I test migrated screens?** Compose UI tests, on device or on Robolectric. The three
+sample apps' suites are the templates: navigation, typed results, recreation, and fragment
+interop are all covered there.
+
 ## The annotations, decoded
 
 ```kotlin
@@ -188,9 +307,6 @@ navigator.goTo(FragmentScreen.of<LegacyAboutFragment>())    // a fragment on a C
 - `binding = binding<ScreenEntry>()`: store it as `ScreenEntry`, the type the registry reads.
   If you forget this one, the error at first navigation tells you.
 
-Everything else fails at build time: a wrong constructor dependency, a duplicate screen key, or
-an `:impl` module depending on another feature's `:impl`.
-
 ## Typed results
 
 Screens that are questions (pickers, confirmations, editors) declare their answer:
@@ -198,16 +314,24 @@ Screens that are questions (pickers, confirmations, editors) declare their answe
 ```kotlin
 @Serializable data class PickShippingAddressScreen(val orderId: String) :
     ScreenWithResult<ShippingAddress>
+@Serializable data class ShippingAddress(val line1: String, val city: String) : PopResult
 ```
 
 ```kotlin
-// caller VM                                          // picker VM
-val address = navigator.goToForResult(                navigator.pop(address)
-    PickShippingAddressScreen(orderId)) ?: return@launch   // null = backed out
+// in the calling ViewModel
+fun changeAddress() = viewModelScope.launch {
+    val address = navigator.goToForResult(PickShippingAddressScreen(orderId))
+        ?: return@launch                                  // null: user backed out
+    setState { copy(shippingAddress = address) }
+}
+
+// in the picker's ViewModel
+fun onAddressChosen(address: ShippingAddress) = navigator.pop(address)
 ```
 
-Results are typed, survive rotation, and can't cross between tabs. If the user backs out in any
-way at all, the caller gets `null` instead of hanging.
+Results are typed, survive rotation, and can't cross between tabs. Every way a user can dismiss
+the screen resumes the caller with `null` instead of hanging it, including a legacy fragment
+popping itself.
 
 ## Also in the box
 
