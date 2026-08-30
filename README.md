@@ -451,12 +451,20 @@ fun ConfirmDeleteUi(screen: ConfirmDeleteScreen, modifier: Modifier) {
 }
 ```
 
-`DialogProperties` is the standard Compose type, so back/outside dismissal, width policy, and
-secure-window flags all work. Two boundaries worth knowing. Dialog windows do not animate with
-`ScreenTransitions` (the platform shows the window immediately); if you want an animated
-entrance, make it a normal `ScreenTransitions` screen styled as a sheet instead of an overlay.
-And while a screen still lives on the fragment host, a `FragmentScreenNavigation` adapter
-(previous section) controls its presentation instead, including custom fragment animations.
+Why not skip `OverlayScreen` and call `Dialog()` inside a normal screen? Because a normal
+screen replaces the one before it: your dialog would float over an empty background.
+`OverlayScreen` is what keeps the previous screen visible underneath.
+
+Two things dialogs cannot do:
+
+- **Animate in.** Android shows dialog windows instantly; `ScreenTransitions` cannot change
+  that, because it animates screens inside your app's window and a dialog is its own window.
+  A screen that should slide up is not really a dialog: make it a normal screen with
+  `ScreenTransitions` (like the checkout above) and draw it shaped like a sheet.
+- **Render as a dialog on the fragment side.** If this screen gets pushed while navigation is
+  still running on fragments, it shows through a normal fragment transaction. To get a dialog
+  there during migration, contribute a `FragmentScreenNavigation` adapter (previous section)
+  that shows a `DialogFragment`.
 
 ## License
 
