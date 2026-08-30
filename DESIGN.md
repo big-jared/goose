@@ -67,19 +67,25 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
     so hand-built hosts cannot silently lose the isolation. Within one stack, same-class
     requests resolve LIFO, which is CORRECT for stack-disciplined destinations (a stack removes
     its most recent same-class screen first). Destinations that bypass the stack, i.e. custom
-    fragment adapters showing dialogs or activities, do not get LIFO assumptions: each
-    `FragmentNavigationRequest` captures its exact awaiter at navigation time (registration
-    happens-before goTo on one main-thread chain) and `deliverResult` completes that caller
-    specifically, so two same-class dialogs answering out of order each resolve their own
-    request. Identity-based ROUTING KEYS were still rejected because a restored stack holds
-    new-but-equal instances (a real bug, caught by test).
+    fragment adapters showing dialogs or activities, do not get LIFO assumptions: an awaited
+    navigation carries an opaque `ResultAwaiter` token explicitly, from `goToForResult` through
+    the `goToAwaited` hook into that specific `FragmentNavigationRequest`, and `deliverResult`
+    completes exactly that caller. A request created by plain `goTo` carries no awaiter at all,
+    so it can never steal an outstanding same-class request's caller. The awaiter is one-shot
+    and no-ops after cancellation; a navigation that throws unregisters its awaiter on the way
+    out. The whole contract has direct JVM tests in `:runtime` (out-of-order answers, plain
+    same-class pushes, double delivery, cancellation, failing navigation). Identity-based
+    ROUTING KEYS were still rejected because a restored stack holds new-but-equal instances (a
+    real bug, caught by test); the token complements keys, it does not replace them.
 
 12. **Simultaneous activities. Fixed.** Covered by 11: two activities awaiting the same screen
     class no longer share a routing key, even though `ResultRouter` remains app-scoped.
 
 13. **deliverResult one-shot. Fixed.** `FragmentNavigationRequest.deliverResult` delivers at
     most once; later calls no-op. A dismiss callback firing after a result callback cannot
-    consume another pending request.
+    consume another pending request. The one-shot property lives in the `ResultAwaiter` itself
+    (completion consumes the registration), and the router's queue protocol is internal: the
+    token is the only cross-module surface, so adapters cannot misuse the queue.
 
 14. **Adapters that forget to deliver. Decided.** Accepted adapter responsibility, stated in the
     `FragmentScreenNavigation` KDoc: push onto the FragmentManager back stack under
@@ -101,8 +107,12 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
 
 17. **Sequential consistency. Fixed.** Nav3 mutates synchronously. The fragment host queues
     commits, which made `goTo(A); pop()` in one main-loop turn read the stale pre-commit stack
-    and drop the pop; `FragmentNavigator.pop` now flushes pending transactions first (guarded
-    for saved state and reentrancy), covered by an m3 test. Writes remain strictly ordered
+    and drop the pop; `FragmentNavigator.pop` now flushes pending transactions first, covered
+    by an m3 test. The flush executes any transactions the legacy app queued too, which is
+    within FragmentManager's contract (commit promises only "as soon as possible on the main
+    thread", so running earlier is always legal, via the public API that exists for exactly
+    this). It is skipped when state is saved, and catches only IllegalStateException for the
+    reentrant case, where the queue drains in order anyway. Writes remain strictly ordered
     through the FragmentManager queue; only observation timing differs between hosts.
 
 18. **backStack introspection. Decided.** `Navigator.backStack` is best-effort, documented as

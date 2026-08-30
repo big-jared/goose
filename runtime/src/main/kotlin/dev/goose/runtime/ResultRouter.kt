@@ -56,19 +56,12 @@ class ResultRouter {
     }
 
     /**
-     * The most recently registered awaiter for [key], without consuming it. Captured at
-     * navigation time (registration happens-before the navigator's goTo on the same main-thread
-     * call chain), it identifies exactly which caller a request belongs to.
-     */
-    fun peekMostRecent(key: String): CompletableDeferred<PopResult?>? =
-        synchronized(pending) { pending[key]?.lastOrNull() }
-
-    /**
      * Delivers [result] to [deferred] specifically, removing it from [key]'s queue wherever it
      * sits. Unlike [complete], out-of-order answering (dialog A finishing after dialog B opened)
-     * resolves the RIGHT caller. No-ops if the awaiter is no longer registered.
+     * resolves the RIGHT caller. No-ops if the awaiter is no longer registered (already
+     * answered, or its caller cancelled).
      */
-    fun completeExact(key: String, deferred: CompletableDeferred<PopResult?>, result: PopResult?) {
+    internal fun completeExact(key: String, deferred: CompletableDeferred<PopResult?>, result: PopResult?) {
         val found = synchronized(pending) {
             val deque = pending[key] ?: return
             val removed = deque.remove(deferred)
@@ -77,4 +70,26 @@ class ResultRouter {
         }
         if (found) deferred.complete(result)
     }
+
+    /** Test hook: how many callers are currently awaiting [key]. */
+    internal fun pendingCountFor(key: String): Int =
+        synchronized(pending) { pending[key]?.size ?: 0 }
+}
+
+/**
+ * An opaque handle to ONE awaiting `goToForResult` caller, handed by [BaseNavigator.goToAwaited]
+ * to the navigation that will answer it. Destinations that bypass stack discipline (a dialog, an
+ * activity, a custom router) call [complete] and are guaranteed to resume exactly this caller —
+ * never an unrelated same-class request registered earlier or later.
+ *
+ * [complete] is effectively one-shot: the first call consumes the registration, later calls
+ * no-op. It also no-ops after the caller cancelled or was answered by another path (a stack
+ * pop delivering by key).
+ */
+class ResultAwaiter internal constructor(
+    private val router: ResultRouter,
+    private val key: String,
+    private val deferred: CompletableDeferred<PopResult?>,
+) {
+    fun complete(result: PopResult?) = router.completeExact(key, deferred, result)
 }

@@ -7,6 +7,7 @@ import androidx.fragment.app.commit
 import dev.goose.runtime.BaseNavigator
 import dev.goose.runtime.Navigator
 import dev.goose.runtime.PopResult
+import dev.goose.runtime.ResultAwaiter
 import dev.goose.runtime.ResultRouter
 import dev.goose.runtime.Screen
 import kotlin.reflect.KClass
@@ -57,25 +58,20 @@ class FragmentNavigationRequest internal constructor(
     @param:IdRes val containerId: Int,
     /** The back stack entry name results ride on; pass to addToBackStack for awaited screens. */
     val backStackEntryName: String,
-    private val resultRouter: ResultRouter,
+    // The exact caller this request answers, handed down explicitly from goToForResult through
+    // goToAwaited. Null for a plain goTo: such a request has NO caller, even when an older
+    // same-class request is still awaiting elsewhere — its result belongs to its own request.
+    private val awaiter: ResultAwaiter?,
 ) {
-    private val delivered = java.util.concurrent.atomic.AtomicBoolean(false)
-
-    // The exact caller this request answers, captured at navigation time: goToForResult
-    // registers before calling goTo on the same main-thread chain, so the newest awaiter for
-    // this key is ours. Correlating by identity (not key LIFO) means two same-class dialogs
-    // answering out of order each resolve their own caller.
-    private val awaiter = resultRouter.peekMostRecent(backStackEntryName)
-
     /**
      * For destinations that bypass the back stack: answer the caller awaiting this screen.
-     * One-shot per request — a second call no-ops, so a dismiss callback firing after a
-     * result callback cannot consume some OTHER pending request for the same screen.
+     * Correlated exactly (two same-class dialogs answering out of order each resolve their own
+     * caller) and effectively one-shot: the first call consumes the awaiter, later calls no-op,
+     * so a dismiss callback firing after a result callback delivers nothing extra. No-ops on a
+     * request created by plain goTo, which has no caller to answer.
      */
     fun deliverResult(result: PopResult?) {
-        if (!delivered.compareAndSet(false, true)) return
-        val awaiter = awaiter ?: return // plain goTo, nobody awaiting
-        resultRouter.completeExact(backStackEntryName, awaiter, result)
+        awaiter?.complete(result)
     }
 }
 
@@ -138,6 +134,15 @@ class FragmentNavigator(
 
     override fun goTo(screen: Screen) {
         requireMainThread()
+        navigate(screen, awaiter = null)
+    }
+
+    override fun goToAwaited(screen: Screen, awaiter: ResultAwaiter) {
+        requireMainThread()
+        navigate(screen, awaiter)
+    }
+
+    private fun navigate(screen: Screen, awaiter: ResultAwaiter?) {
         // A contributed per-screen override wins: dialogs, custom transactions, other nav APIs.
         navigationOverrides[screen::class]?.let { override ->
             override.navigate(
@@ -146,13 +151,14 @@ class FragmentNavigator(
                     fragmentManager = fragmentManager,
                     containerId = containerId,
                     backStackEntryName = resultKeyFor(screen),
-                    resultRouter = resultRouter,
+                    awaiter = awaiter,
                 )
             )
             return
         }
         // Default: the bound legacy fragment (or a ScreenFragment for migrated screens),
-        // replaced into the container and pushed onto the back stack.
+        // replaced into the container and pushed onto the back stack. Awaited screens deliver
+        // by entry name on pop; stack removal is LIFO-correct per class, no token needed.
         val fragment = binders[screen::class]?.createFragment(screen)
             ?: ScreenFragment.newInstance(screen)
         fragmentManager.commit {
@@ -166,12 +172,17 @@ class FragmentNavigator(
         requireMainThread()
         // A goTo from this same main-loop turn is still a queued FragmentManager transaction;
         // flush it so this pop sees the stack as ordered, not the stale pre-commit view
-        // (goTo(A); pop() must pop A, not report an empty stack). Skipped when the FM cannot
-        // execute (state saved, or already mid-execution): the queue itself is still ordered,
-        // the stale read is only possible from a same-turn sequence, which composition and
-        // ViewModel code paths issue from plain main-looper turns.
+        // (goTo(A); pop() must pop A, not report an empty stack). Executing queued transactions
+        // early is within FragmentManager's contract (commit only promises "as soon as
+        // possible"), including any the legacy app queued itself. Skipped when the FM cannot
+        // execute: state already saved, or reentrancy (pop called from inside an executing
+        // transaction), where the queue's own ordering still holds.
         if (!fragmentManager.isStateSaved) {
-            runCatching { fragmentManager.executePendingTransactions() }
+            try {
+                fragmentManager.executePendingTransactions()
+            } catch (_: IllegalStateException) {
+                // Reentrant execution; the queue drains in order without our help.
+            }
         }
         val count = fragmentManager.backStackEntryCount
         if (count > 0) {

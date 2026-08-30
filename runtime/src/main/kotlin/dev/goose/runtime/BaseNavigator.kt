@@ -37,13 +37,26 @@ abstract class BaseNavigator(
     override suspend fun <R : PopResult> goToForResult(screen: ScreenWithResult<R>): R? {
         val key = resultKeyFor(screen)
         val deferred = resultRouter.register(key)
-        goTo(screen)
+        // The navigation itself runs INSIDE the try: if it throws (a failing adapter, an
+        // invalid transaction), the finally unregisters and no orphaned awaiter is left behind.
         return try {
+            goToAwaited(screen, ResultAwaiter(resultRouter, key, deferred))
             @Suppress("UNCHECKED_CAST")
             deferred.await() as R?
         } finally {
             resultRouter.unregister(key, deferred)
         }
+    }
+
+    /**
+     * Executes the navigation for an awaited screen, carrying THIS request's [awaiter]
+     * explicitly. The default is a plain [goTo]: stack-hosted destinations deliver by key on
+     * pop, which is LIFO-correct. Navigators with non-stack destinations (fragment adapters)
+     * override this to hand the awaiter to the request, so answering is correlated exactly and
+     * a plain same-class [goTo] issued while this caller waits can never steal its result.
+     */
+    protected open fun goToAwaited(screen: Screen, awaiter: ResultAwaiter) {
+        goTo(screen)
     }
 
     /**
