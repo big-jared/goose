@@ -72,8 +72,14 @@ jobs:
 
     - name: Install Android SDK platform 37
       run: |
-        yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-        "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37"
+        SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+        yes | "$SDKMANAGER" --licenses > /dev/null || true
+        # compileSdk 37 with compileSdkMinor 0 resolves the minor-versioned platform first.
+        "$SDKMANAGER" "platforms;android-37.0" \
+          || "$SDKMANAGER" "platforms;android-37" \
+          || "$SDKMANAGER" --channel=3 "platforms;android-37.0" \
+          || "$SDKMANAGER" --channel=3 "platforms;android-37" \
+          || { "$SDKMANAGER" --list --channel=3 | grep -i "android-3" || true; exit 1; }
 
     - name: Run tests
       run: ./gradlew test
