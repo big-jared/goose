@@ -48,3 +48,22 @@ mavenPublishing {
         signAllPublications()
     }
 }
+
+if (providers.gradleProperty("goose.releaseSigning").isPresent) {
+    // Configure the in-memory key directly, working around two Gradle sharp edges:
+    // - no key id: Gradle validates ids as 8 hex chars but looks them up as full 64-bit ids,
+    //   so a key with nonzero high bits can never match. A single-key ring needs no id anyway.
+    // - accept base64: useInMemoryPgpKeys wants the ASCII-armored text; the property commonly
+    //   holds it base64-encoded (one line, gradle.properties friendly), so decode when needed.
+    val inMemoryKey = providers.gradleProperty("signingInMemoryKey")
+    if (inMemoryKey.isPresent) {
+        val raw = inMemoryKey.get()
+        val armored = if (raw.startsWith("-----")) raw else String(java.util.Base64.getDecoder().decode(raw))
+        extensions.configure<org.gradle.plugins.signing.SigningExtension>("signing") {
+            useInMemoryPgpKeys(
+                armored,
+                providers.gradleProperty("signingInMemoryKeyPassword").getOrElse(""),
+            )
+        }
+    }
+}

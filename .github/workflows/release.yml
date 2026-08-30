@@ -123,25 +123,18 @@ jobs:
         git push origin main
         git push origin "v$VERSION"
 
-    - name: Import GPG key
-      env:
-        SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
-      run: |
-        echo "$SIGNING_KEY" | gpg --dearmor > "$HOME/secring.gpg"
-
     - name: Add Gradle properties
       env:
         MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
         MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-        SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
+        SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
         SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
       run: |
         {
           echo "mavenCentralUsername=${MAVEN_CENTRAL_USERNAME}"
           echo "mavenCentralPassword=${MAVEN_CENTRAL_PASSWORD}"
-          echo "signing.keyId=${SIGNING_KEY_ID}"
-          echo "signing.password=${SIGNING_KEY_PASSWORD}"
-          echo "signing.secretKeyRingFile=${HOME}/secring.gpg"
+          echo "signingInMemoryKey=${SIGNING_KEY}"
+          echo "signingInMemoryKeyPassword=${SIGNING_KEY_PASSWORD}"
           echo "goose.releaseSigning=true"
         } >> gradle.properties
 

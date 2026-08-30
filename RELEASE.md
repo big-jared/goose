@@ -8,9 +8,11 @@ Releases are automated through GitHub Actions and publish every module to Maven 
 Configure these secrets in GitHub Settings, Secrets and variables, Actions:
 
 - `MAVEN_CENTRAL_USERNAME` and `MAVEN_CENTRAL_PASSWORD`: Central Portal credentials
-- `SIGNING_KEY`: the armored GPG signing key
-- `SIGNING_KEY_ID`: the key id (last 8 characters)
+- `SIGNING_KEY`: the GPG signing key, either armored text or its base64 (one line)
 - `SIGNING_KEY_PASSWORD`: the key password
+
+No key id is needed: the publish convention configures the in-memory key without one (Gradle's
+id lookup cannot match keys with nonzero high id bits, and a single-key ring needs no id).
 
 ## Releasing
 

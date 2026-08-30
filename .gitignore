@@ -6,3 +6,6 @@ local.properties
 *.iml
 .kotlin/
 captures/
+
+# Local release credentials (never committed)
+local-secrets.properties
