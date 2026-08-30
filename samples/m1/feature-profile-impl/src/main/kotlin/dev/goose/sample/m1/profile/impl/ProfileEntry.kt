@@ -36,9 +36,7 @@ class ProfileUi(
 ) : ScreenUi<ProfileScreen>() {
     @Composable
     override fun Content(screen: ProfileScreen, modifier: Modifier) {
-        val viewModel = screenViewModel<ProfileViewModel, ProfileState>(screen) { state, navigator ->
-            vmFactory.create(state, navigator)
-        }
+        val viewModel = screenViewModel<ProfileViewModel, ProfileState>(screen, vmFactory::create)
         val state by viewModel.collectAsState()
         ProfileContent(
             state = state,

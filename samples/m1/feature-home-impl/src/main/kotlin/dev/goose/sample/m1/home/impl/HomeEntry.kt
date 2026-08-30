@@ -42,9 +42,7 @@ class HomeUi(
 ) : ScreenUi<HomeScreen>() {
     @Composable
     override fun Content(screen: HomeScreen, modifier: Modifier) {
-        val viewModel = screenViewModel<HomeViewModel, HomeState>(screen) { state, navigator ->
-            vmFactory.create(state, navigator)
-        }
+        val viewModel = screenViewModel<HomeViewModel, HomeState>(screen, vmFactory::create)
         val state by viewModel.collectAsState()
         HomeContent(state, onUserClicked = viewModel::onUserClicked, modifier = modifier)
     }

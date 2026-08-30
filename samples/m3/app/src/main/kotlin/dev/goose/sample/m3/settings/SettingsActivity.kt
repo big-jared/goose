@@ -44,7 +44,7 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.subclass
 
 /**
- * The CONVERTED flow: this activity's stack is Nav3-owned (ScreenNavDisplay). The one screen not
+ * The CONVERTED flow: this activity's stack is Nav3-owned (NavigableGooseContent). The one screen not
  * yet migrated — [AboutFragment] — rides along as a [FragmentScreen] (direction 2 of interop).
  */
 class SettingsActivity : FragmentActivity() {

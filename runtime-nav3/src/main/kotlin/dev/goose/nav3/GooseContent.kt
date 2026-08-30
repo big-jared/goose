@@ -68,7 +68,13 @@ fun NavigableGooseContent(
 ) {
     val resultRouter = gooseGraph<GooseRuntimeAccessors>().resultRouter
     val navigator = remember(backStack, parent) { Nav3Navigator(backStack, resultRouter, parent) }
-    GooseNavDisplay(backStack, navigator, modifier, onRootBack)
+    GooseNavDisplay(
+        displayStack = backStack,
+        navigator = navigator,
+        isStackRoot = { key -> key === backStack.firstOrNull() },
+        modifier = modifier,
+        onRootBack = onRootBack,
+    )
 }
 
 /** Shared display core for single-stack and tabbed hosts. */
@@ -77,6 +83,7 @@ fun NavigableGooseContent(
 internal fun GooseNavDisplay(
     displayStack: List<NavKey>,
     navigator: Navigator,
+    isStackRoot: (NavKey) -> Boolean,
     modifier: Modifier = Modifier,
     onRootBack: (() -> Unit)? = null,
 ) {
@@ -94,8 +101,15 @@ internal fun GooseNavDisplay(
                 entryProvider = { key ->
                     val screen = key as? Screen
                         ?: error("Non-Screen NavKey on a Goose back stack: $key")
+                    // A stack's ROOT never renders as a dialog: nav3 requires a non-empty scene
+                    // beneath an overlay, and in a tab host the entry beneath would belong to
+                    // ANOTHER tab. Root overlays degrade to full-screen entries.
                     val metadata =
-                        if (screen is OverlayScreen) DialogSceneStrategy.dialog() else emptyMap()
+                        if (screen is OverlayScreen && !isStackRoot(key)) {
+                            DialogSceneStrategy.dialog()
+                        } else {
+                            emptyMap()
+                        }
                     NavEntry(key, metadata = metadata) {
                         CompositionLocalProvider(
                             LocalScreenAnimatedContentScope provides LocalNavAnimatedContentScope.current,

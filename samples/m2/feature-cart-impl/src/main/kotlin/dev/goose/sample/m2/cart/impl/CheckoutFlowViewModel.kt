@@ -2,8 +2,10 @@ package dev.goose.sample.m2.cart.impl
 
 import com.airbnb.mvrx.MavericksState
 import com.airbnb.mvrx.MavericksViewModel
+import com.airbnb.mvrx.PersistState
 
-data class CheckoutFlowState(val address: String = "") : MavericksState
+/** @PersistState keeps the committed address across process death mid-wizard. */
+data class CheckoutFlowState(@PersistState val address: String = "") : MavericksState
 
 /**
  * Shared by every step of the checkout wizard via `flowViewModel()` — the flow-scoped analogue

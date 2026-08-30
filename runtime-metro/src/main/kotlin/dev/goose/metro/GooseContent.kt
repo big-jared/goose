@@ -2,7 +2,6 @@ package dev.goose.metro
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.NavKey
 import dev.goose.runtime.LocalNavigator
@@ -39,8 +38,8 @@ fun GooseContent(
 ) {
     val registry = gooseGraph<GooseRuntimeAccessors>().screenRegistry
     CompositionLocalProvider(LocalNavigator provides navigator) {
-        val entry = remember(screen) { registry.entryFor(screen) }
-        entry.UntypedContent(screen, modifier)
+        // entryFor is memoized per screen class in the registry; no remember needed.
+        registry.entryFor(screen).UntypedContent(screen, modifier)
     }
 }
 

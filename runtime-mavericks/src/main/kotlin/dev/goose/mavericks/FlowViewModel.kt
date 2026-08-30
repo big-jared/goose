@@ -1,8 +1,10 @@
 package dev.goose.mavericks
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airbnb.mvrx.ActivityViewModelContext
 import com.airbnb.mvrx.MavericksState
 import com.airbnb.mvrx.MavericksViewModel
@@ -14,11 +16,13 @@ import dev.goose.runtime.LocalFlowScope
  * Obtains (or creates) a [MavericksViewModel] shared by every screen under the enclosing
  * [FlowViewModelScope] — the flow-level analogue of Mavericks' `activityViewModel()`. The VM
  * lives in the flow host entry's ViewModelStore: retained across config changes, cleared when
- * the flow pops.
+ * the flow pops (its Mavericks SavedStateProvider is unregistered at the same moment, so popped
+ * flows leave nothing behind on the activity's registry).
  *
  * Flow ViewModels are created through Mavericks' own conventions (companion factory or a
  * single-state-arg constructor); they are shared state pots, not navigators, so no Goose
- * assisted wiring is involved.
+ * assisted wiring is involved — do NOT give them a `gooseVmFactory` companion. Use
+ * `@PersistState` on fields that must survive process death mid-flow.
  */
 @Composable
 inline fun <reified VM : MavericksViewModel<S>, reified S : MavericksState> flowViewModel(): VM =
@@ -36,6 +40,21 @@ fun <VM : MavericksViewModel<S>, S : MavericksState> flowViewModel(
     val activity = checkNotNull(LocalContext.current.findComponentActivity()) {
         "flowViewModel must be hosted in a ComponentActivity"
     }
+    val key = "${vmClass.name}:flow:${flowScope.flowId}"
+
+    // Cleanup rides the flow entry's ViewModelStore: when the flow pops, unregister this VM's
+    // SavedStateProvider from the activity registry so the dead VM isn't retained (and its
+    // persisted bundle isn't re-saved forever). Reassigned each composition so it always targets
+    // the current activity's registry.
+    val cleanupHolder = viewModel<SavedStateCleanupHolder>(
+        viewModelStoreOwner = flowScope.viewModelStoreOwner,
+        key = "goose:ssrCleanup:$key",
+    )
+    SideEffect {
+        val registry = flowScope.savedStateRegistryOwner.savedStateRegistry
+        cleanupHolder.onClearedAction = { registry.unregisterSavedStateProvider(key) }
+    }
+
     return remember(flowScope, vmClass) {
         MavericksViewModelProvider.get(
             viewModelClass = vmClass,
@@ -46,7 +65,7 @@ fun <VM : MavericksViewModel<S>, S : MavericksState> flowViewModel(
                 owner = flowScope.viewModelStoreOwner,
                 savedStateRegistry = flowScope.savedStateRegistryOwner.savedStateRegistry,
             ),
-            key = "${vmClass.name}:flow:${flowScope.flowId}",
+            key = key,
         )
     }
 }

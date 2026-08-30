@@ -24,7 +24,7 @@ import kotlinx.serialization.modules.subclass
 
 /**
  * Direction 2 of the migration: a LEGACY fragment hosted on a Nav3-owned back stack. Lets a
- * mostly-converted flow flip to ScreenNavDisplay while its last unconverted screens ride along.
+ * mostly-converted flow flip to NavigableGooseContent while its last unconverted screens ride along.
  */
 @Serializable
 data class FragmentScreen(

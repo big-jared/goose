@@ -19,6 +19,9 @@ interface Screen : NavKey, java.io.Serializable
  * A [Screen] rendered as a dialog OVER the previous entry instead of replacing it. Push and pop
  * it like any screen ([Navigator.goToForResult] works too — a dialog is a natural answerer);
  * tapping outside or system back pops it with a null result.
+ *
+ * An overlay at the ROOT of a stack (deep link, resetRoot) has nothing to overlay and renders as
+ * a plain full-screen entry instead.
  */
 interface OverlayScreen : Screen
 

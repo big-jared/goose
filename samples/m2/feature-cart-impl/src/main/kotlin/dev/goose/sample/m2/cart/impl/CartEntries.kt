@@ -65,9 +65,7 @@ class CartUi(
 ) : ScreenUi<CartScreen>() {
     @Composable
     override fun Content(screen: CartScreen, modifier: Modifier) {
-        val viewModel = screenViewModel<CartViewModel, CartState>(screen) { state, navigator ->
-            vmFactory.create(state, navigator)
-        }
+        val viewModel = screenViewModel<CartViewModel, CartState>(screen, vmFactory::create)
         val navigator = LocalNavigator.current
         val state by viewModel.collectAsState()
         Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -124,6 +122,9 @@ class CheckoutUi : ScreenUi<CheckoutScreen>() {
                     style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier.padding(16.dp),
                 )
+                screen.itemId?.let {
+                    Text("Item: $it", modifier = Modifier.padding(horizontal = 16.dp))
+                }
                 NavigableGooseContent(
                     backStack = childStack,
                     modifier = Modifier.fillMaxSize(),
@@ -170,11 +171,14 @@ class ConfirmStepUi : ScreenUi<ConfirmStepScreen>() {
         Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Step 2: Confirm", style = MaterialTheme.typography.titleLarge)
             Text("Ship to: ${flowState.address}")
-            Button(onClick = {
-                // Answer the caller awaiting CheckoutScreen: pop the PARENT stack (which removes
-                // the whole nested flow) with the typed result.
-                navigator.parent?.pop(CheckoutResult(flowState.address))
-            }) { Text("Confirm order") }
+            Button(
+                onClick = {
+                    // Answer the caller awaiting CheckoutScreen: pop the PARENT stack (which
+                    // removes the whole nested flow) with the typed result.
+                    navigator.parent?.pop(CheckoutResult(flowState.address))
+                },
+                enabled = flowState.address.isNotBlank(),
+            ) { Text("Confirm order") }
             OutlinedButton(onClick = { navigator.pop() }) { Text("Back") }
         }
     }

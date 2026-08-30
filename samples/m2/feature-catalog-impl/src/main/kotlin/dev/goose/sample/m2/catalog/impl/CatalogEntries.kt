@@ -64,9 +64,7 @@ class CatalogUi(
 ) : ScreenUi<CatalogScreen>() {
     @Composable
     override fun Content(screen: CatalogScreen, modifier: Modifier) {
-        val viewModel = screenViewModel<CatalogViewModel, CatalogState>(screen) { state, navigator ->
-            vmFactory.create(state, navigator)
-        }
+        val viewModel = screenViewModel<CatalogViewModel, CatalogState>(screen, vmFactory::create)
         val state by viewModel.collectAsState()
         Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Catalog", style = MaterialTheme.typography.headlineMedium)
@@ -102,9 +100,7 @@ class ItemDetailUi(
 ) : ScreenUi<ItemDetailScreen>() {
     @Composable
     override fun Content(screen: ItemDetailScreen, modifier: Modifier) {
-        val viewModel = screenViewModel<ItemDetailViewModel, ItemDetailState>(screen) { state, navigator ->
-            vmFactory.create(state, navigator)
-        }
+        val viewModel = screenViewModel<ItemDetailViewModel, ItemDetailState>(screen, vmFactory::create)
         val state by viewModel.collectAsState()
         val pricingService = gooseGraph<PricingAccessor>().pricingService
         val price = remember(screen.itemId) { pricingService.priceOf(screen.itemId) }

@@ -65,6 +65,9 @@ class GooseTabNavigator internal constructor(
     override val backStack: List<Screen>
         get() = currentStack.filterIsInstance<Screen>()
 
+    /** True when [key] is the root entry of ANY tab's stack. */
+    fun isStackRoot(key: NavKey): Boolean = stacks.values.any { it.firstOrNull() === key }
+
     override fun selectTab(key: StackKey) {
         require(key in stacks) { "Unknown tab $key" }
         if (key == currentTab) {
@@ -139,5 +142,11 @@ fun TabbedGooseContent(
     modifier: Modifier = Modifier,
     onRootBack: (() -> Unit)? = null,
 ) {
-    GooseNavDisplay(tabNavigator.displayStack, tabNavigator, modifier, onRootBack)
+    GooseNavDisplay(
+        displayStack = tabNavigator.displayStack,
+        navigator = tabNavigator,
+        isStackRoot = tabNavigator::isStackRoot,
+        modifier = modifier,
+        onRootBack = onRootBack,
+    )
 }

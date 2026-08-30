@@ -12,11 +12,13 @@ import kotlin.reflect.KClass
  * Aggregates every feature's contributed [ScreenEntry] into one lookup. Feature modules contribute
  * with:
  * ```
- * @ContributesIntoMap(AppScope::class)
+ * @ContributesIntoMap(AppScope::class, binding = binding<ScreenEntry>())
  * @ClassKey(ProfileScreen::class)
  * @Inject
- * class ProfileEntry(...) : ScreenEntry { ... }
+ * class ProfileUi(...) : ScreenUi<ProfileScreen>() { ... }
  * ```
+ * The explicit `binding` is required for ScreenUi subclasses — Metro binds contributions as
+ * their direct supertype (`ScreenUi<S>`), not the `ScreenEntry` this registry collects.
  */
 @SingleIn(AppScope::class)
 @Inject

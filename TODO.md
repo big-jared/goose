@@ -18,7 +18,7 @@ Ordered roughly by dependency. See [GOALS.md](GOALS.md) for milestone definition
 - [x] `Navigator`: `goTo`, `pop(result)`, `resetRoot(saveState)`, `parent`,
       observable `backStack`, `suspend goToForResult(ScreenWithResult<R>): R?`
 - [x] `TabNavigator : Navigator`: `selectTab(StackKey)`, saved per-tab stacks
-- [x] `Ui<S>` fun interface (`@Composable Content(state, modifier)`)
+- [x] `ScreenUi<S>` (`@Composable Content(screen, modifier)`) + erased `ScreenEntry`
 - [ ] `StateHolder<S>` (presenter-agnostic: exposes `StateFlow<S>`) — deliberately
       deferred: Mavericks IS the presenter layer per project direction
 - [x] Result bus: stack-scoped keyed routing (`ResultRouter`); survives config
@@ -53,14 +53,14 @@ Ordered roughly by dependency. See [GOALS.md](GOALS.md) for milestone definition
 ## 4. `:runtime-nav3` — Compose host
 
 - [x] `Nav3Navigator` over `SnapshotStateList<Screen>` + `rememberNavBackStack`
-- [x] `ScreenNavDisplay(backStack, registry)`: `NavDisplay` + saved-state +
+- [x] `NavigableGooseContent(backStack)`: `NavDisplay` + saved-state +
       viewmodel-store entry decorators, `ScreenContent` lookup via registry
 - [x] Pop bubbling: stack-at-root `pop()` returns false → delegate to `parent`
 - [x] `TabNavigatorImpl`: per-tab saved stacks, reselect-pops-to-root
-- [x] Nested host support: child `ScreenNavDisplay` with child navigator
+- [x] Nested host support: child `NavigableGooseContent` with child navigator
 - [x] Predictive back through the navigator tree
 - [x] Shared elements: `SharedTransitionLayout` integration, shared-key
-      modifiers plumbed to `Ui`s
+      modifiers plumbed to screen UIs
 
 ## 5. `:runtime-fragment` — interop
 
@@ -86,7 +86,7 @@ Ordered roughly by dependency. See [GOALS.md](GOALS.md) for milestone definition
       zero impl→impl deps
 - [x] **M3 migration sample**: separate `:sample-migration` app — legacy
       fragments + MvRx + Metro, 50% migrated, both interop directions live, one
-      VM shared verbatim between a fragment and a `Ui`
+      VM shared verbatim between a fragment and a compose screen
 - [x] Screenshots for the README (M2 catalog / detail / cart, docs/screenshots)
 
 ## 7. Hardening / later

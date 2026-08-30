@@ -26,7 +26,7 @@ interface FragmentNavigatorOwner {
 /**
  * Direction 1 of the migration: a fully-migrated compose screen hosted on the LEGACY fragment
  * back stack. The screen's Ui and ViewModel are already pure Goose; only the host is a fragment.
- * Once every screen in a flow is migrated, the flow flips to a ScreenNavDisplay and this class
+ * Once every screen in a flow is migrated, the flow flips to a NavigableGooseContent and this class
  * stops being used — no screen code changes.
  */
 class ScreenFragment : Fragment() {

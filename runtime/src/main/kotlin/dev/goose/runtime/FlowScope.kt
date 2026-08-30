@@ -30,8 +30,12 @@ class FlowScope internal constructor(
 val LocalFlowScope = staticCompositionLocalOf<FlowScope?> { null }
 
 /**
- * Declares the current nav entry as a flow scope. Typically wraps a nested ScreenNavDisplay:
+ * Declares the current nav entry as a flow scope. Typically wraps a nested NavigableGooseContent:
  * every screen in the nested stack can then obtain shared ViewModels via `flowViewModel()`.
+ *
+ * Scopes do not nest: an inner FlowViewModelScope SHADOWS the outer one, so a screen inside it
+ * asking for the outer flow's VM class would silently get a fresh instance. Keep one scope per
+ * flow, and pass data between flows via screen args or results.
  */
 @Composable
 fun FlowViewModelScope(content: @Composable () -> Unit) {

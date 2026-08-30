@@ -80,9 +80,7 @@ class ProfileUi(
 ) : ScreenUi<ProfileScreen>() {
     @Composable
     override fun Content(screen: ProfileScreen, modifier: Modifier) {
-        val viewModel = screenViewModel<M3ProfileViewModel, M3ProfileState>(screen) { state, navigator ->
-            vmFactory.create(state, navigator)
-        }
+        val viewModel = screenViewModel<M3ProfileViewModel, M3ProfileState>(screen, vmFactory::create)
         val state by viewModel.collectAsState()
 
         // The SAME CounterViewModel instance the legacy HomeFragment uses (activity-scoped).

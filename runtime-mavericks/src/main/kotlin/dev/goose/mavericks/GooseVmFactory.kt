@@ -5,7 +5,6 @@ import com.airbnb.mvrx.MavericksViewModel
 import com.airbnb.mvrx.MavericksViewModelFactory
 import com.airbnb.mvrx.ViewModelContext
 import dev.goose.runtime.Navigator
-import dev.goose.runtime.Screen
 import kotlin.reflect.KClass
 
 /**
@@ -16,7 +15,6 @@ import kotlin.reflect.KClass
  */
 internal object GooseVmLocator {
     internal class Scope(
-        val screen: Screen,
         val navigator: Navigator,
         val create: (initialState: MavericksState, navigator: Navigator) -> MavericksViewModel<*>,
     )
@@ -26,39 +24,51 @@ internal object GooseVmLocator {
     internal val current: Scope? get() = local.get()
 
     internal fun <T> withScope(scope: Scope, block: () -> T): T {
+        check(local.get() == null) {
+            "Nested Goose VM creation is not supported: a ViewModel's construction path tried to " +
+                "create another Goose-hosted ViewModel."
+        }
         local.set(scope)
         return try {
             block()
         } finally {
-            // Creation never nests (it runs synchronously inside one remember block), so clear
-            // the slot outright rather than implying re-entrancy support.
             local.remove()
         }
     }
 }
 
 /**
- * The factory each Goose-hosted ViewModel delegates its companion to:
+ * The factory each screen-scoped Goose ViewModel delegates its companion to:
  * ```
  * companion object : MavericksViewModelFactory<ProfileViewModel, ProfileState>
  *   by gooseVmFactory(ProfileViewModel::class)
  * ```
- * The actual construction lambda is supplied at the call site — the feature's [ScreenUi] injects
+ * The actual construction lambda is supplied at the call site — the feature's ScreenUi injects
  * the VM's assisted factory and hands it to [screenViewModel] — so there is no factory map and
  * no per-feature binding. Initial state still comes from Mavericks' own conventions (a secondary
  * `State(screen)` constructor, since the screen rides in as ViewModelContext.args) — byte-for-byte
  * the fragment behavior existing MvRx apps rely on.
+ *
+ * Do NOT put this companion on flow-shared ViewModels obtained via [flowViewModel]; those are
+ * created through Mavericks' plain conventions and never see a Goose scope.
  */
 fun <VM : MavericksViewModel<S>, S : MavericksState> gooseVmFactory(
     vmClass: KClass<VM>,
 ): MavericksViewModelFactory<VM, S> = object : MavericksViewModelFactory<VM, S> {
     override fun create(viewModelContext: ViewModelContext, state: S): VM {
         val scope = checkNotNull(GooseVmLocator.current) {
-            "${vmClass.simpleName} was created outside a Goose host. Goose-hosted ViewModels must " +
-                "be obtained via screenViewModel() inside a ScreenUi (or a Mavericks fragment " +
-                "using its own factory during migration)."
+            "${vmClass.simpleName} was created outside a Goose host. Screen ViewModels must be " +
+                "obtained via screenViewModel() inside a ScreenUi (or a Mavericks fragment using " +
+                "its own factory during migration). If this is a flow-shared ViewModel obtained " +
+                "via flowViewModel(), remove its gooseVmFactory companion."
+        }
+        val vm = scope.create(state, scope.navigator)
+        check(vmClass.isInstance(vm)) {
+            "The creation lambda in scope produced ${vm::class.qualifiedName} but Mavericks asked " +
+                "for ${vmClass.qualifiedName} — a Goose VM was created outside its own " +
+                "screenViewModel call."
         }
         @Suppress("UNCHECKED_CAST")
-        return scope.create(state, scope.navigator) as VM
+        return vm as VM
     }
 }
