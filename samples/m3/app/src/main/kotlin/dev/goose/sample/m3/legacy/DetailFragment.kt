@@ -19,7 +19,8 @@ import com.airbnb.mvrx.MavericksViewModelFactory
 import com.airbnb.mvrx.ViewModelContext
 import com.airbnb.mvrx.fragmentViewModel
 import com.airbnb.mvrx.withState
-import dev.goose.fragment.FragmentNavigatorOwner
+import androidx.fragment.app.FragmentActivity
+import dev.goose.fragment.gooseNavigator
 import dev.goose.fragment.ScreenFragmentBinder
 import dev.goose.runtime.Navigator
 import dev.goose.runtime.Screen
@@ -50,7 +51,7 @@ class DetailViewModel(
 
     companion object : MavericksViewModelFactory<DetailViewModel, DetailState> {
         override fun create(viewModelContext: ViewModelContext, state: DetailState): DetailViewModel {
-            val navigator = (viewModelContext.activity as FragmentNavigatorOwner).gooseNavigator
+            val navigator = (viewModelContext.activity as FragmentActivity).gooseNavigator
             return DetailViewModel(state, navigator)
         }
     }

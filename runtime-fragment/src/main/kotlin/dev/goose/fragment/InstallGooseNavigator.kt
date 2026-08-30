@@ -16,21 +16,23 @@ import dev.goose.runtime.NavigatorHandle
  */
 internal class ActivityNavigatorHandleHolder : ViewModel() {
     val handle = NavigatorHandle()
+    var installed = false
 }
 
 /**
  * One-line setup for an activity whose FragmentManager still owns a back stack during migration.
  * Call from onCreate, after setContentView:
  * ```
- * class MainActivity : FragmentActivity(), FragmentNavigatorOwner {
- *     override lateinit var gooseNavigator: Navigator
+ * class MainActivity : FragmentActivity() {
  *     override fun onCreate(savedInstanceState: Bundle?) {
  *         super.onCreate(savedInstanceState)
  *         setContentView(R.layout.activity_main)          // your existing layout
- *         gooseNavigator = installGooseNavigator(R.id.fragment_container)
+ *         installGooseNavigator(R.id.fragment_container)
  *     }
  * }
  * ```
+ * Afterwards the navigator is available anywhere as `activity.gooseNavigator` (and to migrated
+ * screens automatically). Implement [FragmentNavigatorOwner] only if you need custom routing.
  * What it does: builds a [FragmentNavigator] over this activity's FragmentManager and
  * [containerId], binds it into a per-activity retained [NavigatorHandle] (the stable object
  * ViewModels hold across rotation), and routes back presses through it so awaited results
@@ -43,7 +45,9 @@ internal class ActivityNavigatorHandleHolder : ViewModel() {
  */
 fun FragmentActivity.installGooseNavigator(@IdRes containerId: Int): NavigatorHandle {
     val graph = (application as GooseGraphHolder).gooseGraph
-    val handle = ViewModelProvider(this)[ActivityNavigatorHandleHolder::class.java].handle
+    val holder = ViewModelProvider(this)[ActivityNavigatorHandleHolder::class.java]
+    holder.installed = true
+    val handle = holder.handle
     val navigator = FragmentNavigator(
         fragmentManager = supportFragmentManager,
         containerId = containerId,
@@ -56,3 +60,20 @@ fun FragmentActivity.installGooseNavigator(@IdRes containerId: Int): NavigatorHa
     }
     return handle
 }
+
+/**
+ * The activity's installed navigator. Legacy code (fragment click listeners, hand-wired
+ * Mavericks companion factories) navigates through this:
+ * ```
+ * requireActivity().gooseNavigator.goTo(ProfileScreen(user.id))
+ * ```
+ */
+val FragmentActivity.gooseNavigator: Navigator
+    get() {
+        (this as? FragmentNavigatorOwner)?.let { return it.gooseNavigator }
+        val holder = ViewModelProvider(this)[ActivityNavigatorHandleHolder::class.java]
+        check(holder.installed) {
+            "installGooseNavigator(containerId) was not called in ${this::class.simpleName}'s onCreate."
+        }
+        return holder.handle
+    }

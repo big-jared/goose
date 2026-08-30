@@ -36,21 +36,24 @@ class MyApp : Application(), GooseGraphHolder {
 }
 ```
 
-**2. Install a navigator in your existing activity.** One call. It builds a navigator over the
-FragmentManager and fragment container you already have, and routes back presses through it.
-There is no new nav stack here: during migration, your FragmentManager back stack IS the stack.
+**2. Install a navigator in your existing activity.** One call:
 
 ```kotlin
-class MainActivity : FragmentActivity(), FragmentNavigatorOwner {
-    override lateinit var gooseNavigator: Navigator
-
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)                        // your existing layout
-        gooseNavigator = installGooseNavigator(R.id.fragment_container)  // your existing container
+        setContentView(R.layout.activity_main)               // your existing layout
+        installGooseNavigator(R.id.fragment_container)       // your existing container
     }
 }
 ```
+
+Why is even this needed, if the nav API drives your FragmentManager anyway? Because three
+things can't be guessed: which container in your layout to push into, a stable object for
+rotation-surviving ViewModels to hold (the FragmentManager itself dies with the activity), and
+routing back presses so awaited results resolve. This call wires all three; there is no new nav
+stack here. During migration, your FragmentManager back stack IS the stack. Afterwards the
+navigator is available anywhere as `activity.gooseNavigator`.
 
 Have multiple activities? Call `installGooseNavigator` in each one that owns a fragment stack.
 Each activity gets its own independent navigator; separate activities are separate navigation
@@ -180,8 +183,7 @@ fragment opens the new screen through the activity's navigator:
 ```kotlin
 // in a legacy fragment that used to push ProfileFragment
 binding.profileRow.setOnClickListener {
-    (requireActivity() as FragmentNavigatorOwner)
-        .gooseNavigator.goTo(ProfileScreen(user.id))
+    requireActivity().gooseNavigator.goTo(ProfileScreen(user.id))
 }
 ```
 

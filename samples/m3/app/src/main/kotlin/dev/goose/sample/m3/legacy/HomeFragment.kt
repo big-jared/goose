@@ -19,7 +19,8 @@ import com.airbnb.mvrx.ViewModelContext
 import com.airbnb.mvrx.activityViewModel
 import com.airbnb.mvrx.fragmentViewModel
 import com.airbnb.mvrx.withState
-import dev.goose.fragment.FragmentNavigatorOwner
+import androidx.fragment.app.FragmentActivity
+import dev.goose.fragment.gooseNavigator
 import dev.goose.runtime.Navigator
 import dev.goose.sample.m3.DetailScreen
 import dev.goose.sample.m3.ProfileScreen
@@ -57,7 +58,7 @@ class HomeViewModel(
     companion object : MavericksViewModelFactory<HomeViewModel, HomeState> {
         override fun create(viewModelContext: ViewModelContext, state: HomeState): HomeViewModel {
             // Legacy hand-wiring: the navigator comes off the host activity.
-            val navigator = (viewModelContext.activity as FragmentNavigatorOwner).gooseNavigator
+            val navigator = (viewModelContext.activity as FragmentActivity).gooseNavigator
             return HomeViewModel(state, navigator)
         }
     }
