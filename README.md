@@ -18,11 +18,77 @@ Because a ViewModel only knows the Navigator, it doesn't care whether its screen
 today or Compose tomorrow. So you migrate one screen per PR, ship it, and roll it back if you
 have to.
 
-## Migrating a screen
+## Setup (once per app)
 
-Once per app: expose a Metro graph from your Application and build a `FragmentNavigator` over
-your activity's existing FragmentManager ([`samples/m3`](samples/m3) is the copy-paste
-reference). Then, per screen:
+Not on Maven yet; include the `runtime*` modules with Gradle's `includeBuild` or as a
+submodule. Then there are three pieces, all shown working in [`samples/m3`](samples/m3):
+
+**1. Give your Application a graph.** The graph interface stays empty; features fill it by
+contribution:
+
+```kotlin
+@DependencyGraph(AppScope::class)
+interface AppGraph
+
+class MyApp : Application(), GooseGraphHolder {
+    override val gooseGraph: Any by lazy { createGraph<AppGraph>() }
+    override fun onCreate() { super.onCreate(); Mavericks.initialize(this) }
+}
+```
+
+**2. Provide one shared `NavigatorHandle`.** ViewModels outlive activities, so they hold this
+stable handle; the activity plugs the real navigator into it on every (re)create:
+
+```kotlin
+@ContributesTo(AppScope::class)
+interface MainNavModule {
+    val mainNavigatorHandle: NavigatorHandle
+    companion object {
+        @Provides @SingleIn(AppScope::class)
+        fun provideMainNavigatorHandle() = NavigatorHandle()
+    }
+}
+```
+
+**3. Wire your existing activity.** Build a `FragmentNavigator` over the FragmentManager and
+container you already have, bind it into the handle, and route back presses through it:
+
+```kotlin
+class MainActivity : FragmentActivity(), FragmentNavigatorOwner {
+    private lateinit var fragmentNavigator: FragmentNavigator
+
+    override val gooseNavigator: Navigator
+        get() = ((application as GooseGraphHolder).gooseGraph as MainNavModule).mainNavigatorHandle
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // ... your existing setContentView and root fragment ...
+
+        val graph = (application as GooseGraphHolder).gooseGraph
+        fragmentNavigator = FragmentNavigator(
+            fragmentManager = supportFragmentManager,
+            containerId = R.id.fragment_container,        // your existing container
+            binders = (graph as GooseFragmentAccessors).fragmentBinders,
+            resultRouter = (graph as GooseRuntimeAccessors).resultRouter,
+        )
+        (graph as MainNavModule).mainNavigatorHandle.bind(fragmentNavigator)
+
+        onBackPressedDispatcher.addCallback(this) {
+            if (supportFragmentManager.backStackEntryCount > 0) gooseNavigator.pop() else finish()
+        }
+    }
+
+    override fun onDestroy() {
+        ((application as GooseGraphHolder).gooseGraph as MainNavModule)
+            .mainNavigatorHandle.unbind(fragmentNavigator)
+        super.onDestroy()
+    }
+}
+```
+
+That's it. Nothing about your existing fragments changes yet.
+
+## Migrating a screen
 
 **1. Define the screen** in the feature's `:api` module, so other features can navigate to it
 without depending on your implementation:
