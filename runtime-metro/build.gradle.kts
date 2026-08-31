@@ -11,4 +11,5 @@ dependencies {
     api(libs.serialization.core)
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
+    implementation(libs.lifecycle.viewmodel.compose)
 }

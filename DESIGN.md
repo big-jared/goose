@@ -211,8 +211,14 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
     the graph's `GooseScopeAccessors` contributions, resolving locally first with parent
     fallback, and `GooseContent` uses the nearest active registry. Caching is per registry, and
     the child registry is remembered in the scope's composition: leaving the subtree drops the
-    registry, its cached entries, and (with the graph) every session-scoped dependency; nothing
-    is retained across recreation because a graph is dependencies, not state. Screens register
+    registry, its cached entries, and (with the graph) every session-scoped dependency. The
+    graph itself is created with `rememberRetainedGraph`, retained in the owning entry's
+    ViewModelStore: it must live exactly as long as the ViewModels it was injected into, or a
+    rotation would split session dependencies between old (VM-held) and new (recomposed)
+    graphs; a rotation test pins this. AutoCloseable graphs are closed on release. The scope
+    does not cross a FragmentManager push (a ScreenFragment builds a fresh composition from the
+    app graph); scoped screens stay inside compose-hosted flows during migration, and the
+    registry's miss message names GooseScope. Screens register
     into a scope with `@GooseUi(scope = ...)` or hand-written contributions. Duplicate ownership
     of one screen key across parent and child is a Metro compile error (multibindings merge into
     the child map), not a silent shadow. Exercised end to end by the m2 checkout session sample

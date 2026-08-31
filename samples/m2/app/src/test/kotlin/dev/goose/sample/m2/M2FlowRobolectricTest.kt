@@ -103,6 +103,30 @@ class M2FlowRobolectricTest {
         org.junit.Assert.assertNotEquals(firstSession, sessionLine())
     }
 
+    /**
+     * The child graph is RETAINED with its flow entry: rotation rebuilds the UI but keeps the
+     * session (and everything the flow's ViewModels were injected with), so session-scoped
+     * dependencies never split across a configuration change.
+     */
+    @Test
+    fun checkoutSessionSurvivesRotation() {
+        composeRule.onNodeWithText("Cart", useUnmergedTree = true).performClick()
+        composeRule.waitFor("Checkout")
+        composeRule.onNodeWithText("Checkout").performClick()
+        composeRule.waitFor("Use home address")
+        composeRule.onNodeWithText("Add gift note").performClick()
+        composeRule.waitFor("Gift note: none")
+        val session = sessionLine()
+        composeRule.onNodeWithText("Write gift note").performClick()
+        composeRule.waitFor("Gift note: Happy hatching!")
+
+        composeRule.activityRule.scenario.recreate()
+        composeRule.waitForIdle()
+
+        composeRule.waitFor("Gift note: Happy hatching!")
+        org.junit.Assert.assertEquals(session, sessionLine())
+    }
+
     private fun sessionLine(): String = composeRule
         .onNode(hasText("Checkout session #", substring = true))
         .fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text]

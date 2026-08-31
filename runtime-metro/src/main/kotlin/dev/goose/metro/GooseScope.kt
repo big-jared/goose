@@ -41,20 +41,28 @@ val LocalScreenRegistry = staticCompositionLocalOf<ScreenRegistry?> { null }
  * [GooseCompositionLocals]. Wrap the content that owns the graph (typically a flow host, around
  * or inside its `FlowViewModelScope`):
  * ```
- * val checkoutGraph = remember { gooseGraph<CheckoutGraph.Factory>().createCheckoutGraph() }
+ * val factory = gooseGraph<CheckoutGraph.Factory>()
+ * val checkoutGraph = rememberRetainedGraph { factory.createCheckoutGraph() }
  * GooseScope(checkoutGraph) {
  *     NavigableGooseContent(childStack, parent = parentNavigator)
  * }
  * ```
+ * Create the graph with [rememberRetainedGraph], not a plain `remember`: the graph must survive
+ * configuration changes together with the ViewModels it was injected into, or a rotation splits
+ * session-scoped dependencies between the old graph (held by retained VMs) and a new one (seen
+ * by recomposing screens). Retention ends when the owning entry pops; process death rebuilds
+ * the graph fresh, like every other dependency.
+ *
  * Inside, screens registered to the child scope resolve through the child graph; everything
  * registered at the parent (AppScope screens, or an outer GooseScope's) keeps working through
- * registry chaining. The child registry lives exactly as long as this composition: leaving the
- * subtree drops the registry and every child-scoped entry it cached, so nothing outlives the
- * graph. Composition-scoped also means NOT retained across recreation — a child graph is
- * dependencies, not state; state that must survive belongs in ViewModels, same as always.
+ * registry chaining. Leaving the subtree drops the child registry and every child-scoped entry
+ * it cached, so nothing outlives the graph.
  *
- * Works on both hosts: composition-based scoping doesn't care whether this subtree renders in a
- * Nav3 entry or inside a fragment-hosted screen mid-migration.
+ * Host boundary: scoping is composition-based, so it works in Nav3 entries and inside a
+ * fragment-hosted screen's own compose content alike. It does NOT cross a FragmentManager push:
+ * a scope-registered screen pushed as its own fragment (ScreenFragment) builds a fresh
+ * composition from the app graph and will not find the child registry. During migration, keep
+ * scoped screens inside compose-hosted flows.
  */
 @Composable
 fun GooseScope(scopeGraph: Any, content: @Composable () -> Unit) {

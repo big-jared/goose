@@ -18,11 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.airbnb.mvrx.compose.collectAsState
-import androidx.compose.runtime.remember
 import dev.goose.mavericks.flowViewModel
 import dev.goose.mavericks.screenViewModel
 import dev.goose.metro.GooseScope
 import dev.goose.metro.gooseGraph
+import dev.goose.metro.rememberRetainedGraph
 import dev.goose.nav3.NavigableGooseContent
 import dev.goose.nav3.rememberGooseBackStack
 import dev.goose.runtime.FlowViewModelScope
@@ -118,10 +118,11 @@ class CheckoutUi : ScreenUi<CheckoutScreen>() {
     @Composable
     override fun Content(screen: CheckoutScreen, modifier: Modifier) {
         val parentNavigator = LocalNavigator.current
-        // One checkout = one child graph: session-scoped dependencies and the screens
-        // registered to CheckoutScope live exactly as long as this flow's composition.
+        // One checkout = one child graph, RETAINED with this entry: session-scoped dependencies
+        // survive rotation together with the flow's ViewModels, and are released when the flow
+        // pops. (A plain remember would rebuild the graph on rotation and split the session.)
         val graphFactory = gooseGraph<CheckoutGraph.Factory>()
-        val checkoutGraph = remember { graphFactory.createCheckoutGraph() }
+        val checkoutGraph = rememberRetainedGraph { graphFactory.createCheckoutGraph() }
         GooseScope(checkoutGraph) {
         FlowViewModelScope {
             val childStack = rememberGooseBackStack(ShippingStepScreen)

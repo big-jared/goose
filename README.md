@@ -406,7 +406,7 @@ The host that owns the flow creates the graph and activates it for its subtree:
 
 ```kotlin
 val factory = gooseGraph<CheckoutGraph.Factory>()
-val checkoutGraph = remember { factory.createCheckoutGraph() }
+val checkoutGraph = rememberRetainedGraph { factory.createCheckoutGraph() }
 GooseScope(checkoutGraph) {
     NavigableGooseContent(childStack, parent = parentNavigator)
 }
@@ -417,12 +417,14 @@ The rules, all tested in the `m2` sample:
 - Screens registered to the scope resolve only inside `GooseScope`; their dependencies come
   from the child graph.
 - App-scoped screens keep working inside the scope (registries chain to the parent).
-- Leaving the subtree drops the child registry and everything it cached; re-entering builds a
+- Leaving the flow drops the child registry and everything it cached; re-entering builds a
   fresh graph, so session-scoped objects never outlive their session.
-- A child graph is dependencies, not state: it is rebuilt on recreation. State that must
-  survive belongs in ViewModels, exactly as before.
-- Works on both hosts, because scoping is composition-based: a fragment-hosted screen that owns
-  a flow declares `GooseScope` the same way.
+- `rememberRetainedGraph` keeps the graph alive across rotation, together with the ViewModels
+  it was injected into (one session per flow, however many times the device rotates); process
+  death rebuilds it fresh. Durable state still belongs in ViewModels, exactly as before.
+- Scoping is composition-based: it works in Nav3 entries and inside a fragment-hosted screen's
+  own compose content. It does not cross a FragmentManager push, so during migration keep
+  scoped screens inside compose-hosted flows.
 
 ## Keeping your existing navigation APIs
 
