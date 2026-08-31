@@ -258,20 +258,39 @@ A converted flow can still carry a fragment you haven't gotten to yet:
 navigator.goTo(FragmentScreen.of<LegacyAboutFragment>())    // a fragment on a Compose stack
 ```
 
-For fragments with real typed arguments (Parcelables, enums, models), give them a normal typed
-screen instead of the string form, and one registration builds the Bundle from its fields:
+`FragmentScreen.of` only carries strings, though. If your unmigrated fragment takes real
+arguments (a Parcelable model, an enum, an int), don't squeeze them through a string map. Give
+the fragment a normal screen, with typed fields, exactly like a migrated screen would have:
 
 ```kotlin
 @Serializable data class TermsScreen(val termsId: String, val revision: Int) : Screen
+```
 
+Then register what to do when that screen shows: create this fragment, with this Bundle. The
+lambda receives your typed screen, so building the Bundle is ordinary code, and anything a
+Bundle can hold works:
+
+```kotlin
 @Provides @IntoMap @ClassKey(TermsScreen::class)
 fun termsEntry(): ScreenEntry = fragmentScreenEntry<TermsFragment, TermsScreen> { screen ->
-    bundleOf("termsId" to screen.termsId, "revision" to screen.revision, "author" to author)
+    bundleOf(
+        "termsId" to screen.termsId,                 // typed fields, straight off the screen
+        "revision" to screen.revision,
+        "author" to Author(name = "Legal"),          // Parcelables are fine
+    )
 }
 ```
 
-The fragment comes from the FragmentManager's own FragmentFactory, and the typed screen rides
-the persisted back stack, so recreation and process death rebuild the same fragment.
+Now `navigator.goTo(TermsScreen("TOS-7", revision = 3))` works from anywhere, and TermsFragment
+shows up with the same Bundle it always got. The fragment's code does not change at all; when
+you eventually migrate it, you delete this registration, register a composable for the SAME
+screen, and no caller notices.
+
+Rotation and process death work because of what gets saved: the screen. `TermsScreen("TOS-7", 3)`
+is a small serializable data class riding the persisted back stack, so after the app comes back,
+goose runs this same registration again with the same screen and rebuilds an identical fragment.
+(The fragment itself is created through your FragmentManager's `FragmentFactory`, so if your app
+uses a custom factory for constructor injection, that keeps working too.)
 
 ## What @GooseUi generates
 
