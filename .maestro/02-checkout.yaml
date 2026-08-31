@@ -1,0 +1,24 @@
+# The full checkout: typed address picker, checkout-scoped gift note, wizard result to the
+# cart, atomic cross-tab jump into the typed legacy order-history fragment.
+appId: dev.goose.gaggle
+---
+- launchApp:
+    clearState: true
+- tapOn: "Sign in as Goose Fan"
+- tapOn: ".*Premium pond pellets.*"
+- tapOn: "Add to cart"
+- tapOn: "Cart"
+- tapOn: '.*Checkout \(1\).*'
+- assertVisible: "Step 1: Shipping"
+- tapOn: "Choose address"
+- tapOn: ".*1 Goose Way, Pondside.*"
+- assertVisible: ".*Ship to: 1 Goose Way, Pondside.*"
+- tapOn: "Next: gift note"
+- tapOn: "Write gift note"
+- assertVisible: ".*Happy hatching!.*"
+- tapOn: "Next: confirm"
+- assertVisible: ".*Gift note: Happy hatching!.*"
+- tapOn: "Place order"
+- assertVisible: '.*Order placed: 1 item\(s\) to 1 Goose Way, Pondside.*'
+- tapOn: "View order history"
+- assertVisible: '.*Order history: 1 order\(s\).*'

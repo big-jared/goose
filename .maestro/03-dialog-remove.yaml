@@ -1,0 +1,15 @@
+# The OverlayScreen dialog answering goToForResult: keep first, then remove.
+appId: dev.goose.gaggle
+---
+- launchApp:
+    clearState: true
+- tapOn: "Sign in as Goose Fan"
+- tapOn: ".*Premium pond pellets.*"
+- tapOn: "Add to cart"
+- tapOn: "Cart"
+- tapOn: "Remove"
+- tapOn: "Keep it"
+- assertVisible: '.*Checkout \(1\).*'
+- tapOn: "Remove"
+- tapOn: "Remove it"
+- assertVisible: ".*Nothing here yet.*"

@@ -1,0 +1,28 @@
+# The profile tab: StateHolder stats with equal-value pushes, typed legacy terms, the scoped
+# support flow across a FragmentManager, and logout tearing the session down.
+appId: dev.goose.gaggle
+---
+- launchApp:
+    clearState: true
+- tapOn: "Sign in as Goose Fan"
+- tapOn: "Profile"
+- assertVisible: "Hi, Goose Fan"
+- tapOn: "Team stats"
+- tapOn: "Spot a goose"
+- tapOn: "Spot a goose"
+- assertVisible: "Geese spotted: 2"
+- tapOn: "Open stats again"
+- assertVisible: "Geese spotted: 0"
+- back
+- assertVisible: "Geese spotted: 2"
+- back
+- tapOn: 'Terms \(legacy\)'
+- assertVisible: ".*Terms TOS-7 rev 3 by Legal Goose.*"
+- back
+- tapOn: "Support chat"
+- assertVisible: "Ticket T-42"
+- tapOn: "Send a honk"
+- assertVisible: "Honks sent: 1"
+- back
+- tapOn: "Log out"
+- assertVisible: "Sign in as Goose Fan"

@@ -1,0 +1,11 @@
+# A cold deep link parks until login, then lands on the product.
+appId: dev.goose.gaggle
+---
+- launchApp:
+    clearState: true
+    stopApp: true
+- openLink: gaggle://product/pond-2
+- assertVisible: "Sign in as Goose Fan"
+- tapOn: "Sign in as Goose Fan"
+- assertVisible: ".*Floating nest platform.*"
+- assertVisible: "Add to cart"

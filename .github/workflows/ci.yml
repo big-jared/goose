@@ -82,3 +82,53 @@ jobs:
         with:
           name: instrumented-reports
           path: '**/build/reports/androidTests/'
+
+  maestro:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 22
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Android SDK platform 37
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platforms;android-37.0" || "$SDKMANAGER" "platforms;android-37"
+
+      - name: Build Gaggle
+        run: ./gradlew :samples:gaggle:app:assembleDebug
+
+      - name: Install Maestro
+        run: curl -fsSL https://get.maestro.mobile.dev | bash
+
+      - name: Run Maestro flows on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: aosp_atd
+          disable-animations: true
+          script: |
+            adb install samples/gaggle/app/build/outputs/apk/debug/app-debug.apk
+            export PATH="$HOME/.maestro/bin:$PATH"
+            maestro test .maestro/
+
+      - name: Upload Maestro artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-artifacts
+          path: ~/.maestro/tests/

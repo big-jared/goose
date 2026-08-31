@@ -1,0 +1,16 @@
+# Sign in, recover the failed deal with retry, browse into a product and its related stack.
+appId: dev.goose.gaggle
+---
+- launchApp:
+    clearState: true
+- tapOn: "Sign in as Goose Fan"
+- assertVisible: ".*Deal failed to load.*"
+- tapOn: "Retry"
+- assertVisible: ".*Golden egg incubator.*"
+- tapOn: ".*Premium pond pellets.*"
+- assertVisible: "Add to cart"
+- tapOn: ".*Floating nest platform.*"
+- assertVisible: "Add to cart"
+- back
+- back
+- assertVisible: ".*Golden egg incubator.*"
