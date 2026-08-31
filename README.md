@@ -258,19 +258,13 @@ A converted flow can still carry a fragment you haven't gotten to yet:
 navigator.goTo(FragmentScreen.of<LegacyAboutFragment>())    // a fragment on a Compose stack
 ```
 
-`FragmentScreen.of` only carries strings, though. If your unmigrated fragment takes real
-arguments (a Parcelable model, an enum, an int), don't squeeze them through a string map. Give
-the fragment a normal screen, with typed fields, exactly like a migrated screen would have:
+Your old fragment needs real arguments, though, and `FragmentScreen.of` can only pass strings.
+So instead you give that fragment a normal typed screen, plus one registration that says "when
+this screen shows, create this fragment with this Bundle":
 
 ```kotlin
 @Serializable data class TermsScreen(val termsId: String, val revision: Int) : Screen
-```
 
-Then register what to do when that screen shows: create this fragment, with this Bundle. The
-lambda receives your typed screen, so building the Bundle is ordinary code, and anything a
-Bundle can hold works:
-
-```kotlin
 @Provides @IntoMap @ClassKey(TermsScreen::class)
 fun termsEntry(): ScreenEntry = fragmentScreenEntry<TermsFragment, TermsScreen> { screen ->
     bundleOf(
@@ -281,16 +275,11 @@ fun termsEntry(): ScreenEntry = fragmentScreenEntry<TermsFragment, TermsScreen> 
 }
 ```
 
-Now `navigator.goTo(TermsScreen("TOS-7", revision = 3))` works from anywhere, and TermsFragment
-shows up with the same Bundle it always got. The fragment's code does not change at all; when
-you eventually migrate it, you delete this registration, register a composable for the SAME
-screen, and no caller notices.
-
-Rotation and process death work because of what gets saved: the screen. `TermsScreen("TOS-7", 3)`
-is a small serializable data class riding the persisted back stack, so after the app comes back,
-goose runs this same registration again with the same screen and rebuilds an identical fragment.
-(The fragment itself is created through your FragmentManager's `FragmentFactory`, so if your app
-uses a custom factory for constructor injection, that keeps working too.)
+Callers just do `goTo(TermsScreen("TOS-7", 3))`, the fragment gets the Bundle it always got, and
+since only the little screen object is saved, rotation and process death rebuild the same
+fragment automatically. When you eventually migrate the fragment, delete this registration and
+register a composable for the SAME screen; no caller notices. (Fragments are created through
+your FragmentManager's `FragmentFactory`, so custom factories keep working too.)
 
 ## What @GooseUi generates
 
