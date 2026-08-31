@@ -9,4 +9,5 @@ dependencies {
     implementation("dev.zacsweers.metro:gradle-plugin:${libs.versions.metro.get()}")
     implementation("com.google.devtools.ksp:symbol-processing-gradle-plugin:${libs.versions.ksp.get()}")
     implementation("com.vanniktech:gradle-maven-publish-plugin:0.37.0")
+    implementation("org.jetbrains.kotlinx:binary-compatibility-validator:0.18.1")
 }

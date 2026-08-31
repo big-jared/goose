@@ -2,6 +2,9 @@ package dev.goose.nav3
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -154,6 +157,10 @@ internal fun GooseNavDisplay(
                     if (screen is ScreenTransitions) {
                         screen.enterTransition()?.let { t -> metadata = metadata + NavDisplay.transitionSpec { t } }
                         screen.exitTransition()?.let { t -> metadata = metadata + NavDisplay.popTransitionSpec { t } }
+                        metadata = metadata + NavDisplay.predictivePopTransitionSpec { edge ->
+                            screen.predictivePopTransition(edge)
+                                ?: (fadeIn() togetherWith fadeOut())
+                        }
                     }
                     NavEntry(key, metadata = metadata) {
                         CompositionLocalProvider(

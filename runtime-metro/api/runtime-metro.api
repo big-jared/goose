@@ -1,0 +1,109 @@
+public final class dev/goose/metro/GooseContentKt {
+	public static final fun GooseCompositionLocals (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
+	public static final fun GooseContent (Ldev/goose/runtime/Screen;Ldev/goose/runtime/Navigator;Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;II)V
+	public static final fun screenSerializers (Lkotlin/jvm/functions/Function1;)Lkotlinx/serialization/modules/SerializersModule;
+}
+
+public abstract interface class dev/goose/metro/GooseGraphHolder {
+	public abstract fun getGooseGraph ()Ljava/lang/Object;
+}
+
+public final class dev/goose/metro/GooseGraphKt {
+	public static final fun getLocalGooseGraph ()Landroidx/compose/runtime/ProvidableCompositionLocal;
+}
+
+public abstract interface class dev/goose/metro/GooseRuntimeAccessors {
+	public static final field Companion Ldev/goose/metro/GooseRuntimeAccessors$Companion;
+	public abstract fun getNavSerializersModule ()Lkotlinx/serialization/modules/SerializersModule;
+	public abstract fun getResultRouter ()Ldev/goose/runtime/ResultRouter;
+	public abstract fun getScreenEntries ()Ljava/util/Map;
+	public abstract fun getScreenRegistry ()Ldev/goose/metro/ScreenRegistry;
+	public abstract fun getSerializersModules ()Ljava/util/Set;
+}
+
+public abstract class dev/goose/metro/GooseRuntimeAccessors$BindsMirror {
+	public static final field $stable I
+	public final fun screenEntries_property4205200196 ()Ljava/util/Map;
+	public final fun serializersModules_property4205200196 ()Ljava/util/Set;
+}
+
+public final class dev/goose/metro/GooseRuntimeAccessors$Companion {
+	public final fun provideNavSerializersModule (Ljava/util/Set;)Lkotlinx/serialization/modules/SerializersModule;
+	public final fun provideResultRouter ()Ldev/goose/runtime/ResultRouter;
+	public final fun provideScreenRegistry (Ljava/util/Map;)Ldev/goose/metro/ScreenRegistry;
+}
+
+public final class dev/goose/metro/GooseRuntimeAccessors$Companion$ProvideNavSerializersModuleMetroFactory : dev/zacsweers/metro/internal/Factory {
+	public static final field $stable I
+	public static final field Companion Ldev/goose/metro/GooseRuntimeAccessors$Companion$ProvideNavSerializersModuleMetroFactory$Companion;
+	public synthetic fun <init> (Ldev/zacsweers/metro/Provider;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public static final fun create (Ldev/zacsweers/metro/Provider;)Ldev/goose/metro/GooseRuntimeAccessors$Companion$ProvideNavSerializersModuleMetroFactory;
+	public final fun declarationMirror (Ljava/util/Set;)Lkotlinx/serialization/modules/SerializersModule;
+	public synthetic fun invoke ()Ljava/lang/Object;
+	public final fun invoke ()Lkotlinx/serialization/modules/SerializersModule;
+	public static final fun provideNavSerializersModule (Ljava/util/Set;)Lkotlinx/serialization/modules/SerializersModule;
+}
+
+public final class dev/goose/metro/GooseRuntimeAccessors$Companion$ProvideNavSerializersModuleMetroFactory$Companion {
+	public final fun create (Ldev/zacsweers/metro/Provider;)Ldev/goose/metro/GooseRuntimeAccessors$Companion$ProvideNavSerializersModuleMetroFactory;
+	public final fun provideNavSerializersModule (Ljava/util/Set;)Lkotlinx/serialization/modules/SerializersModule;
+}
+
+public final class dev/goose/metro/GooseRuntimeAccessors$Companion$ProvideResultRouterMetroFactory : dev/zacsweers/metro/internal/Factory {
+	public static final field $stable I
+	public static final field INSTANCE Ldev/goose/metro/GooseRuntimeAccessors$Companion$ProvideResultRouterMetroFactory;
+	public static final fun create ()Ldev/goose/metro/GooseRuntimeAccessors$Companion$ProvideResultRouterMetroFactory;
+	public final fun declarationMirror ()Ldev/goose/runtime/ResultRouter;
+	public final fun invoke ()Ldev/goose/runtime/ResultRouter;
+	public synthetic fun invoke ()Ljava/lang/Object;
+	public static final fun provideResultRouter ()Ldev/goose/runtime/ResultRouter;
+}
+
+public final class dev/goose/metro/GooseRuntimeAccessors$Companion$ProvideScreenRegistryMetroFactory : dev/zacsweers/metro/internal/Factory {
+	public static final field $stable I
+	public static final field Companion Ldev/goose/metro/GooseRuntimeAccessors$Companion$ProvideScreenRegistryMetroFactory$Companion;
+	public synthetic fun <init> (Ldev/zacsweers/metro/Provider;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public static final fun create (Ldev/zacsweers/metro/Provider;)Ldev/goose/metro/GooseRuntimeAccessors$Companion$ProvideScreenRegistryMetroFactory;
+	public final fun declarationMirror (Ljava/util/Map;)Ldev/goose/metro/ScreenRegistry;
+	public final fun invoke ()Ldev/goose/metro/ScreenRegistry;
+	public synthetic fun invoke ()Ljava/lang/Object;
+	public static final fun provideScreenRegistry (Ljava/util/Map;)Ldev/goose/metro/ScreenRegistry;
+}
+
+public final class dev/goose/metro/GooseRuntimeAccessors$Companion$ProvideScreenRegistryMetroFactory$Companion {
+	public final fun create (Ldev/zacsweers/metro/Provider;)Ldev/goose/metro/GooseRuntimeAccessors$Companion$ProvideScreenRegistryMetroFactory;
+	public final fun provideScreenRegistry (Ljava/util/Map;)Ldev/goose/metro/ScreenRegistry;
+}
+
+public abstract interface class dev/goose/metro/GooseRuntimeAccessors$MetroContributionToAppScope : dev/goose/metro/GooseRuntimeAccessors {
+}
+
+public abstract interface class dev/goose/metro/GooseScopeAccessors {
+	public abstract fun getScopedScreenEntries ()Ljava/util/Map;
+}
+
+public abstract class dev/goose/metro/GooseScopeAccessors$BindsMirror {
+	public static final field $stable I
+	public final fun scopedScreenEntries_property4205200196 ()Ljava/util/Map;
+}
+
+public final class dev/goose/metro/GooseScopeKt {
+	public static final fun GooseScope (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
+	public static final fun getLocalScreenRegistry ()Landroidx/compose/runtime/ProvidableCompositionLocal;
+}
+
+public final class dev/goose/metro/RememberRetainedGraphKt {
+	public static final fun rememberRetainedGraph (Ljava/lang/String;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)Ljava/lang/Object;
+}
+
+public final class dev/goose/metro/ScreenRegistry {
+	public static final field $stable I
+	public fun <init> (Ljava/util/Map;Ldev/goose/metro/ScreenRegistry;)V
+	public synthetic fun <init> (Ljava/util/Map;Ldev/goose/metro/ScreenRegistry;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun entryFor (Ldev/goose/runtime/Screen;)Ldev/goose/runtime/ScreenEntry;
+}
+
+public final class metro/hints/DevGooseMetroGooseRuntimeAccessorsDev_zacsweers_metro_AppScopeKt {
+	public static final synthetic fun dev_zacsweers_metro_AppScope (Ldev/goose/metro/GooseRuntimeAccessors;)V
+}
+

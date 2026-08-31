@@ -1,5 +1,6 @@
 plugins {
     id("goose.publish")
+    id("goose.api-tracking")
     id("goose.android.library")
     alias(libs.plugins.metro)
 }

@@ -82,7 +82,7 @@ jobs:
           || { "$SDKMANAGER" --list --channel=3 | grep -i "android-3" || true; exit 1; }
 
     - name: Run tests
-      run: ./gradlew test
+      run: ./gradlew test apiCheck
 
     - name: Update version in gradle.properties and README
       run: |

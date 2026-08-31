@@ -28,4 +28,13 @@ interface ScreenTransitions {
 
     /** Plays when this screen pops. Null keeps the host default. */
     fun exitTransition(): ContentTransform? = null
+
+    /**
+     * Plays while the user is DRAGGING the predictive back gesture on this screen. [swipeEdge]
+     * is the edge the gesture started from (`BackEventCompat.EDGE_LEFT` / `EDGE_RIGHT`).
+     * Defaults to [exitTransition], so a screen that customizes its pop automatically previews
+     * the same motion under the gesture; returning null degrades to a plain crossfade during
+     * the drag (the committed pop still uses [exitTransition]).
+     */
+    fun predictivePopTransition(swipeEdge: Int): ContentTransform? = exitTransition()
 }

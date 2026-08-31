@@ -1,0 +1,152 @@
+public abstract class dev/goose/runtime/BaseNavigator : dev/goose/runtime/Navigator {
+	public static final field $stable I
+	public fun <init> (Ldev/goose/runtime/ResultRouter;)V
+	protected final fun deliverPopResult (Ldev/goose/runtime/Screen;Ldev/goose/runtime/PopResult;)V
+	protected final fun getResultRouter ()Ldev/goose/runtime/ResultRouter;
+	protected fun goToAwaited (Ldev/goose/runtime/Screen;Ldev/goose/runtime/ResultAwaiter;)V
+	public fun goToForResult (Ldev/goose/runtime/ScreenWithResult;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	protected final fun requireMainThread ()V
+	protected fun resultKeyFor (Ldev/goose/runtime/Screen;)Ljava/lang/String;
+}
+
+public final class dev/goose/runtime/FlowScope {
+	public static final field $stable I
+	public final fun getFlowId ()Ljava/lang/String;
+	public final fun getSavedStateRegistryOwner ()Landroidx/savedstate/SavedStateRegistryOwner;
+	public final fun getViewModelStoreOwner ()Landroidx/lifecycle/ViewModelStoreOwner;
+}
+
+public final class dev/goose/runtime/FlowScopeKt {
+	public static final fun FlowViewModelScope (Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
+	public static final fun getLocalFlowScope ()Landroidx/compose/runtime/ProvidableCompositionLocal;
+}
+
+public abstract interface annotation class dev/goose/runtime/GooseUi : java/lang/annotation/Annotation {
+	public abstract fun scope ()Ljava/lang/Class;
+	public abstract fun screen ()Ljava/lang/Class;
+}
+
+public abstract interface class dev/goose/runtime/Navigator {
+	public abstract fun getBackStack ()Ljava/util/List;
+	public abstract fun getParent ()Ldev/goose/runtime/Navigator;
+	public abstract fun goTo (Ldev/goose/runtime/Screen;)V
+	public abstract fun goToForResult (Ldev/goose/runtime/ScreenWithResult;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun pop (Ldev/goose/runtime/PopResult;)Z
+	public static synthetic fun pop$default (Ldev/goose/runtime/Navigator;Ldev/goose/runtime/PopResult;ILjava/lang/Object;)Z
+	public abstract fun resetRoot (Ldev/goose/runtime/Screen;)V
+}
+
+public final class dev/goose/runtime/Navigator$DefaultImpls {
+	public static synthetic fun pop$default (Ldev/goose/runtime/Navigator;Ldev/goose/runtime/PopResult;ILjava/lang/Object;)Z
+}
+
+public final class dev/goose/runtime/NavigatorHandle : dev/goose/runtime/Navigator {
+	public static final field $stable I
+	public fun <init> ()V
+	public final fun bind (Ldev/goose/runtime/Navigator;)V
+	public fun getBackStack ()Ljava/util/List;
+	public fun getParent ()Ldev/goose/runtime/Navigator;
+	public fun goTo (Ldev/goose/runtime/Screen;)V
+	public fun goToForResult (Ldev/goose/runtime/ScreenWithResult;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun pop (Ldev/goose/runtime/PopResult;)Z
+	public fun resetRoot (Ldev/goose/runtime/Screen;)V
+	public final fun unbind (Ldev/goose/runtime/Navigator;)V
+}
+
+public abstract interface class dev/goose/runtime/OverlayScreen : dev/goose/runtime/Screen {
+	public fun dialogProperties ()Landroidx/compose/ui/window/DialogProperties;
+}
+
+public final class dev/goose/runtime/OverlayScreen$DefaultImpls {
+	public static fun dialogProperties (Ldev/goose/runtime/OverlayScreen;)Landroidx/compose/ui/window/DialogProperties;
+}
+
+public abstract interface class dev/goose/runtime/PopResult {
+}
+
+public final class dev/goose/runtime/ResultAwaiter {
+	public static final field $stable I
+	public final fun complete (Ldev/goose/runtime/PopResult;)V
+}
+
+public final class dev/goose/runtime/ResultRouter {
+	public static final field $stable I
+	public fun <init> ()V
+	public final fun complete (Ljava/lang/String;Ldev/goose/runtime/PopResult;)V
+	public final fun register (Ljava/lang/String;)Lkotlinx/coroutines/CompletableDeferred;
+	public final fun resultKeyOf (Ldev/goose/runtime/Screen;)Ljava/lang/String;
+	public final fun unregister (Ljava/lang/String;Lkotlinx/coroutines/CompletableDeferred;)V
+}
+
+public abstract interface class dev/goose/runtime/Screen : androidx/navigation3/runtime/NavKey, java/io/Serializable {
+}
+
+public abstract interface class dev/goose/runtime/ScreenEntry {
+	public abstract fun UntypedContent (Ldev/goose/runtime/Screen;Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;I)V
+}
+
+public final class dev/goose/runtime/ScreenEntryKt {
+	public static final fun getLocalNavigator ()Landroidx/compose/runtime/ProvidableCompositionLocal;
+}
+
+public abstract interface class dev/goose/runtime/ScreenTransitions {
+	public fun enterTransition ()Landroidx/compose/animation/ContentTransform;
+	public fun exitTransition ()Landroidx/compose/animation/ContentTransform;
+	public fun predictivePopTransition (I)Landroidx/compose/animation/ContentTransform;
+}
+
+public final class dev/goose/runtime/ScreenTransitions$DefaultImpls {
+	public static fun enterTransition (Ldev/goose/runtime/ScreenTransitions;)Landroidx/compose/animation/ContentTransform;
+	public static fun exitTransition (Ldev/goose/runtime/ScreenTransitions;)Landroidx/compose/animation/ContentTransform;
+	public static fun predictivePopTransition (Ldev/goose/runtime/ScreenTransitions;I)Landroidx/compose/animation/ContentTransform;
+}
+
+public abstract class dev/goose/runtime/ScreenUi : dev/goose/runtime/ScreenEntry {
+	public static final field $stable I
+	public fun <init> ()V
+	protected abstract fun Content (Ldev/goose/runtime/Screen;Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;I)V
+	public final fun UntypedContent (Ldev/goose/runtime/Screen;Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;I)V
+}
+
+public abstract interface class dev/goose/runtime/ScreenWithResult : dev/goose/runtime/Screen {
+}
+
+public final class dev/goose/runtime/SharedElementsKt {
+	public static final fun getLocalScreenAnimatedContentScope ()Landroidx/compose/runtime/ProvidableCompositionLocal;
+	public static final fun getLocalSharedTransitionScope ()Landroidx/compose/runtime/ProvidableCompositionLocal;
+	public static final fun sharedScreenElement (Landroidx/compose/ui/Modifier;Ljava/lang/Object;Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/Modifier;
+}
+
+public final class dev/goose/runtime/StackKey {
+	public static final synthetic fun box-impl (Ljava/lang/String;)Ldev/goose/runtime/StackKey;
+	public static fun constructor-impl (Ljava/lang/String;)Ljava/lang/String;
+	public fun equals (Ljava/lang/Object;)Z
+	public static fun equals-impl (Ljava/lang/String;Ljava/lang/Object;)Z
+	public static final fun equals-impl0 (Ljava/lang/String;Ljava/lang/String;)Z
+	public final fun getValue ()Ljava/lang/String;
+	public fun hashCode ()I
+	public static fun hashCode-impl (Ljava/lang/String;)I
+	public fun toString ()Ljava/lang/String;
+	public static fun toString-impl (Ljava/lang/String;)Ljava/lang/String;
+	public final synthetic fun unbox-impl ()Ljava/lang/String;
+}
+
+public abstract class dev/goose/runtime/StateHolder {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/Object;)V
+	protected final fun getHolderScope ()Lkotlinx/coroutines/CoroutineScope;
+	public final fun getState ()Lkotlinx/coroutines/flow/StateFlow;
+	protected fun onCleared ()V
+	protected final fun setState (Lkotlin/jvm/functions/Function1;)V
+}
+
+public final class dev/goose/runtime/StateHolderKt {
+	public static final fun rememberStateHolder (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Ldev/goose/runtime/StateHolder;
+}
+
+public abstract interface class dev/goose/runtime/TabNavigator : dev/goose/runtime/Navigator {
+	public abstract fun getCurrentTab-hOg5Z_M ()Ljava/lang/String;
+	public abstract fun goTo-sUNl0Ws (Ljava/lang/String;Ldev/goose/runtime/Screen;)V
+	public abstract fun selectTab-iBpPuZw (Ljava/lang/String;)V
+}
+
