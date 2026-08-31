@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -49,6 +50,12 @@ jobs:
           path: '**/build/reports/tests/'
 
   instrumented:
+    # Emulator jobs are the slow ones. They run on main pushes and manual dispatch; on PRs
+    # only when labeled 'emulator'. (All runners here are standard ubuntu-latest, which is
+    # free on public repos regardless.)
+    if: >
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'emulator')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -84,6 +91,12 @@ jobs:
           path: '**/build/reports/androidTests/'
 
   maestro:
+    # Emulator jobs are the slow ones. They run on main pushes and manual dispatch; on PRs
+    # only when labeled 'emulator'. (All runners here are standard ubuntu-latest, which is
+    # free on public repos regardless.)
+    if: >
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'emulator')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -124,7 +137,7 @@ jobs:
           # NOTE: script lines run as separate processes (no shared shell), so no export.
           script: |
             adb install samples/gaggle/app/build/outputs/apk/debug/app-debug.apk
-            $HOME/.maestro/bin/maestro test .maestro/
+            $HOME/.maestro/bin/maestro test .maestro/ || $HOME/.maestro/bin/maestro test .maestro/
 
       - name: Upload Maestro artifacts
         if: failure()

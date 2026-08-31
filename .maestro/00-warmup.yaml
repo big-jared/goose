@@ -1,0 +1,8 @@
+# Warm-up: absorbs driver/app cold-start on fresh CI emulators so real flows start stable.
+appId: dev.goose.gaggle
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Sign in as Goose Fan"
+    timeout: 30000
