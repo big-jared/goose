@@ -13,7 +13,9 @@ import dev.goose.runtime.ScreenWithResult
 import kotlinx.serialization.Serializable
 
 @Serializable
-data object CartScreen : Screen
+data object CartScreen : Screen {
+    private fun readResolve(): Any = CartScreen
+}
 
 /** How other features (the catalog's product page) put things in this session's cart. */
 interface CartMutator {
@@ -25,6 +27,8 @@ interface CartMutator {
 data object CheckoutScreen : ScreenWithResult<CheckoutResult>, ScreenTransitions {
     override fun enterTransition() = slideInVertically { it } togetherWith fadeOut()
     override fun exitTransition() = fadeIn() togetherWith slideOutVertically { it }
+
+    private fun readResolve(): Any = CheckoutScreen
 }
 
 @Serializable
@@ -32,7 +36,9 @@ data class CheckoutResult(val shippingAddress: String, val itemCount: Int) : Pop
 
 /** A picker screen: a question with a typed answer. */
 @Serializable
-data object PickAddressScreen : ScreenWithResult<PickedAddress>
+data object PickAddressScreen : ScreenWithResult<PickedAddress> {
+    private fun readResolve(): Any = PickAddressScreen
+}
 
 @Serializable
 data class PickedAddress(val line: String) : PopResult

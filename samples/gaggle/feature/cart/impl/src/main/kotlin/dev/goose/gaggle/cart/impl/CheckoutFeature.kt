@@ -36,13 +36,19 @@ import kotlinx.serialization.Serializable
 
 // Wizard steps are internal to the flow by module structure (public for Metro merging).
 @Serializable
-data object ShippingStepScreen : Screen
+data object ShippingStepScreen : Screen {
+    private fun readResolve(): Any = ShippingStepScreen
+}
 
 @Serializable
-data object GiftNoteStepScreen : Screen
+data object GiftNoteStepScreen : Screen {
+    private fun readResolve(): Any = GiftNoteStepScreen
+}
 
 @Serializable
-data object ConfirmStepScreen : Screen
+data object ConfirmStepScreen : Screen {
+    private fun readResolve(): Any = ConfirmStepScreen
+}
 
 data class CheckoutFlowState(
     /** Survives process death mid-wizard via Mavericks' own machinery. */

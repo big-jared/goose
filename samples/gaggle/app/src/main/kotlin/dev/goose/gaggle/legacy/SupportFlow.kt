@@ -67,7 +67,9 @@ interface SupportGraph : GooseScopeAccessors {
 }
 
 @Serializable
-data object SupportChatScreen : Screen
+data object SupportChatScreen : Screen {
+    private fun readResolve(): Any = SupportChatScreen
+}
 
 data class SupportChatState(val messagesSent: Int = 0) : com.airbnb.mvrx.MavericksState
 
