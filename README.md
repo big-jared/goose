@@ -372,6 +372,58 @@ cannot be decoded on launch (a screen class was renamed or removed in an update)
 restarts at its roots instead of crash-looping. Losing navigation state is recoverable; a crash
 loop is not.
 
+## Session scopes (child graphs)
+
+Some dependencies should not live as long as the app: a checkout session, a signed-in user's
+repositories, a workflow's scratch state. Goose supports Metro child graphs end to end. Declare
+the scope and its graph once, in the owning feature:
+
+```kotlin
+abstract class CheckoutScope private constructor()
+
+@SingleIn(CheckoutScope::class)
+@Inject
+class CheckoutSession { var giftNote: String = "" }
+
+@GraphExtension(CheckoutScope::class)
+interface CheckoutGraph : GooseScopeAccessors {
+    @GraphExtension.Factory
+    @ContributesTo(AppScope::class)
+    interface Factory { fun createCheckoutGraph(): CheckoutGraph }
+}
+```
+
+Register screens INTO the scope with the same annotation, one extra argument. Injected
+parameters resolve from the child graph:
+
+```kotlin
+@GooseUi(GiftNoteScreen::class, scope = CheckoutScope::class)
+@Composable
+fun GiftNoteUi(modifier: Modifier, session: CheckoutSession) { ... }
+```
+
+The host that owns the flow creates the graph and activates it for its subtree:
+
+```kotlin
+val factory = gooseGraph<CheckoutGraph.Factory>()
+val checkoutGraph = remember { factory.createCheckoutGraph() }
+GooseScope(checkoutGraph) {
+    NavigableGooseContent(childStack, parent = parentNavigator)
+}
+```
+
+The rules, all tested in the `m2` sample:
+
+- Screens registered to the scope resolve only inside `GooseScope`; their dependencies come
+  from the child graph.
+- App-scoped screens keep working inside the scope (registries chain to the parent).
+- Leaving the subtree drops the child registry and everything it cached; re-entering builds a
+  fresh graph, so session-scoped objects never outlive their session.
+- A child graph is dependencies, not state: it is rebuilt on recreation. State that must
+  survive belongs in ViewModels, exactly as before.
+- Works on both hosts, because scoping is composition-based: a fragment-hosted screen that owns
+  a flow declares `GooseScope` the same way.
+
 ## Keeping your existing navigation APIs
 
 Mature apps have their own navigation helpers that everything else uses: a

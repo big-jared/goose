@@ -30,10 +30,16 @@ import kotlin.reflect.KClass
  * Injected parameters may carry Metro qualifier annotations (`@Named` etc.); they are copied to
  * the generated provider.
  *
- * Registrations contribute to `AppScope` — the only scope the runtime's ScreenRegistry reads
- * today. A scope parameter will arrive together with child-graph registries (see TODO.md),
- * not before.
+ * [scope] is the Metro scope the registration contributes to; the default (`Unit::class`
+ * sentinel, keeping this module Metro-free) means `AppScope`. A custom scope registers the
+ * screen in that scope's child graph instead: hosts make it renderable with `GooseScope` around
+ * the subtree that owns the graph, and the screen's injected parameters resolve from the child
+ * graph (session objects, flow-owned repositories), with everything else falling back to the
+ * parent.
  */
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.SOURCE)
-annotation class GooseUi(val screen: KClass<out Screen>)
+annotation class GooseUi(
+    val screen: KClass<out Screen>,
+    val scope: KClass<*> = Unit::class,
+)

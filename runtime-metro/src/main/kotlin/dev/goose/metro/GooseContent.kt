@@ -36,7 +36,9 @@ fun GooseContent(
     navigator: Navigator,
     modifier: Modifier = Modifier,
 ) {
-    val registry = gooseGraph<GooseRuntimeAccessors>().screenRegistry
+    // Nearest active registry wins: a GooseScope's child registry when inside one, the app
+    // graph's root registry otherwise.
+    val registry = LocalScreenRegistry.current ?: gooseGraph<GooseRuntimeAccessors>().screenRegistry
     CompositionLocalProvider(LocalNavigator provides navigator) {
         // entryFor is memoized per screen class in the registry; no remember needed.
         registry.entryFor(screen).UntypedContent(screen, modifier)

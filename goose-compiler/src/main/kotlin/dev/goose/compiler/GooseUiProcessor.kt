@@ -29,6 +29,7 @@ private const val NAVIGATOR = "dev.goose.runtime.Navigator"
 private const val ASSISTED_FACTORY = "dev.zacsweers.metro.AssistedFactory"
 private const val QUALIFIER = "dev.zacsweers.metro.Qualifier"
 private const val SERIALIZABLE = "kotlinx.serialization.Serializable"
+private const val APP_SCOPE = "dev.zacsweers.metro.AppScope"
 
 /** Internal names in the generated ScreenEntry lambda, reserved so user params can't shadow them. */
 private val RESERVED_PARAM_NAMES = setOf("gooseScreen", "gooseModifier")
@@ -116,6 +117,9 @@ class GooseUiProcessor(
             logger.error("@GooseUi screen class has no qualified name", function)
             return
         }
+        val scopeFqn = annotation.classArgument("scope", index = 1)
+            ?.declaration?.qualifiedName?.asString()
+            .let { if (it == null || it == "kotlin.Unit") APP_SCOPE else it }
         // Fail here, not on the first state save: back-stack persistence needs the serializer.
         val screenSerializable = screenType.declaration.annotations.any {
             it.annotationType.resolve().declaration.qualifiedName?.asString() == SERIALIZABLE
@@ -259,7 +263,7 @@ class GooseUiProcessor(
                 |package $packageName
                 |$imports
                 |
-                |@dev.zacsweers.metro.ContributesTo(dev.zacsweers.metro.AppScope::class)
+                |@dev.zacsweers.metro.ContributesTo($scopeFqn::class)
                 |public interface $moduleName {
                 |    public companion object {
                 |        @dev.zacsweers.metro.Provides

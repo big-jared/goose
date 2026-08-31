@@ -47,10 +47,10 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
    state class. Assignability matching (interfaces, supertypes) invites ambiguity between two
    VMs whose states share an interface; exactness keeps the rule explainable in one sentence.
 
-9. **Scope. Deferred, deliberately.** A scope parameter briefly existed and was removed: it
-   contributed entries to a scope that no ScreenRegistry reads, which is an annotation-shaped
-   trap. Registrations are `AppScope` until child-graph registries land (item 36); the parameter
-   returns with them.
+9. **Scope. Done.** `@GooseUi(GiftNoteScreen::class, scope = CheckoutScope::class)` registers a
+   screen into a Metro child graph, consumed via `GooseScope` (item 36). The parameter was
+   removed once, earlier, precisely because nothing could consume it; it returned together with
+   the registries that read it, in the same change.
 
 10. **Compile-testing fixtures. Deferred.** The grammar rules are enforced but exercised only
     through the samples (happy path) today. A compile-testing suite for the error cases is
@@ -206,11 +206,17 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
     mechanism). The convention that prevents collisions is declaring key TYPES in :api modules,
     which namespaces them by class.
 
-36. **Registry caching vs session scopes. Decided.** `ScreenEntry` instances are app-scoped and
-    capture app-scoped factories; session-scoped dependencies must be reached through accessors
-    resolved at composition/creation time, not captured at registration. First-class session
-    graphs (`@GraphExtension`, and `@GooseUi(scope = ...)` registrations living in a child
-    graph's registry) are the deferred design in TODO.md.
+36. **Registry caching vs session scopes. Done.** Registries form a chain mirroring the graph
+    tree. The app graph provides the root; `GooseScope(childGraph)` builds a child registry from
+    the graph's `GooseScopeAccessors` contributions, resolving locally first with parent
+    fallback, and `GooseContent` uses the nearest active registry. Caching is per registry, and
+    the child registry is remembered in the scope's composition: leaving the subtree drops the
+    registry, its cached entries, and (with the graph) every session-scoped dependency; nothing
+    is retained across recreation because a graph is dependencies, not state. Screens register
+    into a scope with `@GooseUi(scope = ...)` or hand-written contributions. Duplicate ownership
+    of one screen key across parent and child is a Metro compile error (multibindings merge into
+    the child map), not a silent shadow. Exercised end to end by the m2 checkout session sample
+    and its Robolectric test (shared within a flow, fresh per flow, parent fallback).
 
 37. **Flavors and controlled replacement. Decided.** Metro's own mechanisms are the answer:
     `replaces = [...]` on a contribution swaps a registration wholesale, and flavor source sets

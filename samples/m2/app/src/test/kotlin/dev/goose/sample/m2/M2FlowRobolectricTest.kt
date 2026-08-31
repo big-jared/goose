@@ -61,6 +61,53 @@ class M2FlowRobolectricTest {
         composeRule.waitFor("Shipped to: 1 Goose Way, Pondside")
     }
 
+    /**
+     * Child-graph scoping: GiftNoteScreen is registered to CheckoutScope (not AppScope) and
+     * injects the session-scoped CheckoutSession. One pass through the wizard shares one
+     * session; leaving the flow disposes the child graph, and re-entering builds a fresh one.
+     * App-scoped screens (the wizard steps) keep resolving inside the scope via parent fallback.
+     */
+    @Test
+    fun checkoutSessionScopeIsCreatedSharedAndDisposedWithTheFlow() {
+        composeRule.onNodeWithText("Cart", useUnmergedTree = true).performClick()
+        composeRule.waitFor("Checkout")
+        composeRule.onNodeWithText("Checkout").performClick()
+        composeRule.waitFor("Use home address")
+
+        composeRule.onNodeWithText("Add gift note").performClick()
+        composeRule.waitFor("Gift note: none")
+        val firstSession = sessionLine()
+        composeRule.onNodeWithText("Write gift note").performClick()
+        composeRule.waitFor("Gift note: Happy hatching!")
+        composeRule.onNodeWithText("Back to shipping").performClick()
+        composeRule.waitFor("Use home address")
+
+        // Same flow, same session: the note is still there.
+        composeRule.onNodeWithText("Add gift note").performClick()
+        composeRule.waitFor("Gift note: Happy hatching!")
+        org.junit.Assert.assertEquals(firstSession, sessionLine())
+        composeRule.onNodeWithText("Back to shipping").performClick()
+        composeRule.waitFor("Use home address")
+
+        // Leave the flow entirely: child root pop bubbles out, the checkout entry pops.
+        composeRule.activityRule.scenario.onActivity {
+            it.onBackPressedDispatcher.onBackPressed()
+        }
+        composeRule.waitFor("Checkout")
+
+        // A new checkout is a NEW graph: fresh session, empty note.
+        composeRule.onNodeWithText("Checkout").performClick()
+        composeRule.waitFor("Use home address")
+        composeRule.onNodeWithText("Add gift note").performClick()
+        composeRule.waitFor("Gift note: none")
+        org.junit.Assert.assertNotEquals(firstSession, sessionLine())
+    }
+
+    private fun sessionLine(): String = composeRule
+        .onNode(hasText("Checkout session #", substring = true))
+        .fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text]
+        .joinToString { it.text }
+
     /** Back at a non-primary tab's root falls back to the primary tab. */
     @Test
     fun backAtCartRootReturnsToCatalogTab() {

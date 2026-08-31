@@ -5,6 +5,7 @@ import dev.goose.runtime.ScreenEntry
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Multibinds
+import dev.zacsweers.metro.Provider
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
 import androidx.navigation3.runtime.NavKey
@@ -36,6 +37,12 @@ interface GooseRuntimeAccessors {
         @Provides
         @SingleIn(AppScope::class)
         fun provideResultRouter(): ResultRouter = ResultRouter()
+
+        /** The root of the registry chain; child scopes chain onto it via GooseScope. */
+        @Provides
+        @SingleIn(AppScope::class)
+        fun provideScreenRegistry(entries: Map<KClass<*>, Provider<ScreenEntry>>): ScreenRegistry =
+            ScreenRegistry(entries)
 
         /**
          * The combined serializers module for back-stack persistence.

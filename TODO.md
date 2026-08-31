@@ -103,10 +103,9 @@ Ordered roughly by dependency. See [GOALS.md](GOALS.md) for milestone definition
       label-driven release workflow (see RELEASE.md). First release not yet run.
 - [ ] Host-level default transition override (screen-owned ScreenTransitions is the contract;
       see DESIGN.md #33)
-- [ ] Session/logged-in graphs: @GraphExtension child registries, plus a @GooseUi scope
-      parameter once a child ScreenRegistry exists to read it (the parameter was briefly added
-      and removed: an annotation that contributes to a scope nothing consumes is a trap, see
-      DESIGN.md #9/#36)
+- [x] Session/logged-in graphs: @GraphExtension child registries via GooseScopeAccessors +
+      GooseScope, registry chaining with parent fallback, @GooseUi(scope = ...) restored now
+      that a child ScreenRegistry consumes it; m2 checkout session sample + tests (DESIGN #36)
 - [ ] Per-push instance identity for equal screens on one stack, if/when Nav3 offers it
       (DESIGN.md #21)
 

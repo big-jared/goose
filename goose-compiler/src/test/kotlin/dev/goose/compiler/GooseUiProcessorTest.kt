@@ -6,6 +6,7 @@ import com.tschuchort.compiletesting.JvmCompilationResult
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import com.tschuchort.compiletesting.configureKsp
+import com.tschuchort.compiletesting.sourcesGeneratedBySymbolProcessor
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -23,7 +24,7 @@ class GooseUiProcessorTest {
         """
         package dev.goose.runtime
         import kotlin.reflect.KClass
-        annotation class GooseUi(val screen: KClass<out Screen>)
+        annotation class GooseUi(val screen: KClass<out Screen>, val scope: KClass<*> = Unit::class)
         interface Screen
         interface Navigator
         fun interface ScreenEntry {
@@ -117,6 +118,31 @@ class GooseUiProcessorTest {
             """.trimIndent(),
         )
         assertEquals(result.messages, KotlinCompilation.ExitCode.OK, result.exitCode)
+    }
+
+    @Test
+    fun scopedRegistrationContributesToTheGivenScope() {
+        val result = compile(
+            """
+            package test
+            import androidx.compose.runtime.Composable
+            import androidx.compose.ui.Modifier
+            import dev.goose.runtime.GooseUi
+            import dev.goose.runtime.Screen
+            import kotlinx.serialization.Serializable
+
+            abstract class SessionScope
+            @Serializable class GiftScreen : Screen
+
+            @GooseUi(GiftScreen::class, scope = SessionScope::class)
+            @Composable
+            fun GiftUi(screen: GiftScreen, modifier: Modifier) { }
+            """.trimIndent(),
+        )
+        assertEquals(result.messages, KotlinCompilation.ExitCode.OK, result.exitCode)
+        val generated = result.sourcesGeneratedBySymbolProcessor
+            .first { it.name == "GiftUiGooseModule.kt" }.readText()
+        assertTrue(generated, "@dev.zacsweers.metro.ContributesTo(test.SessionScope::class)" in generated)
     }
 
     @Test

@@ -18,8 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.airbnb.mvrx.compose.collectAsState
+import androidx.compose.runtime.remember
 import dev.goose.mavericks.flowViewModel
 import dev.goose.mavericks.screenViewModel
+import dev.goose.metro.GooseScope
+import dev.goose.metro.gooseGraph
 import dev.goose.nav3.NavigableGooseContent
 import dev.goose.nav3.rememberGooseBackStack
 import dev.goose.runtime.FlowViewModelScope
@@ -115,6 +118,11 @@ class CheckoutUi : ScreenUi<CheckoutScreen>() {
     @Composable
     override fun Content(screen: CheckoutScreen, modifier: Modifier) {
         val parentNavigator = LocalNavigator.current
+        // One checkout = one child graph: session-scoped dependencies and the screens
+        // registered to CheckoutScope live exactly as long as this flow's composition.
+        val graphFactory = gooseGraph<CheckoutGraph.Factory>()
+        val checkoutGraph = remember { graphFactory.createCheckoutGraph() }
+        GooseScope(checkoutGraph) {
         FlowViewModelScope {
             val childStack = rememberGooseBackStack(ShippingStepScreen)
             Column(modifier) {
@@ -133,6 +141,7 @@ class CheckoutUi : ScreenUi<CheckoutScreen>() {
                 )
             }
         }
+        }
     }
 }
 
@@ -150,6 +159,9 @@ class ShippingStepUi : ScreenUi<ShippingStepScreen>() {
             Text("Address: ${flowState.address.ifEmpty { "—" }}")
             OutlinedButton(onClick = { flowViewModel.setAddress("1 Goose Way, Pondside") }) {
                 Text("Use home address")
+            }
+            OutlinedButton(onClick = { navigator.goTo(GiftNoteScreen) }) {
+                Text("Add gift note")
             }
             Button(
                 onClick = { navigator.goTo(ConfirmStepScreen) },
