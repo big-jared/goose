@@ -24,8 +24,7 @@ have to.
 Build requirement first, because it fails confusingly otherwise: Gradle must run on JDK 21 or
 newer (Metro's compiler plugin requires it). On JDK 17 the build fails before configuration.
 
-Goose publishes to Maven Central under `io.github.big-jared` (until the first release lands
-there, `./gradlew publishToMavenLocal` from a checkout gives you the same artifacts):
+Goose is on Maven Central under `io.github.big-jared`:
 
 ```kotlin
 val gooseVersion = "0.1.0"
