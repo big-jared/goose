@@ -34,6 +34,19 @@ for fixes. The label flow bumps patch; use manual dispatch for anything bigger.
 `./gradlew publishToMavenLocal` publishes all six modules to `~/.m2` with no credentials and no
 signing. Signing only engages when the release workflow passes `goose.releaseSigning=true`.
 
+## Snapshots
+
+Every push to main can publish `<version>-SNAPSHOT` of all modules to the Central Portal
+snapshots repository. Two one-time steps: enable SNAPSHOT publishing for the
+`io.github.big-jared` namespace at central.sonatype.com (namespace settings), then set the
+gate variable:
+
+```bash
+gh variable set CENTRAL_SNAPSHOTS_ENABLED -b true -R big-jared/goose
+```
+
+Until then the snapshot job skips cleanly.
+
 ## After a release
 
 1. Verify the artifacts on https://central.sonatype.com (can take about 30 minutes)
