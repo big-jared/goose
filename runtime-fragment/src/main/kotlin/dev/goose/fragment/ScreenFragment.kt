@@ -67,5 +67,19 @@ class ScreenFragment : Fragment() {
         fun newInstance(screen: Screen): ScreenFragment = ScreenFragment().apply {
             arguments = ScreenBundler.toBundle(screen)
         }
+
+        /**
+         * Creation through the host's [androidx.fragment.app.FragmentFactory], so a host that
+         * installs a custom factory (constructor-injected fragments, test doubles) sees goose's
+         * fragments go through the same path as its own.
+         */
+        fun newInstance(fragmentManager: androidx.fragment.app.FragmentManager, screen: Screen): ScreenFragment {
+            val fragment = fragmentManager.fragmentFactory.instantiate(
+                ScreenFragment::class.java.classLoader!!,
+                ScreenFragment::class.java.name,
+            ) as ScreenFragment
+            fragment.arguments = ScreenBundler.toBundle(screen)
+            return fragment
+        }
     }
 }

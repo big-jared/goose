@@ -46,22 +46,33 @@ internal class ActivityNavigatorHandleHolder : ViewModel() {
  * gets its own independent handle and navigator; separate activities are separate navigation
  * roots, stacked by Android itself.
  */
-fun FragmentActivity.installGooseNavigator(@IdRes containerId: Int): NavigatorHandle {
+fun FragmentActivity.installGooseNavigator(
+    @IdRes containerId: Int,
+    /** The stack's owner; pass a child fragment's childFragmentManager for nested ownership. */
+    fragmentManager: androidx.fragment.app.FragmentManager = supportFragmentManager,
+    /**
+     * Host-wide transaction policy for screens without a per-screen contributed override; call
+     * `request.performDefaultTransaction()` for the ones you don't customize. Null keeps the
+     * built-in replace+addToBackStack for everything.
+     */
+    defaultNavigation: FragmentScreenNavigation? = null,
+): NavigatorHandle {
     val graph = (application as GooseGraphHolder).gooseGraph
     val holder = ViewModelProvider(this)[ActivityNavigatorHandleHolder::class.java]
     holder.installed = true
     val handle = holder.handle
     val navigator = FragmentNavigator(
-        fragmentManager = supportFragmentManager,
+        fragmentManager = fragmentManager,
         containerId = containerId,
         binders = (graph as GooseFragmentAccessors).fragmentBinders,
         resultRouter = (graph as GooseRuntimeAccessors).resultRouter,
         navigationOverrides = graph.fragmentNavigationOverrides,
         stackTag = holder.stackTag,
+        defaultNavigation = defaultNavigation,
     )
     handle.bind(navigator)
     onBackPressedDispatcher.addCallback(this) {
-        if (supportFragmentManager.backStackEntryCount > 0) handle.pop() else finish()
+        if (fragmentManager.backStackEntryCount > 0) handle.pop() else finish()
     }
     return handle
 }

@@ -62,7 +62,24 @@ class FragmentNavigationRequest internal constructor(
     // goToAwaited. Null for a plain goTo: such a request has NO caller, even when an older
     // same-class request is still awaiting elsewhere — its result belongs to its own request.
     private val awaiter: ResultAwaiter?,
+    private val createFragmentImpl: () -> Fragment,
+    private val defaultTransactionImpl: () -> Unit,
 ) {
+    /**
+     * The fragment goose would show for this screen: the contributed binder's fragment for a
+     * legacy screen, or a [ScreenFragment] (created through the FragmentManager's
+     * [androidx.fragment.app.FragmentFactory]) for a migrated one. Use it when your adapter
+     * runs its own transaction but has no reason to change WHAT is shown.
+     */
+    fun createFragment(): Fragment = createFragmentImpl()
+
+    /**
+     * Runs goose's built-in transaction for this request (replace into [containerId], pushed
+     * under [backStackEntryName]). Lets a host-wide [FragmentScreenNavigation] customize only
+     * some screens and delegate the rest.
+     */
+    fun performDefaultTransaction() = defaultTransactionImpl()
+
     /**
      * For destinations that bypass the back stack: answer the caller awaiting this screen.
      * Correlated exactly (two same-class dialogs answering out of order each resolve their own
@@ -99,6 +116,13 @@ class FragmentNavigator(
     override val parent: Navigator? = null,
     private val navigationOverrides: Map<KClass<*>, FragmentScreenNavigation> = emptyMap(),
     private val stackTag: String,
+    /**
+     * Host-wide transaction policy: receives every navigation that has no per-screen override.
+     * Use it when this host's transactions differ from the default replace+addToBackStack
+     * (animations, add instead of replace, a different container per destination); call
+     * [FragmentNavigationRequest.performDefaultTransaction] for screens you don't customize.
+     */
+    private val defaultNavigation: FragmentScreenNavigation? = null,
 ) : BaseNavigator(resultRouter) {
 
     /** Scoped to this activity's stack (the tag is retained across rotation by the installer). */
@@ -143,24 +167,34 @@ class FragmentNavigator(
     }
 
     private fun navigate(screen: Screen, awaiter: ResultAwaiter?) {
-        // A contributed per-screen override wins: dialogs, custom transactions, other nav APIs.
-        navigationOverrides[screen::class]?.let { override ->
-            override.navigate(
+        // Precedence: per-screen override, then the host-wide policy, then the built-in
+        // replace+addToBackStack transaction. Awaited default-transaction screens deliver by
+        // entry name on pop; stack removal is LIFO-correct per class, no token needed.
+        val navigation = navigationOverrides[screen::class] ?: defaultNavigation
+        if (navigation != null) {
+            navigation.navigate(
                 FragmentNavigationRequest(
                     screen = screen,
                     fragmentManager = fragmentManager,
                     containerId = containerId,
                     backStackEntryName = resultKeyFor(screen),
                     awaiter = awaiter,
+                    createFragmentImpl = { createFragmentFor(screen) },
+                    defaultTransactionImpl = { performDefaultTransaction(screen) },
                 )
             )
             return
         }
-        // Default: the bound legacy fragment (or a ScreenFragment for migrated screens),
-        // replaced into the container and pushed onto the back stack. Awaited screens deliver
-        // by entry name on pop; stack removal is LIFO-correct per class, no token needed.
-        val fragment = binders[screen::class]?.createFragment(screen)
-            ?: ScreenFragment.newInstance(screen)
+        performDefaultTransaction(screen)
+    }
+
+    /** The binder's fragment for legacy screens; a factory-created ScreenFragment otherwise. */
+    private fun createFragmentFor(screen: Screen): Fragment =
+        binders[screen::class]?.createFragment(screen)
+            ?: ScreenFragment.newInstance(fragmentManager, screen)
+
+    private fun performDefaultTransaction(screen: Screen) {
+        val fragment = createFragmentFor(screen)
         fragmentManager.commit {
             setReorderingAllowed(true)
             replace(containerId, fragment)

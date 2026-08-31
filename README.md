@@ -414,6 +414,28 @@ when the entry pops, no matter what pops it. Screens without an adapter get the 
 transaction, a plain `replace` + `addToBackStack`. Once the app is fully migrated, delete the
 adapters and nothing else changes.
 
+The host is configurable too, not just individual screens. `installGooseNavigator` takes an
+optional FragmentManager (pass a fragment's `childFragmentManager` for nested stack ownership)
+and an optional host-wide policy that sees every screen without a per-screen adapter:
+
+```kotlin
+installGooseNavigator(
+    containerId = R.id.container,
+    defaultNavigation = { request ->
+        if (request.screen is FullScreenDialogScreen) {
+            MyDialogHost.show(request.fragmentManager, request.createFragment())
+            // deliver via request.deliverResult(...) from your dismiss callback
+        } else {
+            request.performDefaultTransaction()   // everything else stays standard
+        }
+    },
+)
+```
+
+`request.createFragment()` hands you the fragment goose would have shown (the bound legacy
+fragment, or the compose host created through your FragmentManager's own `FragmentFactory`), so
+custom transactions change HOW a screen appears without changing WHAT appears.
+
 ## Animations
 
 Three tools, all optional.
