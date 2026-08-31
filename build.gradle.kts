@@ -25,12 +25,7 @@ dependencies {
 // modules participate.
 apiValidation {
     ignoredProjects += listOf(
-        "samples",
-        "m1", "m2", "m3",
-        "app",
-        "feature-home-api", "feature-home-impl",
-        "feature-profile-api", "feature-profile-impl",
-        "feature-catalog-api", "feature-catalog-impl",
-        "feature-cart-api", "feature-cart-impl",
+        "samples", "gaggle", "dagger-interop", "feature", "app",
+        "auth", "catalog", "cart", "api", "impl",
     )
 }

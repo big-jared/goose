@@ -21,7 +21,7 @@ Ordered roughly by dependency. See [GOALS.md](GOALS.md) for milestone definition
 - [x] `ScreenUi<S>` (`@Composable Content(screen, modifier)`) + erased `ScreenEntry`
 - [x] `StateHolder<S>` + rememberStateHolder: presenter-agnostic option (pure Kotlin +
       coroutines, entry-scoped retention, NavigatorHandle injection), the multiplatform seam;
-      m1 TeamStats screen + lifecycle test. Mavericks remains the persistence-capable default.
+      Gaggle's TeamStats screen + lifecycle test. Mavericks remains the persistence-capable default.
 - [x] Result bus: stack-scoped keyed routing (`ResultRouter`); survives config
       change. NOT yet durable across process death — documented limitation,
       matching coroutine-wrapped ActivityResult semantics
@@ -106,7 +106,7 @@ Ordered roughly by dependency. See [GOALS.md](GOALS.md) for milestone definition
       see DESIGN.md #33)
 - [x] Session/logged-in graphs: @GraphExtension child registries via GooseScopeAccessors +
       GooseScope, registry chaining with parent fallback, @GooseUi(scope = ...) restored now
-      that a child ScreenRegistry consumes it; m2 checkout session sample + tests (DESIGN #36)
+      that a child ScreenRegistry consumes it; Gaggle's checkout session + tests (DESIGN #36)
 - [x] Per-push instance identity for equal screens on one stack: internal PushedScreen records
       as NavEntry keys, no Nav3 changes needed (DESIGN.md #21)
 

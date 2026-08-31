@@ -108,7 +108,7 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
 17. **Sequential consistency. Fixed.** Nav3 mutates synchronously. The fragment host queues
     commits, which made `goTo(A); pop()` in one main-loop turn read the stale pre-commit stack
     and drop the pop; `FragmentNavigator.pop` now flushes pending transactions first, covered
-    by an m3 test. The flush executes any transactions the legacy app queued too, which is
+    by a runtime-fragment test (goToThenPopInOneTurnIsOrdered). The flush executes any transactions the legacy app queued too, which is
     within FragmentManager's contract (commit promises only "as soon as possible on the main
     thread", so running earlier is always legal, via the public API that exists for exactly
     this). It is skipped when state is saved, and catches only IllegalStateException for the
@@ -139,7 +139,7 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
     stack with raw screens still work. Waiting for Nav3 instance identity turned out to be
     unnecessary: NavEntry keys are whatever the stack holds. Also removed the tab restriction
     this limitation forced (equal roots across tabs are now fine); duplicate tab KEYS remain a
-    construction error. Pinned by an m1 test pushing the same data object twice.
+    construction error. Pinned by a Gaggle test pushing the same data object twice.
 
 22. **Saved-stack migration across releases. Fixed.** Restoration is resilient by design: a
     stack that cannot be decoded (renamed or removed screen class, incompatible field change,
@@ -236,10 +236,10 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
     registry's miss message names GooseScope. Screens register
     into a scope with `@GooseUi(scope = ...)` or hand-written contributions. Duplicate ownership
     of one screen key across parent and child is a Metro compile error (multibindings merge into
-    the child map), not a silent shadow. Exercised end to end by the m2 checkout session sample
+    the child map), not a silent shadow. Exercised end to end by Gaggle's checkout session
     and its Robolectric test (shared within a flow, fresh per flow, parent fallback).
 
-36b. **Dagger/Hilt adoption. Done.** The m4 sample proves the biggest adoption question: a
+36b. **Dagger/Hilt adoption. Done.** The dagger-interop sample proves the biggest adoption question: a
     Metro graph `@Includes` an existing Dagger component, whose public accessors become
     ordinary bindings for goose screens and ViewModels; Dagger's KSP processor, Metro's
     compiler plugin, and goose-compiler coexist in one module. Tested. Hilt exposes bindings

@@ -74,6 +74,24 @@ class HostAwareNavigationTest {
         assertTrue(fm.fragments.last() === bound)
     }
 
+    /** goTo immediately followed by pop in ONE main-loop turn pops the screen just pushed. */
+    @Test
+    fun goToThenPopInOneTurnIsOrdered() {
+        val activity = activity()
+        val fm = activity.supportFragmentManager
+        val navigator = FragmentNavigator(
+            fragmentManager = fm,
+            containerId = android.R.id.content,
+            binders = mapOf(PlainScreen::class to ScreenFragmentBinder { Fragment() }),
+            resultRouter = ResultRouter(),
+            stackTag = "test",
+        )
+        navigator.goTo(PlainScreen("x"))
+        assertTrue(navigator.pop())
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(0, fm.backStackEntryCount)
+    }
+
     @Test
     fun screenFragmentsGoThroughTheHostsFragmentFactory() {
         val activity = activity()

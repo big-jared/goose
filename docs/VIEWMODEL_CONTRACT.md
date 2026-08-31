@@ -12,11 +12,11 @@ precisely so it can be Mavericks args: your state class keeps the fragment-args 
 `constructor(screen: ProfileScreen) : this(userId = screen.userId)`, and `@PersistState`
 restoration works through Mavericks' own machinery, unchanged.
 
-**Identity is the screen VALUE, not the screen type.** Two pushes of `ProfileScreen("ada")` and
-`ProfileScreen("grace")` are two entries with two ViewModels; nothing leaks between them, whether
-sequential (pop then push) or stacked.
-Tests: `M1FlowRobolectricTest.viewModelsAreArgumentScoped` (Nav3),
-`M3MigrationRobolectricTest.fragmentHostDistinctArgsGetDistinctVms` (fragments).
+**Identity is per PUSH, which subsumes per-argument.** Different arguments were always
+different entries; per-push records make even EQUAL values independent, so no combination of
+arguments can ever share state accidentally.
+Tests: `GaggleHardeningTest.equalStatsScreensAreIndependent` (the strongest case) and
+`deepStackSurvivesRecreationAndUnwinds` (distinct-argument screens stacked eleven deep).
 
 **Every push is its own entry, even for EQUAL screen values.** Internally each push wraps the
 screen in a per-push record with a unique id; the record is what Navigation 3 entry identity,
@@ -24,7 +24,7 @@ saveable state, and ViewModel stores scope to, and it serializes with the back s
 association survives recreation and process death. Two concurrent pushes of the same data
 object get independent ViewModels, and popping one touches only its own entry. The screen's
 own equality and serialized payload stay untouched.
-Test: `M1FlowRobolectricTest.equalScreensPushedTwiceGetIndependentState`.
+Test: `GaggleHardeningTest.equalStatsScreensAreIndependent`.
 
 **The ViewModel key is stable per pushed entry.** Internally: the VM class name plus a
 `rememberSaveable` per-entry id inside the push record's saveable scope, so the key survives
@@ -46,10 +46,10 @@ the graph, but the graph never owns the ViewModel. Flow-shared ViewModels (`flow
 are the deliberate exception: they live in the enclosing flow's store and clear when the flow
 pops, shared by every step.
 
-Tests: `M1FlowRobolectricTest.stateAndResultSurviveRecreation` (Nav3 retention + restoration),
-`M3MigrationRobolectricTest.fragmentHostRetainsVmAcrossRecreation` and
-`fragmentHostClearsVmOnPop` (fragment host), `BackStackRestoreTest` (persistence layer),
-`tools/process-death-test.sh` (real process death on device).
+Tests: `GaggleFlowTest.wizardSurvivesRecreationAtEveryStep` (Nav3 retention, including an
+await surviving recreation), `GaggleHardeningTest.supportScopeAndVmContractAcrossFragmentBoundary`
+(fragment host: retained across rotation, cleared on pop), `BackStackRestoreTest` (persistence
+layer), `tools/process-death-test.sh` (real process death on device).
 
 ## StateHolder: the same contract without Mavericks
 
@@ -58,7 +58,7 @@ coroutines). It implements the identity and lifetime rules above unchanged: entr
 retained across recreation, cleared on pop with its `holderScope` cancelled. The deliberate
 difference is restoration: no `@PersistState`, so state that must survive process death belongs
 in a Mavericks ViewModel or the screen's saveable state.
-Test: `M1FlowRobolectricTest.stateHolderFollowsTheEntryLifecycle`.
+Test: `GaggleHardeningTest.equalStatsScreensAreIndependent` (retention, async work, pop-clears).
 
 ## Results and cancellation
 
@@ -73,7 +73,8 @@ coroutine-wrapped ActivityResult:
 - If the awaiting coroutine is cancelled (its owner cleared), the registration is removed:
   the screen stays where the user can see it, and its eventual answer resumes nobody.
 
-Tests: `M1FlowRobolectricTest.backDeliversNullResult` and `stateAndResultSurviveRecreation`,
+Tests: `GaggleFlowTest.removeDialogResult` (the "Keep it" path is a plain pop delivering
+null), `wizardSurvivesRecreationAtEveryStep` (an await surviving recreation),
 `ResultCorrelationTest` (cancellation, out-of-order answers, failure paths),
 `FragmentRequestCorrelationTest` (the same through real fragment machinery).
 

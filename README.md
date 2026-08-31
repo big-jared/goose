@@ -308,8 +308,7 @@ screens from modules it never imports, and what `goTo(ProfileScreen(...))` looks
 
 Two notes. A flow-shared ViewModel is never a parameter; call `flowViewModel()` inside the
 function (next section). And the hand-written forms remain supported if you prefer them: a
-`@Provides` function with `screenUi { }`, or a `ScreenUi<S>` class (the [samples/m2](samples/m2) app uses the
-class style).
+`@Provides` function with `screenUi { }`, or a `ScreenUi<S>` class.
 
 ## Typed results
 
@@ -434,7 +433,7 @@ GooseScope(checkoutGraph) {
 }
 ```
 
-The rules, all tested in the `m2` sample:
+The rules, all tested in the [Gaggle sample](samples/gaggle):
 
 - Screens registered to the scope resolve only inside `GooseScope`; their dependencies come
   from the child graph.
@@ -496,7 +495,7 @@ createGraphFactory<AppGraph.Factory>().create(DaggerLegacyComponent.create())
 
 Everything the Dagger component exposes becomes an ordinary binding goose screens and
 ViewModels inject; the Dagger side keeps compiling with Dagger's own processor, untouched. The
-`m4` sample is exactly this shape (a plain Dagger component, a goose screen injecting its
+[dagger-interop sample](samples/dagger-interop) is exactly this shape (a plain Dagger component, a goose screen injecting its
 repository) and is covered by a test. Hilt apps expose their bindings the same way through an
 `@EntryPoint`-style accessor interface handed to `@Includes`; Metro also ships annotation
 interop (`metro { interop { includeDagger() } }`) if you want Metro to compile classes that
@@ -664,7 +663,11 @@ Two things dialogs cannot do:
 
 The sharp edges are decided, not accidental: result-request identity, the exact `@GooseUi`
 grammar, thread contracts, saved-state compatibility across releases, R8, tabs, and scoping are
-all written down with their reasoning in [DESIGN.md](DESIGN.md). The screen-scoped ViewModel
+all written down with their reasoning in [DESIGN.md](DESIGN.md). One in-depth sample app,
+[Gaggle](samples/gaggle), exercises everything above as a mid-migration shop, with a
+claim-by-claim map to its tests in [samples/README.md](samples/README.md); the tiny
+[dagger-interop](samples/dagger-interop) sample proves adoption next to an existing Dagger
+graph. The screen-scoped ViewModel
 lifecycle (identity, retention, clearing, restoration, result cancellation) is one documented
 contract with the tests that pin it on both hosts:
 [docs/VIEWMODEL_CONTRACT.md](docs/VIEWMODEL_CONTRACT.md).
