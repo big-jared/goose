@@ -329,12 +329,11 @@ Results are typed, survive rotation, and can't cross between stacks, tabs, or ac
 Every way a user can dismiss the screen resumes the caller with `null` instead of hanging it,
 including a legacy fragment popping itself.
 
-Two contracts to know. Suspended `goToForResult` callers do not survive process death: the
+One contract to know. Suspended `goToForResult` callers do not survive process death: the
 coroutine dies with the process, so treat a restart as "no answer", the same deal as a
 coroutine-wrapped ActivityResult (stacks, tabs, and `@PersistState` fields all DO come back).
-And two equal screen values on the same stack share one ViewModel (inherited from Navigation 3's
-entry identity); if the same destination can be pushed twice at once, give the screen a
-distinguishing field.
+Pushing the same screen value twice is fine, by the way: every push has its own identity, so
+equal screens stacked together get independent ViewModels and state.
 
 ## Nested flows and deep links
 

@@ -54,12 +54,16 @@ class TeamStatsHolder(
 fun StatsUi(modifier: Modifier) {
     val holder = rememberStateHolder { navigator -> TeamStatsHolder(navigator) }
     val state by holder.state.collectAsState()
+    val navigator = dev.goose.runtime.LocalNavigator.current
     Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Team stats", style = MaterialTheme.typography.headlineMedium)
         Text("Geese spotted: ${state.geeseSpotted}")
         Text("Honks heard: ${state.honksHeard}")
         OutlinedButton(onClick = holder::spotGoose) { Text("Spot a goose") }
         OutlinedButton(onClick = holder::listenForHonk) { Text("Listen for a honk") }
+        // TeamStatsScreen is a data object: pushing it again stacks an EQUAL screen value.
+        // Per-push identity gives the second push its own state (see the m1 test).
+        OutlinedButton(onClick = { navigator.goTo(TeamStatsScreen) }) { Text("Open stats again") }
         Button(onClick = holder::done) { Text("Back to team") }
     }
 }

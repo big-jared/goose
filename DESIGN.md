@@ -130,12 +130,16 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
 
 ## Identity and restoration
 
-21. **Equal screens on one stack. Decided, documented limitation.** Two equal screen values on
-    the same stack share entry state and therefore a ViewModel, inherited from Nav3's
-    value-based `contentKey`. The mitigation is a distinguishing field on the screen. Solving it
-    for real means per-push instance ids inside persisted keys, which changes screen equality
-    semantics; deferred until Nav3 itself offers instance identity. Stated in the README, not
-    just an internal comment.
+21. **Equal screens on one stack. Done.** Every push wraps the screen in an internal
+    per-push record (unique id + the screen), and the record is the NavEntry key: entry state,
+    saveable state, and ViewModel stores scope per push, so equal screen values pushed twice
+    are fully independent, and the association survives recreation and process death (the
+    record serializes with the stack). Screen equality and serialized screen payloads are
+    unchanged, and every boundary handing a screen to user code unwraps first; hosts seeding a
+    stack with raw screens still work. Waiting for Nav3 instance identity turned out to be
+    unnecessary: NavEntry keys are whatever the stack holds. Also removed the tab restriction
+    this limitation forced (equal roots across tabs are now fine); duplicate tab KEYS remain a
+    construction error. Pinned by an m1 test pushing the same data object twice.
 
 22. **Saved-stack migration across releases. Fixed.** Restoration is resilient by design: a
     stack that cannot be decoded (renamed or removed screen class, incompatible field change,
@@ -171,7 +175,8 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
 ## Tabs and deep links
 
 28. **Tab specs. Fixed.** Duplicate tab keys are a construction error. A restored tab selection
-    naming a tab that no longer exists falls back to the first tab instead of crashing.
+    naming a tab that no longer exists falls back to the first tab instead of crashing. (The
+    earlier distinct-roots requirement was removed by per-push identity, item 21.)
 
 29. **Cross-tab navigation. Fixed.** `TabNavigator.goTo(tab, screen)` atomically selects the tab
     and pushes, with no intermediate frame of the tab's old top.

@@ -117,6 +117,40 @@ class M1FlowRobolectricTest {
         composeRule.waitUntil(5_000) { composeRule.onAllNodesWithTextCount("Geese spotted: 0") > 0 }
     }
 
+    /**
+     * PER-PUSH identity (issue #6): two stacked pushes of an EQUAL screen value (a data object)
+     * get independent state, the association survives recreation, and popping one touches only
+     * its own entry.
+     */
+    @Test
+    fun equalScreensPushedTwiceGetIndependentState() {
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodesWithTextCount("Team stats") > 0
+        }
+        composeRule.onNodeWithText("Team stats").performClick()
+        composeRule.waitUntil(5_000) { composeRule.onAllNodesWithTextCount("Spot a goose") > 0 }
+        composeRule.onNodeWithText("Spot a goose").performClick()
+        composeRule.onNodeWithText("Spot a goose").performClick()
+        composeRule.waitUntil(5_000) { composeRule.onAllNodesWithTextCount("Geese spotted: 2") > 0 }
+
+        // Push the SAME screen value again: its state must start fresh, not show 2.
+        composeRule.onNodeWithText("Open stats again").performClick()
+        composeRule.waitUntil(5_000) { composeRule.onAllNodesWithTextCount("Geese spotted: 0") > 0 }
+        composeRule.onNodeWithText("Spot a goose").performClick()
+        composeRule.waitUntil(5_000) { composeRule.onAllNodesWithTextCount("Geese spotted: 1") > 0 }
+
+        // The association survives recreation: still the second entry, still 1.
+        composeRule.activityRule.scenario.recreate()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Geese spotted: 1").assertIsDisplayed()
+
+        // Popping the second entry reveals the first, untouched at 2.
+        composeRule.activityRule.scenario.onActivity {
+            it.onBackPressedDispatcher.onBackPressed()
+        }
+        composeRule.waitUntil(5_000) { composeRule.onAllNodesWithTextCount("Geese spotted: 2") > 0 }
+    }
+
     /** Back press = dismissed without answering: caller resumes with null, not a hang. */
     @Test
     fun backDeliversNullResult() {

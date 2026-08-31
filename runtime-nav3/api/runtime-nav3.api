@@ -29,6 +29,27 @@ public final class dev/goose/nav3/Nav3Navigator : dev/goose/runtime/BaseNavigato
 	public fun resetRoot (Ldev/goose/runtime/Screen;)V
 }
 
+public abstract interface class dev/goose/nav3/PushRecordSerializers {
+	public static final field Companion Ldev/goose/nav3/PushRecordSerializers$Companion;
+}
+
+public final class dev/goose/nav3/PushRecordSerializers$Companion {
+	public final fun pushRecordSerializers ()Lkotlinx/serialization/modules/SerializersModule;
+}
+
+public final class dev/goose/nav3/PushRecordSerializers$Companion$PushRecordSerializersMetroFactory : dev/zacsweers/metro/internal/Factory {
+	public static final field $stable I
+	public static final field INSTANCE Ldev/goose/nav3/PushRecordSerializers$Companion$PushRecordSerializersMetroFactory;
+	public static final fun create ()Ldev/goose/nav3/PushRecordSerializers$Companion$PushRecordSerializersMetroFactory;
+	public final fun declarationMirror ()Lkotlinx/serialization/modules/SerializersModule;
+	public synthetic fun invoke ()Ljava/lang/Object;
+	public final fun invoke ()Lkotlinx/serialization/modules/SerializersModule;
+	public static final fun pushRecordSerializers ()Lkotlinx/serialization/modules/SerializersModule;
+}
+
+public abstract interface class dev/goose/nav3/PushRecordSerializers$MetroContributionToAppScope : dev/goose/nav3/PushRecordSerializers {
+}
+
 public final class dev/goose/nav3/TabNavigatorKt {
 	public static final fun TabbedGooseContent (Ldev/goose/nav3/GooseTabNavigator;Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
 	public static final fun rememberTabNavigator (Ljava/util/List;Ldev/goose/runtime/Navigator;Landroidx/compose/runtime/Composer;II)Ldev/goose/nav3/GooseTabNavigator;
@@ -46,5 +67,9 @@ public final class dev/goose/nav3/TabSpec {
 	public final fun getRoot ()Ldev/goose/runtime/Screen;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class metro/hints/DevGooseNav3PushRecordSerializersDev_zacsweers_metro_AppScopeKt {
+	public static final synthetic fun dev_zacsweers_metro_AppScope (Ldev/goose/nav3/PushRecordSerializers;)V
 }
 

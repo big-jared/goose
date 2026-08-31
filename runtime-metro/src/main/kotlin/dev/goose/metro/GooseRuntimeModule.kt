@@ -62,6 +62,19 @@ interface GooseRuntimeAccessors {
                     @Suppress("UNCHECKED_CAST")
                     value::class.serializerOrNull() as SerializationStrategy<NavKey>?
                 }
+                // Screens also serialize as a FIELD of the per-push record, whose base type is
+                // Screen; same reflective defaults under that base.
+                polymorphicDefaultSerializer(dev.goose.runtime.Screen::class) { value ->
+                    @Suppress("UNCHECKED_CAST")
+                    value::class.serializerOrNull() as SerializationStrategy<dev.goose.runtime.Screen>?
+                }
+                polymorphicDefaultDeserializer(dev.goose.runtime.Screen::class) { className ->
+                    className?.let {
+                        @Suppress("UNCHECKED_CAST")
+                        classForSerialName(it)?.kotlin?.serializerOrNull()
+                            as DeserializationStrategy<dev.goose.runtime.Screen>?
+                    }
+                }
                 polymorphicDefaultDeserializer(NavKey::class) { className ->
                     // An unknown class (renamed/removed in an app update, unloaded dynamic
                     // feature, or a custom @SerialName without explicit registration) returns

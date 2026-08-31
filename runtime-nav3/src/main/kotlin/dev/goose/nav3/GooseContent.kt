@@ -65,7 +65,7 @@ fun rememberGooseBackStack(initial: List<Screen>): NavBackStack<NavKey> {
             save = { stack -> encodeToSavedState(navBackStackSerializer, stack, configuration) },
             restore = { saved -> decodeBackStackOrNull(saved, configuration) },
         ),
-    ) { NavBackStack(*initial.toTypedArray()) }
+    ) { NavBackStack(*initial.map { it.pushed() }.toTypedArray<NavKey>()) }
 }
 
 internal val navBackStackSerializer = NavBackStack.serializer(PolymorphicSerializer(NavKey::class))
@@ -143,8 +143,10 @@ internal fun GooseNavDisplay(
                 // Falls back to single-pane for non-overlay entries.
                 sceneStrategies = remember { listOf(DialogSceneStrategy<NavKey>()) },
                 entryProvider = { key ->
-                    val screen = key as? Screen
-                        ?: error("Non-Screen NavKey on a Goose back stack: $key")
+                    // The key is the per-push record (unique even for equal screens), which is
+                    // what NavEntry identity, saveable state, and ViewModel stores scope to;
+                    // everything below renders the unwrapped screen.
+                    val screen = key.asScreen()
                     // A stack's ROOT never renders as a dialog: nav3 requires a non-empty scene
                     // beneath an overlay, and in a tab host the entry beneath would belong to
                     // ANOTHER tab. Root overlays degrade to full-screen entries.

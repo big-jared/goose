@@ -26,18 +26,19 @@ class Nav3Navigator(
         "${resultRouter.resultKeyOf(screen)}#$stackTag"
 
     override val backStack: List<Screen>
-        get() = stack.filterIsInstance<Screen>()
+        get() = stack.map { it.asScreen() }
 
     override fun goTo(screen: Screen) {
         requireMainThread()
-        stack.add(screen)
+        // Wrapped in a per-push record: equal screen values pushed twice are distinct entries.
+        stack.add(screen.pushed())
     }
 
     override fun pop(result: PopResult?): Boolean {
         requireMainThread()
         if (stack.size > 1) {
             val popped = stack.removeAt(stack.lastIndex)
-            (popped as? Screen)?.let { deliverPopResult(it, result) }
+            deliverPopResult(popped.asScreen(), result)
             return true
         }
         // At our root: this stack's screens aren't ours to remove — bubble to the parent, which
@@ -49,8 +50,8 @@ class Nav3Navigator(
         requireMainThread()
         // Every removed screen is "dismissed without answering" — resume any awaiting callers
         // with null instead of leaving their goToForResult suspended forever.
-        stack.asReversed().forEach { key -> (key as? Screen)?.let { deliverPopResult(it, null) } }
+        stack.asReversed().forEach { key -> deliverPopResult(key.asScreen(), null) }
         stack.clear()
-        stack.add(screen)
+        stack.add(screen.pushed())
     }
 }

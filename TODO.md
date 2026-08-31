@@ -107,8 +107,8 @@ Ordered roughly by dependency. See [GOALS.md](GOALS.md) for milestone definition
 - [x] Session/logged-in graphs: @GraphExtension child registries via GooseScopeAccessors +
       GooseScope, registry chaining with parent fallback, @GooseUi(scope = ...) restored now
       that a child ScreenRegistry consumes it; m2 checkout session sample + tests (DESIGN #36)
-- [ ] Per-push instance identity for equal screens on one stack, if/when Nav3 offers it
-      (DESIGN.md #21)
+- [x] Per-push instance identity for equal screens on one stack: internal PushedScreen records
+      as NavEntry keys, no Nav3 changes needed (DESIGN.md #21)
 
 - [x] Deep links → back stack synthesis (`rememberGooseBackStack(List<Screen>)`;
       URI parsing stays app-side)

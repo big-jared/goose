@@ -18,14 +18,17 @@ sequential (pop then push) or stacked.
 Tests: `M1FlowRobolectricTest.viewModelsAreArgumentScoped` (Nav3),
 `M3MigrationRobolectricTest.fragmentHostDistinctArgsGetDistinctVms` (fragments).
 
-**Known limitation: two EQUAL screen values on one stack share an entry, and therefore a
-ViewModel.** This is Navigation 3's value-based entry identity. If the same destination with the
-same arguments can be pushed twice concurrently, give the screen a distinguishing field. (Tracked
-for a real fix if Nav3 gains per-push instance identity.)
+**Every push is its own entry, even for EQUAL screen values.** Internally each push wraps the
+screen in a per-push record with a unique id; the record is what Navigation 3 entry identity,
+saveable state, and ViewModel stores scope to, and it serializes with the back stack, so the
+association survives recreation and process death. Two concurrent pushes of the same data
+object get independent ViewModels, and popping one touches only its own entry. The screen's
+own equality and serialized payload stay untouched.
+Test: `M1FlowRobolectricTest.equalScreensPushedTwiceGetIndependentState`.
 
 **The ViewModel key is stable per pushed entry.** Internally: the VM class name plus a
-`rememberSaveable` per-entry id, so the key survives recreation and process death without
-depending on instance identity.
+`rememberSaveable` per-entry id inside the push record's saveable scope, so the key survives
+recreation and process death without depending on instance identity.
 
 ## Lifetime
 

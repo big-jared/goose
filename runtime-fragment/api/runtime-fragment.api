@@ -103,6 +103,10 @@ public abstract class dev/goose/fragment/GooseFragmentAccessors$BindsMirror {
 public abstract interface class dev/goose/fragment/GooseFragmentAccessors$MetroContributionToAppScope : dev/goose/fragment/GooseFragmentAccessors {
 }
 
+public abstract interface class dev/goose/fragment/GooseScopeOwner {
+	public abstract fun getGooseScopeGraph ()Ljava/lang/Object;
+}
+
 public final class dev/goose/fragment/InstallGooseNavigatorKt {
 	public static final fun getGooseNavigator (Landroidx/fragment/app/FragmentActivity;)Ldev/goose/runtime/Navigator;
 	public static final fun installGooseNavigator (Landroidx/fragment/app/FragmentActivity;ILandroidx/fragment/app/FragmentManager;Ldev/goose/fragment/FragmentScreenNavigation;)Ldev/goose/runtime/NavigatorHandle;

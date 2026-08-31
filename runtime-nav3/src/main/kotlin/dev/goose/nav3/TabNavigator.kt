@@ -65,7 +65,7 @@ class GooseTabNavigator internal constructor(
         }
 
     override val backStack: List<Screen>
-        get() = currentStack.filterIsInstance<Screen>()
+        get() = currentStack.map { it.asScreen() }
 
     /** True when [key] is the root entry of ANY tab's stack. */
     fun isStackRoot(key: NavKey): Boolean = stacks.values.any { it.firstOrNull() === key }
@@ -74,7 +74,7 @@ class GooseTabNavigator internal constructor(
         requireMainThread()
         require(tab in stacks) { "Unknown tab $tab" }
         currentTabState.value = tab
-        stacks.getValue(tab).add(screen)
+        stacks.getValue(tab).add(screen.pushed())
     }
 
     override fun selectTab(key: StackKey) {
@@ -93,7 +93,7 @@ class GooseTabNavigator internal constructor(
 
     override fun goTo(screen: Screen) {
         requireMainThread()
-        currentStack.add(screen)
+        currentStack.add(screen.pushed())
     }
 
     override fun pop(result: PopResult?): Boolean {
@@ -113,14 +113,14 @@ class GooseTabNavigator internal constructor(
     override fun resetRoot(screen: Screen) {
         requireMainThread()
         val stack = currentStack
-        stack.asReversed().forEach { key -> (key as? Screen)?.let { deliverPopResult(it, null) } }
+        stack.asReversed().forEach { key -> deliverPopResult(key.asScreen(), null) }
         stack.clear()
-        stack.add(screen)
+        stack.add(screen.pushed())
     }
 
     private fun popTopOf(stack: MutableList<NavKey>, result: PopResult?) {
         val popped = stack.removeAt(stack.lastIndex)
-        (popped as? Screen)?.let { deliverPopResult(it, result) }
+        deliverPopResult(popped.asScreen(), result)
     }
 }
 
@@ -136,11 +136,6 @@ fun rememberTabNavigator(
     require(tabs.isNotEmpty()) { "At least one tab required" }
     require(tabs.distinctBy { it.key }.size == tabs.size) {
         "Tab keys must be unique: ${tabs.map { it.key }}"
-    }
-    // Distinct roots: all tabs' entries share one NavDisplay, and two EQUAL root screens would
-    // collide in entry state (and ViewModel) ownership.
-    require(tabs.distinctBy { it.root }.size == tabs.size) {
-        "Tab root screens must be distinct (equal screens share entry state): ${tabs.map { it.root }}"
     }
     val resultRouter = gooseGraph<GooseRuntimeAccessors>().resultRouter
     val stacks = tabs.associate { spec -> spec.key to rememberGooseBackStack(spec.root) }

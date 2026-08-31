@@ -79,10 +79,10 @@ fun <VM : MavericksViewModel<S>, S : MavericksState> screenViewModel(
     }
     val savedStateRegistryOwner = LocalSavedStateRegistryOwner.current
 
-    // Stable per-entry identity across process death (rememberSaveable is entry-scoped under the
-    // host's saveable decorator). Known limitation shared with Nav3's default contentKey: two
-    // EQUAL screen values on one stack share an entry scope — and therefore a ViewModel. Give
-    // screens a distinguishing field if the same destination can be pushed twice concurrently.
+    // Stable per-entry identity across process death (rememberSaveable is entry-scoped under
+    // the host's saveable decorator). Entries themselves are per-PUSH on Nav3 hosts (goose
+    // wraps each push in a unique record), so equal screen values pushed twice get distinct
+    // entry scopes and therefore distinct ViewModels.
     val entryId = rememberSaveable { UUID.randomUUID().toString() }
     val key = "${vmClass.name}:$entryId"
 

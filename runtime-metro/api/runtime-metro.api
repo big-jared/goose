@@ -93,7 +93,9 @@ public final class dev/goose/metro/GooseScopeKt {
 }
 
 public final class dev/goose/metro/RememberRetainedGraphKt {
-	public static final fun rememberRetainedGraph (Ljava/lang/String;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)Ljava/lang/Object;
+	public static final fun rememberRetainedGraph (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)Ljava/lang/Object;
+	public static final fun retainedGraph (Landroidx/lifecycle/ViewModelStoreOwner;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
+	public static synthetic fun retainedGraph$default (Landroidx/lifecycle/ViewModelStoreOwner;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)Ljava/lang/Object;
 }
 
 public final class dev/goose/metro/ScreenRegistry {
