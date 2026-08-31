@@ -4,6 +4,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import dev.goose.metro.GooseScopeAccessors
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.GraphExtension
@@ -28,8 +32,23 @@ class CheckoutSession {
     val sessionId: Int = nextId++
     var giftNote: String by mutableStateOf("")
 
-    private companion object {
+    /** Session-lifetime work (price refreshes, holds) lives here; cancelled at disposal. */
+    val sessionScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    fun close() {
+        sessionScope.cancel()
+    }
+
+    companion object {
         private var nextId = 1
+
+        /** Test hook: the most recently created session, for asserting disposal. */
+        var lastInstance: CheckoutSession? = null
+            private set
+    }
+
+    init {
+        lastInstance = this
     }
 }
 
@@ -38,6 +57,12 @@ class CheckoutSession {
  * contributed to [CheckoutScope]; the factory is contributed to the app graph so any host can
  * create a session.
  */
+/** Accessors merged into [CheckoutGraph]; the flow host reads the session for disposal wiring. */
+@ContributesTo(CheckoutScope::class)
+interface CheckoutSessionAccessor {
+    val session: CheckoutSession
+}
+
 @GraphExtension(CheckoutScope::class)
 interface CheckoutGraph : GooseScopeAccessors {
 

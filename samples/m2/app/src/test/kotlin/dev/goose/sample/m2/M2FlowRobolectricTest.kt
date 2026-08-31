@@ -7,9 +7,12 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import kotlinx.coroutines.CoroutineScope
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+
+private fun CoroutineScope.isActive(): Boolean = coroutineContext[kotlinx.coroutines.Job]!!.isActive
 
 @RunWith(AndroidJUnit4::class)
 class M2FlowRobolectricTest {
@@ -125,6 +128,41 @@ class M2FlowRobolectricTest {
 
         composeRule.waitFor("Gift note: Happy hatching!")
         org.junit.Assert.assertEquals(session, sessionLine())
+    }
+
+    /**
+     * The disposal contract: rotation does NOT dispose the retained graph; leaving the flow
+     * disposes it exactly once, cancelling the session's coroutine scope through onRelease
+     * (the generated graph implements no AutoCloseable).
+     */
+    @Test
+    fun retainedGraphDisposesOnFlowExitNotRotation() {
+        composeRule.onNodeWithText("Cart", useUnmergedTree = true).performClick()
+        composeRule.waitFor("Checkout")
+        composeRule.onNodeWithText("Checkout").performClick()
+        composeRule.waitFor("Use home address")
+        // Scoped dependencies are lazy; visiting the gift note materializes the session.
+        composeRule.onNodeWithText("Add gift note").performClick()
+        composeRule.waitFor("Gift note: none")
+        composeRule.onNodeWithText("Back to shipping").performClick()
+        composeRule.waitFor("Use home address")
+
+        val session = checkNotNull(dev.goose.sample.m2.cart.impl.CheckoutSession.lastInstance)
+        org.junit.Assert.assertTrue(session.sessionScope.isActive())
+
+        composeRule.activityRule.scenario.recreate()
+        composeRule.waitForIdle()
+        composeRule.waitFor("Use home address")
+        org.junit.Assert.assertTrue(
+            "rotation must not dispose the retained graph",
+            session.sessionScope.isActive(),
+        )
+
+        composeRule.activityRule.scenario.onActivity {
+            it.onBackPressedDispatcher.onBackPressed()
+        }
+        composeRule.waitFor("Checkout")
+        composeRule.waitUntil(5_000) { !session.sessionScope.isActive() }
     }
 
     private fun sessionLine(): String = composeRule

@@ -122,7 +122,11 @@ class CheckoutUi : ScreenUi<CheckoutScreen>() {
         // survive rotation together with the flow's ViewModels, and are released when the flow
         // pops. (A plain remember would rebuild the graph on rotation and split the session.)
         val graphFactory = gooseGraph<CheckoutGraph.Factory>()
-        val checkoutGraph = rememberRetainedGraph { graphFactory.createCheckoutGraph() }
+        // onRelease: the graph interface is generated and implements no AutoCloseable; the
+        // explicit callback is the deterministic disposal path for its session's resources.
+        val checkoutGraph = rememberRetainedGraph(
+            onRelease = { (it as CheckoutSessionAccessor).session.close() },
+        ) { graphFactory.createCheckoutGraph() }
         GooseScope(checkoutGraph) {
         FlowViewModelScope {
             val childStack = rememberGooseBackStack(ShippingStepScreen)

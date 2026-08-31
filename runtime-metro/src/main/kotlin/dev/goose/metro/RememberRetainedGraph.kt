@@ -5,14 +5,20 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 /**
- * Retains the graph so it matches the ViewModels it feeds. Closes AutoCloseable graphs when the
- * owning entry pops.
+ * Retains the graph so it matches the ViewModels it feeds, and guarantees exactly-once disposal
+ * when the owning entry is removed.
  */
 internal class RetainedGraphHolder : ViewModel() {
     var graph: Any? = null
+    var onRelease: ((Any) -> Unit)? = null
+    private var released = false
 
     override fun onCleared() {
-        (graph as? AutoCloseable)?.close()
+        val g = graph ?: return
+        if (released) return
+        released = true
+        onRelease?.invoke(g)
+        (g as? AutoCloseable)?.close()
     }
 }
 
@@ -30,11 +36,31 @@ internal class RetainedGraphHolder : ViewModel() {
  * val checkoutGraph = rememberRetainedGraph { factory.createCheckoutGraph() }
  * GooseScope(checkoutGraph) { ... }
  * ```
- * [key] distinguishes multiple retained graphs inside one entry; the default suits the common
- * one-flow-one-graph case. If the graph implements [AutoCloseable], it is closed when released.
+ * [key] distinguishes multiple retained graphs inside one entry (each disposed independently);
+ * the default suits the common one-flow-one-graph case.
+ *
+ * DISPOSAL CONTRACT, deterministic and exactly-once. The graph is released when its retaining
+ * entry leaves the world for real: the entry popped (any path: `pop`, system back, a legacy
+ * `popBackStack()`), `resetRoot` clearing the stack, or the enclosing flow/host entry popping
+ * (nested stores clear with their owner). It is NOT released on configuration changes (that is
+ * the point of retaining it) and not on process death (the process dies; the relaunched process
+ * creates a fresh graph). On release, [onRelease] runs first, then [AutoCloseable.close] if the
+ * graph implements it. Pass [onRelease] for generated or externally supplied graphs that own
+ * scopes, listeners, or subscriptions but implement no closing interface — disposal must never
+ * depend on the graph type's implementation details:
+ * ```
+ * val graph = rememberRetainedGraph(onRelease = { (it as CheckoutGraph).session.close() }) {
+ *     factory.createCheckoutGraph()
+ * }
+ * ```
  */
 @Composable
-fun rememberRetainedGraph(key: String = "goose:retainedGraph", create: () -> Any): Any {
+fun rememberRetainedGraph(
+    key: String = "goose:retainedGraph",
+    onRelease: ((Any) -> Unit)? = null,
+    create: () -> Any,
+): Any {
     val holder = viewModel<RetainedGraphHolder>(key = key)
+    holder.onRelease = onRelease
     return holder.graph ?: create().also { holder.graph = it }
 }

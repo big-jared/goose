@@ -215,7 +215,17 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
     graph itself is created with `rememberRetainedGraph`, retained in the owning entry's
     ViewModelStore: it must live exactly as long as the ViewModels it was injected into, or a
     rotation would split session dependencies between old (VM-held) and new (recomposed)
-    graphs; a rotation test pins this. AutoCloseable graphs are closed on release. The scope
+    graphs; a rotation test pins this. Disposal is an explicit, deterministic, exactly-once
+    contract: release fires when the retaining entry is removed (pop by any path, resetRoot,
+    or the enclosing flow popping), never on configuration change, and process death simply
+    drops the process. `rememberRetainedGraph(onRelease = ...)` is the disposal path for
+    generated or externally supplied graphs that own scopes or subscriptions but implement no
+    closing interface; AutoCloseable is honored additionally, never required. A test pins
+    dispose-on-exit-not-rotation via a cancelled session scope. One Metro sharp edge found on
+    the way: a plain accessor declared directly on (or inherited by) a @GraphExtension
+    interface can generate an impl missing the method (AbstractMethodError at runtime);
+    accessors contributed via @ContributesTo(ChildScope::class) interfaces work correctly, so
+    that is the supported pattern. The scope
     does not cross a FragmentManager push (a ScreenFragment builds a fresh composition from the
     app graph); scoped screens stay inside compose-hosted flows during migration, and the
     registry's miss message names GooseScope. Screens register
