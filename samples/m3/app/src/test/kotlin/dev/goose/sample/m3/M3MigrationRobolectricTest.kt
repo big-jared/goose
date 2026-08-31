@@ -81,6 +81,59 @@ class M3MigrationRobolectricTest {
         }
     }
 
+    /**
+     * Fragment-host parity for the VM lifecycle contract (docs/VIEWMODEL_CONTRACT.md): a
+     * compose screen's VM riding the FragmentManager back stack survives activity recreation.
+     */
+    @Test
+    fun fragmentHostRetainsVmAcrossRecreation() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            onView(withText("Open profile (compose screen)")).perform(click())
+            composeRule.waitFor("Migrated Profile (compose)")
+            composeRule.onNodeWithText("Ask legacy detail for a result").performClick()
+            onView(withText("Send result and close")).perform(click())
+            composeRule.waitFor("Legacy answered: hello from legacy detail asked-by-compose")
+
+            scenario.recreate()
+            composeRule.waitForIdle()
+            composeRule.waitFor("Legacy answered: hello from legacy detail asked-by-compose")
+        }
+    }
+
+    /** Popping a fragment-hosted compose screen clears its VM: reopening starts fresh. */
+    @Test
+    fun fragmentHostClearsVmOnPop() {
+        ActivityScenario.launch(MainActivity::class.java).use {
+            onView(withText("Open profile (compose screen)")).perform(click())
+            composeRule.waitFor("Migrated Profile (compose)")
+            composeRule.onNodeWithText("Ask legacy detail for a result").performClick()
+            onView(withText("Send result and close")).perform(click())
+            composeRule.waitFor("Legacy answered: hello from legacy detail asked-by-compose")
+
+            composeRule.onNodeWithText("Done").performClick()
+            composeRule.waitForIdle()
+            onView(withText("Open profile (compose screen)")).perform(click())
+            composeRule.waitFor("Migrated Profile (compose)")
+            composeRule.waitUntil(5_000) {
+                composeRule.onAllNodes(hasText("Legacy answered", substring = true))
+                    .fetchSemanticsNodes().isEmpty()
+            }
+        }
+    }
+
+    /** Same screen TYPE, different arguments, stacked on the fragment host: two distinct VMs. */
+    @Test
+    fun fragmentHostDistinctArgsGetDistinctVms() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { it.gooseNavigator.goTo(ProfileScreen("alpha")) }
+            composeRule.waitFor("User: alpha")
+            scenario.onActivity { it.gooseNavigator.goTo(ProfileScreen("beta")) }
+            composeRule.waitFor("User: beta")
+            scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+            composeRule.waitFor("User: alpha")
+        }
+    }
+
     /** Direction 2: a legacy fragment hosted on a Nav3-owned stack via FragmentScreen. */
     @Test
     fun legacyFragmentOnNav3Stack() {

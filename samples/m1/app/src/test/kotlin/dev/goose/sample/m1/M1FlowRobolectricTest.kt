@@ -62,6 +62,30 @@ class M1FlowRobolectricTest {
         composeRule.onNodeWithText("Last visited: ada (followed!)").assertIsDisplayed()
     }
 
+    /**
+     * ViewModels are ARGUMENT-scoped, not type-scoped: popping ada's profile clears her VM, and
+     * grace's profile gets a fresh one — ada's notes cannot leak into it.
+     */
+    @Test
+    fun viewModelsAreArgumentScoped() {
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodesWithTextCount("ada") > 0
+        }
+        composeRule.onNodeWithText("ada").performClick()
+        composeRule.onNodeWithText("Add a goose to notes").performClick()
+        composeRule.onNodeWithText("Notes (persisted): 🪿").assertIsDisplayed()
+        composeRule.onNodeWithText("Done").performClick()
+
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodesWithTextCount("grace") > 0
+        }
+        composeRule.onNodeWithText("grace").performClick()
+        composeRule.waitUntil(5_000) {
+            composeRule.onAllNodesWithTextCount("Profile: grace") > 0
+        }
+        composeRule.onNodeWithText("Notes (persisted): —").assertIsDisplayed()
+    }
+
     /** Back press = dismissed without answering: caller resumes with null, not a hang. */
     @Test
     fun backDeliversNullResult() {

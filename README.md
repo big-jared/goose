@@ -512,7 +512,10 @@ Two things dialogs cannot do:
 
 The sharp edges are decided, not accidental: result-request identity, the exact `@GooseUi`
 grammar, thread contracts, saved-state compatibility across releases, R8, tabs, and scoping are
-all written down with their reasoning in [DESIGN.md](DESIGN.md).
+all written down with their reasoning in [DESIGN.md](DESIGN.md). The screen-scoped ViewModel
+lifecycle (identity, retention, clearing, restoration, result cancellation) is one documented
+contract with the tests that pin it on both hosts:
+[docs/VIEWMODEL_CONTRACT.md](docs/VIEWMODEL_CONTRACT.md).
 
 ## License
 
