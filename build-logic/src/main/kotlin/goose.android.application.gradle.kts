@@ -18,6 +18,13 @@ extensions.configure<com.android.build.api.dsl.ApplicationExtension> {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     testOptions.unitTests.isIncludeAndroidResources = true
+    // Gradle managed device for CI: `./gradlew ciDebugAndroidTest` runs every sample's
+    // instrumented suite on a headless ATD emulator (KVM on the runner).
+    testOptions.managedDevices.localDevices.create("ci") {
+        device = "Pixel 8"
+        apiLevel = 35
+        systemImageSource = "aosp-atd"
+    }
 }
 
 val libs = extensions.getByType<VersionCatalogsExtension>().named("libs")

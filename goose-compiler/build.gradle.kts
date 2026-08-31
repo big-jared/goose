@@ -1,5 +1,6 @@
 plugins {
     id("goose.publish")
+    id("goose.docs")
     alias(libs.plugins.kotlin.jvm)
 }
 

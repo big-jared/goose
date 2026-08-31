@@ -3,6 +3,7 @@
 **Modern Compose navigation for apps that grew up on MvRx and fragments, without the rewrite.**
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![API docs](https://img.shields.io/badge/API%20docs-big--jared.github.io%2Fgoose-blue)](https://big-jared.github.io/goose/)
 
 Goose moves a Mavericks (MvRx) + fragments app to Compose one screen at a time.
 

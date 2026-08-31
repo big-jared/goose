@@ -1,0 +1,52 @@
+name: Publish Snapshot
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: snapshot
+  cancel-in-progress: true
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 22
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Android SDK platform 37
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platforms;android-37.0" || "$SDKMANAGER" "platforms;android-37"
+
+      - name: Compute snapshot version
+        id: version
+        run: |
+          BASE=$(grep "^VERSION_NAME=" gradle.properties | cut -d= -f2 | sed 's/-SNAPSHOT//')
+          echo "version=${BASE}-SNAPSHOT" >> "$GITHUB_OUTPUT"
+
+      - name: Add Central credentials
+        env:
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+        run: |
+          {
+            echo "mavenCentralUsername=${MAVEN_CENTRAL_USERNAME}"
+            echo "mavenCentralPassword=${MAVEN_CENTRAL_PASSWORD}"
+          } >> gradle.properties
+
+      - name: Publish snapshot to Central Portal
+        run: >
+          ./gradlew publishAllPublicationsToMavenCentralRepository
+          -PVERSION_NAME=${{ steps.version.outputs.version }}
+          --no-configuration-cache
