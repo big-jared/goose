@@ -43,8 +43,20 @@ dependencies {
 Not on Maven yet; include the `runtime*` modules with Gradle's `includeBuild` or as a
 submodule. Then two steps:
 
-**1. Give your Application a graph.** The graph interface stays empty; features fill it by
-contribution:
+**1. Point goose at your app graph.** If you're already on Metro, this is your existing
+`@DependencyGraph(AppScope::class)` graph — goose's own wiring (registry, result router,
+serializers) arrives by contribution like any feature, so having the `runtime*` modules on that
+graph's classpath is the whole integration. Just expose the graph you already build:
+
+```kotlin
+class MyApp : Application(), GooseGraphHolder {
+    override val gooseGraph: Any get() = appGraph    // the graph you already create
+    override fun onCreate() { super.onCreate(); Mavericks.initialize(this) }
+}
+```
+
+Starting from scratch (or coming from Dagger — see [below](#already-on-dagger-or-hilt)), the
+graph is one empty interface; features fill it by contribution:
 
 ```kotlin
 @DependencyGraph(AppScope::class)
@@ -55,6 +67,18 @@ class MyApp : Application(), GooseGraphHolder {
     override fun onCreate() { super.onCreate(); Mavericks.initialize(this) }
 }
 ```
+
+> The `GooseGraphHolder` part is only needed while you still have fragment hosts. Android
+> creates fragments (and recreated activities) itself, with no constructor to hand the graph
+> through — so they reach up to the one object every framework component can see, the
+> Application. A pure-Compose app can skip the interface and pass the graph straight to
+> `GooseCompositionLocals`.
+
+One caveat for existing Metro apps: goose's contributions target Metro's standard
+`dev.zacsweers.metro.AppScope`. If your root graph merges a custom scope marker instead, merge
+both: `@DependencyGraph(scope = MyRootScope::class, additionalScopes = [AppScope::class])`.
+Existing `@GraphExtension` child scopes need nothing — unless one should host goose screens,
+covered under [session scopes](#session-scopes-child-graphs) later.
 
 **2. Install a navigator in your existing activity.** One call:
 
@@ -67,6 +91,10 @@ class MainActivity : FragmentActivity() {
     }
 }
 ```
+
+> This step is migration-only too: it exists to drive an existing FragmentManager stack. In a
+> pure-Compose activity there is no fragment container to install into — `setContent` with
+> `GooseCompositionLocals` + `NavigableGooseContent` is the whole setup.
 
 Why is even this needed, if the nav API drives your FragmentManager anyway? Because three
 things can't be guessed: which container in your layout to push into, a stable object for
@@ -564,6 +592,46 @@ installGooseNavigator(
 `request.createFragment()` hands you the fragment goose would have shown (the bound legacy
 fragment, or the compose host created through your FragmentManager's own `FragmentFactory`), so
 custom transactions change HOW a screen appears without changing WHAT appears.
+
+## Embedding without navigating
+
+Not every child fragment is navigation. A parent attaches a chat panel, a map, a payment sheet
+into one of its containers — no back stack entry, no navigator call. Goose never owns your
+FragmentManager, so those transactions keep working untouched, including when the thing you
+embed is a migrated goose screen:
+
+```kotlin
+val fragment = ScreenFragment.newInstance(childFragmentManager, ChatPanelScreen(ticketId))
+childFragmentManager.commit { add(R.id.panel_container, fragment) }
+```
+
+Prefer this `newInstance(fragmentManager, screen)` overload: it creates the fragment through
+that FragmentManager's own `FragmentFactory`, so a host with a custom factory sees goose's
+fragments go through the same path as its own.
+
+The embedded fragment wires itself up when its view is created; you configure it by being the
+right kind of parent, not by passing anything in:
+
+- **Navigator.** It walks up the parent-fragment chain for the nearest `FragmentNavigatorOwner`
+  and falls back to the activity's navigator. So when the embedded screen's ViewModel calls
+  `navigator.goTo(...)`, that pushes onto the nearest enclosing stack. If its navigations
+  should land in one of YOUR containers instead, implement `FragmentNavigatorOwner` on the
+  parent fragment with a `FragmentNavigator` over your `childFragmentManager` — the shape
+  `SupportFlowFragment` in the [Gaggle sample](samples/gaggle) demonstrates.
+- **Scoped dependencies.** Same walk, for the nearest `GooseScopeOwner`: embedded inside a
+  scoped flow, the screen resolves the flow's child graph.
+- **ViewModel lifetime.** The embedded fragment is the screen's `ViewModelStoreOwner`, so the
+  ViewModel is retained across rotation and cleared when the fragment is removed — it lives
+  exactly as long as the embedding, which is what embedding means.
+
+One semantic difference from navigation: nobody is awaiting an embedded screen. Typed results
+(`goToForResult`) ride the navigator and back stack, so a screen designed to answer a caller
+should be pushed, not embedded.
+
+The compose side mirrors both directions. A goose screen (or any composable) embeds a fragment
+without a stack entry via `AndroidFragment` from `androidx.fragment.compose` — that is all
+`fragmentScreenEntry` does internally. And non-goose compose UI embeds a single goose screen
+with `GooseContent(screen, navigator)`, no stack host required.
 
 ## Animations
 
