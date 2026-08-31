@@ -40,7 +40,8 @@ mavenPublishing {
         }
     }
 
-    publishToMavenCentral()
+    // automaticRelease: the deployment goes live once validated, no portal UI click needed.
+    publishToMavenCentral(automaticRelease = true)
     // Signing is release-only, opted into explicitly (-Pgoose.releaseSigning=true, as the
     // publish workflow does). Gating on the flag rather than on key presence keeps local
     // publishToMavenLocal independent of whatever signing state this machine happens to have.
