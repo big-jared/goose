@@ -412,14 +412,69 @@ shipping, shipping out of the flow to home. State restoration uses the same mech
 this survives process death (it does, the stacks serialize), a deep link does too.
 
 A deep link arriving while the app is already running (`onNewIntent`) is just a navigator
-mutation: parse the intent, then call `resetRoot` and `goTo` (or `goTo(tab, screen)` on a tab
-host, which switches and pushes atomically) to build the same stack. The list overload above is
-only the cold-start half.
+mutation: parse the intent, then call `resetRoot` and `goTo` — or, to land in another tab,
+`switchTo(key).goTo(screen)` (see [tabs](#tabs-and-cross-stack-navigation) below). The list
+overload above is only the cold-start half.
 
 One more restoration guarantee, because deep links and app updates meet here: if a saved stack
 cannot be decoded on launch (a screen class was renamed or removed in an update), the stack
 restarts at its roots instead of crash-looping. Losing navigation state is recoverable; a crash
 loop is not.
+
+## Tabs and cross-stack navigation
+
+A tab host is a navigator that multiplexes several persisted back stacks. Declare the stacks,
+render the combined host, and pair it with your own tab bar UI:
+
+```kotlin
+val tabs = rememberTabNavigator(
+    tabs = listOf(
+        TabSpec(GaggleTabs.Shop, CatalogScreen),
+        TabSpec(GaggleTabs.Cart, CartScreen),
+        TabSpec(GaggleTabs.Profile, ProfileScreen),
+    ),
+)
+Column {
+    TabbedGooseContent(tabs, Modifier.weight(1f), onRootBack = { finish() })
+    MyTabBar(selected = tabs.currentStack, onSelect = tabs::selectTab)
+}
+```
+
+Each tab's stack survives switching away, configuration changes, and process death. The keys
+(`StackKey("shop")` etc.) live in a shared `:api` module so any feature can address a stack;
+they're also the persistence identity for the selected tab, so keep them stable across releases.
+
+**The routing contract is deliberately dumb.** Screens carry no tab affinity, and there is no
+route table deciding where a screen "belongs":
+
+- `goTo(screen)` **always pushes onto the stack you're standing in.** Any screen is pushable in
+  any stack — showing a profile page inside the shop tab is a normal thing to do, and a feature
+  module can push a screen it imported without registering anything.
+- **Leaving your stack is a separate, explicit intent:** `switchTo(key)`. It selects that stack
+  (keeping the state of the one you left) and returns the host's navigator, so a cross-stack
+  push chains:
+
+```kotlin
+// "open my order history, in the Profile tab" — from anywhere:
+navigator.switchTo(GaggleTabs.Profile).goTo(OrderHistoryScreen(orderId))
+
+// just "go to the Profile tab":
+navigator.switchTo(GaggleTabs.Profile)
+```
+
+`switchTo` is an extension on every `Navigator`: it walks up the navigator tree to the nearest
+host owning that key. So the call above works unchanged from a screen sitting directly in a tab
+stack, or three levels down inside a nested checkout flow — the flow's own stack is untouched,
+and the push lands on the profile stack. Both mutations happen before the next frame renders,
+so the switch-and-push is visually atomic. Addressing a key no ancestor hosts is a programming
+error and throws.
+
+`selectTab(key)` is the tab-bar button, not a nav primitive: it behaves like `switchTo` except
+re-selecting the current tab pops it to its root, the platform-conventional gesture. Feature
+code navigating somewhere should use `switchTo`; only your tab bar should call `selectTab`.
+
+Back inside a tab host: pop the current stack; at a non-primary tab's root, back falls to the
+primary tab; at the primary tab's root, `onRootBack` fires (typically `finish()`).
 
 ## Session scopes (child graphs)
 

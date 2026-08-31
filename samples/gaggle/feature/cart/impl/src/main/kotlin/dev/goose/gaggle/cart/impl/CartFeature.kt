@@ -24,7 +24,7 @@ import dev.goose.runtime.GooseUi
 import dev.goose.runtime.LocalNavigator
 import dev.goose.runtime.Navigator
 import dev.goose.runtime.StateHolder
-import dev.goose.runtime.TabNavigator
+import dev.goose.runtime.switchTo
 import dev.goose.runtime.rememberStateHolder
 import kotlinx.coroutines.launch
 
@@ -56,8 +56,8 @@ class CartHolder(
 
 /**
  * Demonstrates: a scope-registered screen driving three result flows — a dialog answering a
- * question, a wizard answering with a typed result, and a cross-tab jump (TabNavigator.goTo)
- * to a legacy screen afterwards. Session state lives in the cart; await lifetimes live in the
+ * question, a wizard answering with a typed result, and a cross-stack jump
+ * (switchTo + goTo) to a legacy screen afterwards. Session state lives in the cart; await lifetimes live in the
  * retained CartHolder.
  */
 @GooseUi(CartScreen::class, scope = LoggedInScope::class)
@@ -80,7 +80,7 @@ fun CartUi(modifier: Modifier, cart: SessionCart) {
         cart.lastOrder?.let { order ->
             Text("Order placed: $order")
             OutlinedButton(onClick = {
-                (navigator as? TabNavigator)?.goTo(GaggleTabs.Profile, OrderHistoryScreen(orderCount = 1))
+                navigator.switchTo(GaggleTabs.Profile).goTo(OrderHistoryScreen(orderCount = 1))
             }) { Text("View order history") }
         }
     }

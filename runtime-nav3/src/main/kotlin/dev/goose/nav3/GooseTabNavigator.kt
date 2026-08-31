@@ -16,14 +16,14 @@ import dev.goose.runtime.Navigator
 import dev.goose.runtime.PopResult
 import dev.goose.runtime.ResultRouter
 import dev.goose.runtime.Screen
+import dev.goose.runtime.StackHost
 import dev.goose.runtime.StackKey
-import dev.goose.runtime.TabNavigator
 
 /** One tab in a [rememberTabNavigator] host. */
 data class TabSpec(val key: StackKey, val root: Screen)
 
 /**
- * A [TabNavigator] multiplexing one persisted Nav3 back stack per tab.
+ * A [StackHost] multiplexing one persisted Nav3 back stack per tab.
  *
  * The [displayStack] handed to NavDisplay is every tab's stack flattened with the current tab's
  * last. Keeping hidden tabs' entries in the display list is what preserves their ViewModels and
@@ -37,74 +37,80 @@ data class TabSpec(val key: StackKey, val root: Screen)
  * tab; at the primary tab's root, bubble to [parent] or report unhandled.
  */
 class GooseTabNavigator internal constructor(
-    private val stacks: Map<StackKey, MutableList<NavKey>>,
+    private val stacksByKey: Map<StackKey, MutableList<NavKey>>,
     private val tabOrder: List<StackKey>,
-    private val currentTabState: MutableState<StackKey>,
+    private val currentStackState: MutableState<StackKey>,
     resultRouter: ResultRouter,
     override val parent: Navigator? = null,
     private val hostTag: String,
-) : BaseNavigator(resultRouter), TabNavigator {
+) : BaseNavigator(resultRouter), StackHost {
 
-    override val currentTab: StackKey by currentTabState
+    override val stacks: Set<StackKey> get() = stacksByKey.keys
 
-    private val currentStack: MutableList<NavKey>
-        get() = stacks.getValue(currentTab)
+    override val currentStack: StackKey by currentStackState
+
+    private val currentEntries: MutableList<NavKey>
+        get() = stacksByKey.getValue(currentStack)
 
     /**
-     * Scope result routing per host instance AND per tab: pushes and pops both happen on the
-     * current tab's stack, so same-class awaits in different tabs (or another activity's host)
+     * Scope result routing per host instance AND per stack: pushes and pops both happen on the
+     * current stack, so same-class awaits in different tabs (or another activity's host)
      * get distinct, recreation-stable keys.
      */
     override fun resultKeyFor(screen: Screen): String =
-        "${resultRouter.resultKeyOf(screen)}#$hostTag#${currentTab.value}"
+        "${resultRouter.resultKeyOf(screen)}#$hostTag#${currentStack.value}"
 
     val displayStack: List<NavKey>
         get() = buildList {
-            tabOrder.forEach { key -> if (key != currentTab) addAll(stacks.getValue(key)) }
-            addAll(currentStack)
+            tabOrder.forEach { key -> if (key != currentStack) addAll(stacksByKey.getValue(key)) }
+            addAll(currentEntries)
         }
 
     override val backStack: List<Screen>
-        get() = currentStack.map { it.asScreen() }
+        get() = currentEntries.map { it.asScreen() }
 
     /** True when [key] is the root entry of ANY tab's stack. */
-    fun isStackRoot(key: NavKey): Boolean = stacks.values.any { it.firstOrNull() === key }
+    fun isStackRoot(key: NavKey): Boolean = stacksByKey.values.any { it.firstOrNull() === key }
 
-    override fun goTo(tab: StackKey, screen: Screen) {
+    override fun switchTo(key: StackKey): Navigator {
         requireMainThread()
-        require(tab in stacks) { "Unknown tab $tab" }
-        currentTabState.value = tab
-        stacks.getValue(tab).add(screen.pushed())
+        require(key in stacksByKey) { "Unknown stack $key (host owns $stacks)" }
+        currentStackState.value = key
+        return this
     }
 
-    override fun selectTab(key: StackKey) {
+    /**
+     * Tab-bar button behavior, NOT a nav primitive: like [switchTo], except re-selecting the
+     * current tab pops it to its root (the platform-conventional gesture). Feature code
+     * navigating cross-stack should use [switchTo].
+     */
+    fun selectTab(key: StackKey) {
         requireMainThread()
-        require(key in stacks) { "Unknown tab $key" }
-        if (key == currentTab) {
-            // Re-select pops the tab to its root.
-            val stack = currentStack
+        require(key in stacksByKey) { "Unknown stack $key (host owns $stacks)" }
+        if (key == currentStack) {
+            val stack = currentEntries
             while (stack.size > 1) {
                 popTopOf(stack, result = null)
             }
         } else {
-            currentTabState.value = key
+            currentStackState.value = key
         }
     }
 
     override fun goTo(screen: Screen) {
         requireMainThread()
-        currentStack.add(screen.pushed())
+        currentEntries.add(screen.pushed())
     }
 
     override fun pop(result: PopResult?): Boolean {
         requireMainThread()
-        val stack = currentStack
+        val stack = currentEntries
         if (stack.size > 1) {
             popTopOf(stack, result)
             return true
         }
-        if (currentTab != tabOrder.first()) {
-            currentTabState.value = tabOrder.first()
+        if (currentStack != tabOrder.first()) {
+            currentStackState.value = tabOrder.first()
             return true
         }
         return parent?.pop(result) ?: false
@@ -112,7 +118,7 @@ class GooseTabNavigator internal constructor(
 
     override fun resetRoot(screen: Screen) {
         requireMainThread()
-        val stack = currentStack
+        val stack = currentEntries
         stack.asReversed().forEach { key -> deliverPopResult(key.asScreen(), null) }
         stack.clear()
         stack.add(screen.pushed())

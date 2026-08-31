@@ -93,7 +93,7 @@ private fun LoggedInShell(sessionManager: SessionManager) {
     LaunchedEffect(sessionManager.pendingProductId) {
         val productId = sessionManager.pendingProductId ?: return@LaunchedEffect
         sessionManager.pendingProductId = null
-        tabs.goTo(GaggleTabs.Shop, ProductScreen(productId))
+        tabs.switchTo(GaggleTabs.Shop).goTo(ProductScreen(productId))
     }
     Column(Modifier.fillMaxSize()) {
         TabbedGooseContent(tabs, Modifier.weight(1f))
@@ -113,6 +113,6 @@ private fun TabBar(tabs: GooseTabNavigator) {
 @Composable
 private fun TabButton(tabs: GooseTabNavigator, key: StackKey, label: String) {
     TextButton(onClick = { tabs.selectTab(key) }) {
-        Text(if (tabs.currentTab == key) "• $label" else label)
+        Text(if (tabs.currentStack == key) "• $label" else label)
     }
 }

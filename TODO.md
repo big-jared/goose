@@ -17,7 +17,7 @@ Ordered roughly by dependency. See [GOALS.md](GOALS.md) for milestone definition
 - [x] `PopResult` (`@Serializable` sealed interface)
 - [x] `Navigator`: `goTo`, `pop(result)`, `resetRoot(saveState)`, `parent`,
       observable `backStack`, `suspend goToForResult(ScreenWithResult<R>): R?`
-- [x] `TabNavigator : Navigator`: `selectTab(StackKey)`, saved per-tab stacks
+- [x] `StackHost : Navigator`: `switchTo(StackKey)` + tree-walking extension, saved per-tab stacks
 - [x] `ScreenUi<S>` (`@Composable Content(screen, modifier)`) + erased `ScreenEntry`
 - [x] `StateHolder<S>` + rememberStateHolder: presenter-agnostic option (pure Kotlin +
       coroutines, entry-scoped retention, NavigatorHandle injection), the multiplatform seam;

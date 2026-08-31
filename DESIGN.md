@@ -178,15 +178,21 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
     naming a tab that no longer exists falls back to the first tab instead of crashing. (The
     earlier distinct-roots requirement was removed by per-push identity, item 21.)
 
-29. **Cross-tab navigation. Fixed.** `TabNavigator.goTo(tab, screen)` atomically selects the tab
-    and pushes, with no intermediate frame of the tab's old top.
+29. **Cross-stack navigation. Fixed.** Screens carry no stack affinity: `goTo` always pushes
+    onto the caller's current stack, so any screen is pushable in any stack. Changing stacks is
+    the explicit `switchTo(key)`, which walks the navigator tree to the owning `StackHost` (so
+    it works from nested flows) and returns the host's navigator for chaining:
+    `switchTo(Orders).goTo(OrderScreen(id))`. Both mutations land before the next frame, so the
+    switch-and-push renders atomically — which is why no combined two-arg call is needed. A
+    declared screen→stack graph was considered and rejected: it forbids reusing a screen across
+    stacks and couples every new caller to the screen's stack annotation.
 
 30. **Equal roots across tabs. Fixed.** Distinct root screens are a construction requirement:
     all tabs share one NavDisplay, so equal roots would collide in entry state ownership.
 
 31. **onNewIntent. Decided, README example.** A new deep link into a running activity is a
     navigator mutation like any other: parse the intent, then `resetRoot` + `goTo` (or
-    `goTo(tab, screen)`) to build the target stack. `rememberGooseBackStack(initial)` is only
+    `switchTo(key).goTo(screen)` on a tab host) to build the target stack. `rememberGooseBackStack(initial)` is only
     the cold-start half.
 
 ## Presentation and dependency boundaries

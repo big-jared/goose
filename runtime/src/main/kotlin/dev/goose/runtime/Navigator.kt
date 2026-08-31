@@ -37,19 +37,52 @@ interface Navigator {
     suspend fun <R : PopResult> goToForResult(screen: ScreenWithResult<R>): R?
 }
 
-/** A [Navigator] that multiplexes several saved back stacks, bottom-nav style. */
-interface TabNavigator : Navigator {
-    val currentTab: StackKey
+/**
+ * A [Navigator] that multiplexes several saved back stacks — a bottom-nav tab host is the common
+ * case, but the nav contract knows nothing about tabs, only stacks.
+ *
+ * [Navigator.goTo] on a host (as on every navigator) pushes onto the CURRENT stack; a screen
+ * carries no stack affinity, so the same screen is pushable in any stack. Changing stacks is a
+ * separate, explicit intent: [switchTo].
+ */
+interface StackHost : Navigator {
+    /** The keys of every stack this host owns. */
+    val stacks: Set<StackKey>
+
+    /** The key of the stack currently displayed. */
+    val currentStack: StackKey
 
     /**
-     * Makes [key] the active stack, preserving the state of the one being left.
-     * Re-selecting the current tab pops it to its root.
+     * Makes [key] the current stack, preserving the state of the stack being left (already
+     * current is a no-op). Returns this host as a [Navigator] — now addressing the new current
+     * stack — so a cross-stack push chains:
+     * `navigator.switchTo(Orders).goTo(OrderScreen(id))`. Both mutations land before the next
+     * frame, so the switch-and-push renders atomically.
+     *
+     * Throws on a key this host doesn't own; from a nested stack, use the tree-walking
+     * [Navigator.switchTo] extension instead of calling the host directly.
      */
-    fun selectTab(key: StackKey)
+    fun switchTo(key: StackKey): Navigator
+}
 
-    /**
-     * Atomically selects [tab] and pushes [screen] onto it — for cross-tab navigation ("open
-     * this order in the Orders tab") without an intermediate frame of the tab's old top.
-     */
-    fun goTo(tab: StackKey, screen: Screen)
+/**
+ * Switches to the stack [key], from anywhere in the navigator tree: walks [Navigator.parent]
+ * (starting at this navigator) to the nearest [StackHost] owning [key] and delegates to
+ * [StackHost.switchTo]. This is how a screen deep inside a nested flow routes to a sibling
+ * stack without knowing where its host lives:
+ * `navigator.switchTo(GaggleStacks.Profile).goTo(OrderHistoryScreen(id))`.
+ *
+ * Throws when no ancestor host owns [key] — addressing a stack that isn't hosted is a
+ * programming error (wrong key, or the host isn't in this navigator's ancestry).
+ */
+fun Navigator.switchTo(key: StackKey): Navigator {
+    var nav: Navigator? = this
+    while (nav != null) {
+        if (nav is StackHost && key in nav.stacks) return nav.switchTo(key)
+        nav = nav.parent
+    }
+    error(
+        "No StackHost owning $key in the navigator tree above $this. " +
+            "Check the key, and that the host is an ancestor of this navigator."
+    )
 }

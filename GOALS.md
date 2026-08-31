@@ -42,7 +42,7 @@ would be: **each tab is its own feature module pair** (`:feature:*:api` +
 `:feature:*:impl`), impl modules never depend on each other, and the app module
 only wires tab roots to `StackKey`s.
 
-- `TabNavigator`: one saved back stack per tab, stack state preserved across
+- `StackHost`: one saved back stack per tab, stack state preserved across
   tab switches, re-select pops to root.
 - Cross-module navigation: tab A navigates into a screen owned by tab B's
   feature (via its `:api` module only), proving screens compose across module
