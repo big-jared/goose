@@ -10,6 +10,9 @@ Configure these secrets in GitHub Settings, Secrets and variables, Actions:
 - `MAVEN_CENTRAL_USERNAME` and `MAVEN_CENTRAL_PASSWORD`: Central Portal credentials
 - `SIGNING_KEY`: the GPG signing key, either armored text or its base64 (one line)
 - `SIGNING_KEY_PASSWORD`: the key password
+- `RELEASE_PUSH_TOKEN`: a fine-grained PAT (this repo, Contents: read and write) belonging to
+  an admin. Needed because main's ruleset requires CI checks and the Actions bot cannot bypass
+  it on a user-owned repo; the release workflow pushes the version bump and tag with this token.
 
 No key id is needed: the publish convention configures the in-memory key without one (Gradle's
 id lookup cannot match keys with nonzero high id bits, and a single-key ring needs no id).
@@ -33,6 +36,19 @@ for fixes. The label flow bumps patch; use manual dispatch for anything bigger.
 
 `./gradlew publishToMavenLocal` publishes all six modules to `~/.m2` with no credentials and no
 signing. Signing only engages when the release workflow passes `goose.releaseSigning=true`.
+
+## CI policy
+
+Everything runs on standard `ubuntu-latest` runners, which are free with unlimited minutes on
+public repositories: no personal-card exposure at any usage level (larger runners or a private
+repo would change that; neither is used). The fast `build` job (unit + Robolectric + apiCheck +
+assemble) runs on every push and PR. The two emulator jobs (`instrumented`, `maestro`) run on
+main pushes and manual dispatch, and on PRs only when the `emulator` label is applied.
+
+Merging to main is governed by the "main requires CI" ruleset: the `build`, `instrumented`,
+and `maestro` checks must pass (a check skipped by the label gate counts as satisfied, so
+unlabeled PRs need `build` only). Repo admins bypass the ruleset for direct pushes; force
+pushes and branch deletion are blocked for everyone.
 
 ## Snapshots
 

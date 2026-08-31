@@ -29,7 +29,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        # main's ruleset requires CI checks; the Actions bot cannot bypass it on a user-owned
+        # repo, so release pushes need an admin PAT (RELEASE_PUSH_TOKEN). Falls back to the
+        # bot token if unset, which works only while the ruleset is disabled.
+        token: ${{ secrets.RELEASE_PUSH_TOKEN || github.token }}
         fetch-depth: 0
 
     - name: Calculate next version
