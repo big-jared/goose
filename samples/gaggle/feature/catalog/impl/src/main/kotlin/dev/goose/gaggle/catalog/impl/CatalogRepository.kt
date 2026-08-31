@@ -22,6 +22,8 @@ class CatalogRepository {
         Product("pond-4", "Honk amplifier", "📢", "$12"),
     )
 
+    private val dealProduct = Product("deal-1", "Golden egg incubator", "🥚", "$99 (deal!)")
+
     private var dealAttempts = 0
 
     suspend fun loadProducts(): List<Product> {
@@ -32,11 +34,11 @@ class CatalogRepository {
     suspend fun loadDeal(): Product {
         delay(30)
         if (dealAttempts++ == 0) error("The pond network flaked. Try again.")
-        return Product("deal-1", "Golden egg incubator", "🥚", "$99 (deal!)")
+        return dealProduct
     }
 
     fun productById(id: String): Product =
-        products.firstOrNull { it.id == id }
+        (products + dealProduct).firstOrNull { it.id == id }
             ?: Product(id, "Special order #$id", "📦", "$?")
 
     fun related(id: String): List<Product> = products.filter { it.id != id }.take(2)

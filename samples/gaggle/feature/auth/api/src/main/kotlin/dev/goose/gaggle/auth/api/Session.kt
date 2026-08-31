@@ -1,10 +1,21 @@
 package dev.goose.gaggle.auth.api
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.DialogProperties
 import dev.goose.metro.GooseScopeAccessors
+import dev.goose.runtime.OverlayScreen
+import dev.goose.runtime.PopResult
 import dev.goose.runtime.Screen
+import dev.goose.runtime.ScreenTransitions
+import dev.goose.runtime.ScreenWithResult
 import dev.goose.runtime.StackKey
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesTo
@@ -75,23 +86,54 @@ interface SessionManagerAccessor {
     val sessionManager: SessionManager
 }
 
-/** The signed-in shell's tabs, shared so any feature can jump tabs via TabNavigator.goTo. */
+/** The signed-in shell's stack keys, shared so any feature can jump stacks via switchTo. */
 object GaggleTabs {
     val Shop = StackKey("shop")
     val Cart = StackKey("cart")
     val Profile = StackKey("profile")
 }
 
+// Screens ride the saved-state Bundle via Java serialization; readResolve keeps each object
+// screen a true singleton when it comes back after process death.
 @Serializable
-data object LoginScreen : Screen
+data object LoginScreen : Screen {
+    private fun readResolve(): Any = LoginScreen
+}
 
 // ---- Shell screens (the profile tab), declared here so any feature can navigate to them ----
 
 @Serializable
-data object ProfileScreen : Screen
+data object ProfileScreen : Screen {
+    private fun readResolve(): Any = ProfileScreen
+}
+
+/** Pops in with a scale+fade instead of the default slide (ScreenTransitions). */
+@Serializable
+data object TeamStatsScreen : Screen, ScreenTransitions {
+    override fun enterTransition() =
+        (fadeIn(tween(200)) + scaleIn(initialScale = 0.85f, animationSpec = tween(200)))
+            .togetherWith(fadeOut(tween(200)))
+
+    override fun exitTransition() =
+        fadeIn(tween(200))
+            .togetherWith(fadeOut(tween(200)) + scaleOut(targetScale = 0.85f, animationSpec = tween(200)))
+
+    private fun readResolve(): Any = TeamStatsScreen
+}
+
+/**
+ * A forced-choice confirmation dialog: dismissOnClickOutside = false, so tapping away does
+ * NOT dismiss it — the user must pick a button (system back still answers "stay", as null).
+ */
+@Serializable
+data object SignOutConfirmScreen : OverlayScreen, ScreenWithResult<SignOutChoice> {
+    override fun dialogProperties() = DialogProperties(dismissOnClickOutside = false)
+
+    private fun readResolve(): Any = SignOutConfirmScreen
+}
 
 @Serializable
-data object TeamStatsScreen : Screen
+data class SignOutChoice(val signOut: Boolean) : PopResult
 
 /** A LEGACY fragment destination with typed arguments (see the app's legacy package). */
 @Serializable
@@ -103,4 +145,6 @@ data class TermsScreen(val termsId: String, val revision: Int) : Screen
 
 /** A legacy-owned scoped flow (fragment + child FragmentManager + its own graph). */
 @Serializable
-data object SupportFlowScreen : Screen
+data object SupportFlowScreen : Screen {
+    private fun readResolve(): Any = SupportFlowScreen
+}

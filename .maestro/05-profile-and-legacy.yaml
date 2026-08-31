@@ -25,4 +25,6 @@ appId: dev.goose.gaggle
 - assertVisible: "Honks sent: 1"
 - back
 - tapOn: "Log out"
+- assertVisible: "Leaving the pond?"
+- tapOn: "Sign out"
 - assertVisible: "Sign in as Goose Fan"

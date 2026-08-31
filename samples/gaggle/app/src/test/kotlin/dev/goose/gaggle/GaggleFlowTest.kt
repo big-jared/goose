@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -47,7 +48,10 @@ class GaggleFlowTest {
         composeRule.waitFor("Shop")
     }
 
-    /** Login gates the app; logout tears the logged-in graph down and returns to login. */
+    /**
+     * Login gates the app; logout goes through the forced-choice confirm dialog, then tears
+     * the logged-in graph down and returns to login.
+     */
     @Test
     fun loginAndLogout() {
         launch().use {
@@ -56,7 +60,23 @@ class GaggleFlowTest {
             composeRule.onNodeWithText("Profile").performClick()
             composeRule.waitFor("Hi, Goose Fan")
             composeRule.onNodeWithText("Log out").performClick()
+            composeRule.waitFor("Leaving the pond?")
+            composeRule.onNodeWithText("Sign out").performClick()
             composeRule.waitFor("Sign in as Goose Fan")
+        }
+    }
+
+    /** The confirm dialog answering "stay" (a pop) leaves the session untouched. */
+    @Test
+    fun signOutConfirmStayKeepsSession() {
+        launch().use {
+            signIn()
+            composeRule.onNodeWithText("Profile").performClick()
+            composeRule.waitFor("Hi, Goose Fan")
+            composeRule.onNodeWithText("Log out").performClick()
+            composeRule.waitFor("Leaving the pond?")
+            composeRule.onNodeWithText("Stay").performClick()
+            composeRule.waitFor("Hi, Goose Fan")
         }
     }
 
@@ -67,7 +87,34 @@ class GaggleFlowTest {
             signIn()
             composeRule.waitFor("Deal failed to load. ")
             composeRule.onNodeWithText("Retry").performClick()
-            composeRule.waitFor("Deal of the day: 🥚 Golden egg incubator $99 (deal!)")
+            composeRule.waitFor("Golden egg incubator")
+        }
+    }
+
+    /** The deal banner is a real product: tapping it opens the detail screen. */
+    @Test
+    fun dealBannerOpensProduct() {
+        launch().use {
+            signIn()
+            composeRule.waitFor("Deal failed to load. ")
+            composeRule.onNodeWithText("Retry").performClick()
+            composeRule.waitFor("Golden egg incubator")
+            composeRule.onNode(hasText("Golden egg incubator", substring = true)).performClick()
+            composeRule.waitFor("Add to cart")
+        }
+    }
+
+    /** The peek OverlayScreen: pops itself and pushes the full page in one frame. */
+    @Test
+    fun peekDialogPromotesToFullPage() {
+        launch().use {
+            signIn()
+            composeRule.waitFor("Premium pond pellets")
+            composeRule.onAllNodesWithText("Peek").onFirst().performClick()
+            composeRule.waitFor("A quick look. The full page has related products and add-to-cart.")
+            composeRule.onNodeWithText("Open full page").performClick()
+            composeRule.waitFor("Add to cart")
+            composeRule.onNodeWithText("Related").assertIsDisplayed()
         }
     }
 

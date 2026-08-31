@@ -136,6 +136,8 @@ class GaggleHardeningTest {
             composeRule.onNodeWithText("Profile", useUnmergedTree = true).performClick()
             composeRule.waitFor("Log out")
             composeRule.onNodeWithText("Log out").performClick()
+            composeRule.waitFor("Leaving the pond?")
+            composeRule.onNodeWithText("Sign out").performClick()
             signIn()
             composeRule.onNodeWithText("Cart", useUnmergedTree = true).performClick()
             composeRule.waitFor("Nothing here yet. Honk at the shop.")

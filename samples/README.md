@@ -15,7 +15,7 @@ below maps to the file that demonstrates it and the test that pins it. Tests liv
 | `@GooseUi` wires state + VM by type | `catalog/impl/CatalogFeature.kt` | every test, transitively |
 | Mavericks `Async` incl. Fail + retry | `CatalogRepository.loadDeal`, `CatalogUi` | `GaggleFlowTest.asyncFailThenRetry` |
 | Scope-registered screens + cross-feature session deps | `ProductFeature.kt` (catalog registers into LoggedInScope, injects the cart) | `GaggleFlowTest.addToCartAcrossFeatures` |
-| Shared elements with :api-declared keys | `ProductImageKey`, `CatalogUi`/`ProductUi` | rendered in every product test |
+| Shared elements with :api-declared keys, multiple per screen, multiple origins | `ProductImageKey` + `ProductTitleKey`; `CatalogUi` (rows AND the deal banner) / `ProductUi` | `GaggleFlowTest.dealBannerOpensProduct`, rendered in every product test |
 | Per-push identity for equal screen values | `ProfileFeature.kt` ("Open stats again") | `GaggleHardeningTest.equalStatsScreensAreIndependent`, `rapidDoubleTapIsSafe` |
 | StateHolder (presenter without Mavericks) | `TeamStatsHolder`, `CartHolder` | `equalStatsScreensAreIndependent`, every cart result test |
 | Typed results: picker, dialog, wizard | `cart/api/CartScreens.kt`, `CheckoutFeature.kt` | `GaggleFlowTest.removeDialogResult`, `checkoutEndToEndIntoLegacyOrderHistory` |
@@ -24,8 +24,9 @@ below maps to the file that demonstrates it and the test that pins it. Tests liv
 | Nested child scope (checkout inside session) | `CheckoutScope.kt`, `GiftNoteStepUi` | `checkoutEndToEndIntoLegacyOrderHistory` |
 | Retained child graphs across rotation | `CheckoutUi` (`rememberRetainedGraph`) | `wizardSurvivesRecreationAtEveryStep` |
 | OverlayScreen dialog + dialogProperties | `RemoveItemScreen`, `RemoveItemUi` | `GaggleFlowTest.removeDialogResult` |
-| ScreenTransitions (modal slide, predictive back) | `CheckoutScreen` in `cart/api` | rendered by every checkout test |
-| Tabs: independent stacks, atomic cross-tab goTo | `MainActivity.kt`, `CartUi` ("View order history") | `tabStacksSurviveSwitchAndRecreation`, `checkoutEndToEndIntoLegacyOrderHistory` |
+| Custom dialog windows: full-width peek, forced-choice confirm | `ProductPeekScreen`/`ProductPeekUi` (`usePlatformDefaultWidth = false`, pop-then-push promotion), `SignOutConfirmScreen`/`SignOutConfirmUi` (`dismissOnClickOutside = false`) | `peekDialogPromotesToFullPage`, `signOutConfirmStayKeepsSession`, `loginAndLogout` |
+| ScreenTransitions (modal slide, fade+scale beside shared elements, predictive back) | `CheckoutScreen` in `cart/api`, `ProductScreen` in `catalog/api`, `TeamStatsScreen` in `auth/api` | rendered by every checkout and product test |
+| Tabs: independent stacks, cross-stack `switchTo(...).goTo(...)` | `MainActivity.kt`, `CartUi` ("View order history") | `tabStacksSurviveSwitchAndRecreation`, `checkoutEndToEndIntoLegacyOrderHistory` |
 | Deep links: cold start parks until login, warm jumps tabs | `MainActivity.handleDeepLink` | `coldDeepLinkParksUntilLogin`, `warmDeepLinkJumpsTabs` |
 | Typed legacy fragments on Nav3 (Parcelable args) | `legacy/LegacyFragments.kt` | `checkoutEndToEndIntoLegacyOrderHistory`, `legacyTermsTypedArgsSurviveRecreation` |
 | Child scope + VM contract across a FragmentManager | `legacy/SupportFlow.kt` | `supportScopeAndVmContractAcrossFragmentBoundary` |
