@@ -426,6 +426,34 @@ The rules, all tested in the `m2` sample:
   own compose content. It does not cross a FragmentManager push, so during migration keep
   scoped screens inside compose-hosted flows.
 
+## Screens without Mavericks
+
+Mavericks is the presenter layer goose is built around, but it is not required per screen. A
+`StateHolder` is the presenter-agnostic option: pure Kotlin plus coroutines, one `StateFlow` of
+state, the same entry-scoped lifecycle as `screenViewModel` (retained across rotation, cleared
+on pop, a navigator that is safe to hold):
+
+```kotlin
+class TeamStatsHolder(private val navigator: Navigator) :
+    StateHolder<TeamStatsState>(TeamStatsState()) {
+    fun spotGoose() = setState { copy(geeseSpotted = geeseSpotted + 1) }
+    fun done() { navigator.pop() }
+}
+
+@GooseUi(TeamStatsScreen::class)
+@Composable
+fun StatsUi(modifier: Modifier) {
+    val holder = rememberStateHolder { navigator -> TeamStatsHolder(navigator) }
+    val state by holder.state.collectAsState()
+    ...
+}
+```
+
+What you give up is Mavericks' machinery: no `@PersistState` process-death restoration, no
+`Async`. Both styles coexist per screen, so use holders where they fit and ViewModels where
+persistence matters. Because the contract is free of Mavericks and Android ViewModel types,
+it is also the seam a future multiplatform goose builds on.
+
 ## Keeping your existing navigation APIs
 
 Mature apps have their own navigation helpers that everything else uses: a

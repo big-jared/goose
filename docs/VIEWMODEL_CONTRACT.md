@@ -48,6 +48,15 @@ Tests: `M1FlowRobolectricTest.stateAndResultSurviveRecreation` (Nav3 retention +
 `fragmentHostClearsVmOnPop` (fragment host), `BackStackRestoreTest` (persistence layer),
 `tools/process-death-test.sh` (real process death on device).
 
+## StateHolder: the same contract without Mavericks
+
+`StateHolder` + `rememberStateHolder` is the presenter-agnostic option (pure Kotlin plus
+coroutines). It implements the identity and lifetime rules above unchanged: entry-scoped,
+retained across recreation, cleared on pop with its `holderScope` cancelled. The deliberate
+difference is restoration: no `@PersistState`, so state that must survive process death belongs
+in a Mavericks ViewModel or the screen's saveable state.
+Test: `M1FlowRobolectricTest.stateHolderFollowsTheEntryLifecycle`.
+
 ## Results and cancellation
 
 `goToForResult` suspends the calling ViewModel's coroutine. The contract mirrors a

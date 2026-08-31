@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -17,7 +18,9 @@ import com.airbnb.mvrx.Loading
 import com.airbnb.mvrx.Success
 import com.airbnb.mvrx.Uninitialized
 import dev.goose.runtime.GooseUi
+import dev.goose.runtime.LocalNavigator
 import dev.goose.sample.m1.home.api.HomeScreen
+import dev.goose.sample.m1.home.api.TeamStatsScreen
 
 /**
  * The entire registration is this one annotation: goose-compiler generates the Metro
@@ -27,17 +30,25 @@ import dev.goose.sample.m1.home.api.HomeScreen
 @GooseUi(HomeScreen::class)
 @Composable
 fun HomeUi(state: HomeState, viewModel: HomeViewModel, modifier: Modifier) {
-    HomeContent(state, onUserClicked = viewModel::onUserClicked, modifier = modifier)
+    val navigator = LocalNavigator.current
+    HomeContent(
+        state,
+        onUserClicked = viewModel::onUserClicked,
+        onStatsClicked = { navigator.goTo(TeamStatsScreen) },
+        modifier = modifier,
+    )
 }
 
 @Composable
 private fun HomeContent(
     state: HomeState,
     onUserClicked: (String) -> Unit,
+    onStatsClicked: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Team", style = MaterialTheme.typography.headlineMedium)
+        OutlinedButton(onClick = onStatsClicked) { Text("Team stats") }
         if (state.lastVisited != null) {
             Text(
                 "Last visited: ${state.lastVisited}" +

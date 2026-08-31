@@ -86,6 +86,35 @@ class M1FlowRobolectricTest {
         composeRule.onNodeWithText("Notes (persisted): —").assertIsDisplayed()
     }
 
+    /**
+     * The presenter-agnostic StateHolder honors the same lifecycle contract as screenViewModel:
+     * retained across recreation, async work on holderScope lands, cleared on pop (reopening
+     * starts fresh).
+     */
+    @Test
+    fun stateHolderFollowsTheEntryLifecycle() {
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodesWithTextCount("Team stats") > 0
+        }
+        composeRule.onNodeWithText("Team stats").performClick()
+        composeRule.waitUntil(5_000) { composeRule.onAllNodesWithTextCount("Spot a goose") > 0 }
+        composeRule.onNodeWithText("Spot a goose").performClick()
+        composeRule.onNodeWithText("Spot a goose").performClick()
+        composeRule.onNodeWithText("Listen for a honk").performClick()
+        composeRule.waitUntil(5_000) { composeRule.onAllNodesWithTextCount("Honks heard: 1") > 0 }
+
+        composeRule.activityRule.scenario.recreate()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Geese spotted: 2").assertIsDisplayed()
+        composeRule.onNodeWithText("Honks heard: 1").assertIsDisplayed()
+
+        // Pop clears the holder; a fresh visit starts over.
+        composeRule.onNodeWithText("Back to team").performClick()
+        composeRule.waitUntil(5_000) { composeRule.onAllNodesWithTextCount("Team stats") > 0 }
+        composeRule.onNodeWithText("Team stats").performClick()
+        composeRule.waitUntil(5_000) { composeRule.onAllNodesWithTextCount("Geese spotted: 0") > 0 }
+    }
+
     /** Back press = dismissed without answering: caller resumes with null, not a hang. */
     @Test
     fun backDeliversNullResult() {

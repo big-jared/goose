@@ -5,3 +5,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data object HomeScreen : Screen
+
+/** A pure-compose screen: no Mavericks, presented by a StateHolder (see StatsUi). */
+@Serializable
+data object TeamStatsScreen : Screen

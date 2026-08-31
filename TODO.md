@@ -19,8 +19,9 @@ Ordered roughly by dependency. See [GOALS.md](GOALS.md) for milestone definition
       observable `backStack`, `suspend goToForResult(ScreenWithResult<R>): R?`
 - [x] `TabNavigator : Navigator`: `selectTab(StackKey)`, saved per-tab stacks
 - [x] `ScreenUi<S>` (`@Composable Content(screen, modifier)`) + erased `ScreenEntry`
-- [ ] `StateHolder<S>` (presenter-agnostic: exposes `StateFlow<S>`) — deliberately
-      deferred: Mavericks IS the presenter layer per project direction
+- [x] `StateHolder<S>` + rememberStateHolder: presenter-agnostic option (pure Kotlin +
+      coroutines, entry-scoped retention, NavigatorHandle injection), the multiplatform seam;
+      m1 TeamStats screen + lifecycle test. Mavericks remains the persistence-capable default.
 - [x] Result bus: stack-scoped keyed routing (`ResultRouter`); survives config
       change. NOT yet durable across process death — documented limitation,
       matching coroutine-wrapped ActivityResult semantics
