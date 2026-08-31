@@ -77,7 +77,8 @@ class HomeFragment : Fragment(), MavericksView {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
-    ): View = LinearLayout(requireContext()).apply {
+    ): View = android.widget.ScrollView(requireContext()).apply {
+        addView(LinearLayout(requireContext()).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
         setBackgroundColor(Color.WHITE)
@@ -104,6 +105,16 @@ class HomeFragment : Fragment(), MavericksView {
         addView(Button(context).apply {
             text = "Settings (converted flow)"
             setOnClickListener { startActivity(Intent(requireContext(), SettingsActivity::class.java)) }
+        })
+        addView(Button(context).apply {
+            text = "Support (scoped fragment flow)"
+            setOnClickListener {
+                parentFragmentManager.beginTransaction()
+                    .replace((requireView().parent as View).id, dev.goose.sample.m3.support.SupportFlowFragment())
+                    .addToBackStack("support")
+                    .commit()
+            }
+        })
         })
     }
 

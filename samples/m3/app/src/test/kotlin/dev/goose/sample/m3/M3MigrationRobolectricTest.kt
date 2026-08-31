@@ -160,6 +160,30 @@ class M3MigrationRobolectricTest {
         }
     }
 
+    /**
+     * Scope propagation across a FragmentManager boundary (issue #4): a legacy fragment owning
+     * a child FM stack implements GooseScopeOwner; a scope-registered compose screen pushed on
+     * that stack resolves its child-graph dependency, keeps it across rotation (retainedGraph),
+     * and releases the flow on back.
+     */
+    @Test
+    fun childScopeCrossesTheFragmentManagerBoundary() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            onView(withText("Support (scoped fragment flow)"))
+                .perform(androidx.test.espresso.action.ViewActions.scrollTo(), click())
+            // The scope-registered screen resolved its session from the flow's child graph.
+            composeRule.waitFor("Ticket T-42")
+
+            scenario.recreate()
+            composeRule.waitForIdle()
+            composeRule.waitFor("Ticket T-42")
+
+            scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+            composeRule.waitForIdle()
+            onView(withText(containsString("Shared counter"))).check(matches(isDisplayed()))
+        }
+    }
+
     /** Direction 2: a legacy fragment hosted on a Nav3-owned stack via FragmentScreen. */
     @Test
     fun legacyFragmentOnNav3Stack() {

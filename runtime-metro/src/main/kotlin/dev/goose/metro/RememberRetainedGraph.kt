@@ -2,6 +2,8 @@ package dev.goose.metro
 
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 /**
@@ -61,6 +63,29 @@ fun rememberRetainedGraph(
     create: () -> Any,
 ): Any {
     val holder = viewModel<RetainedGraphHolder>(key = key)
+    holder.onRelease = onRelease
+    return holder.graph ?: create().also { holder.graph = it }
+}
+
+/**
+ * Non-composable form of [rememberRetainedGraph], for hosts that are not compositions: a
+ * fragment owning a scoped flow retains its child graph in its OWN ViewModelStore, giving the
+ * identical contract (survives configuration changes, disposed exactly once when the owner is
+ * destroyed for real, [onRelease] then AutoCloseable):
+ * ```
+ * class SupportFlowFragment : Fragment(), GooseScopeOwner {
+ *     override val gooseScopeGraph: Any
+ *         get() = retainedGraph(this, onRelease = { ... }) { factory.createSupportGraph() }
+ * }
+ * ```
+ */
+fun retainedGraph(
+    owner: ViewModelStoreOwner,
+    key: String = "goose:retainedGraph",
+    onRelease: ((Any) -> Unit)? = null,
+    create: () -> Any,
+): Any {
+    val holder = ViewModelProvider(owner)[key, RetainedGraphHolder::class.java]
     holder.onRelease = onRelease
     return holder.graph ?: create().also { holder.graph = it }
 }

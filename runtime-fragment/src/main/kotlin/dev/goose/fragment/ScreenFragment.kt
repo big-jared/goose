@@ -11,6 +11,7 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
 import dev.goose.metro.GooseCompositionLocals
 import dev.goose.metro.GooseContent
+import dev.goose.metro.GooseScope
 import dev.goose.metro.GooseGraphHolder
 import dev.goose.runtime.Navigator
 import dev.goose.runtime.Screen
@@ -21,6 +22,23 @@ import dev.goose.runtime.Screen
  */
 interface FragmentNavigatorOwner {
     val gooseNavigator: Navigator
+}
+
+/**
+ * Carries a child dependency scope ACROSS FragmentManager navigation. A fragment (or activity)
+ * that owns a scoped flow implements this; every [ScreenFragment] pushed under it (its child
+ * FragmentManager, or deeper) finds the NEAREST owner walking up the parent chain and renders
+ * its compose content inside `GooseScope(gooseScopeGraph)` — so a scope-registered screen
+ * resolves the flow's child graph after crossing into a fragment host, app-scoped screens keep
+ * their parent fallback, and nested FragmentManagers resolve the nearest owning graph.
+ *
+ * Retain the graph with `retainedGraph(this)` (the fragment's own ViewModelStore): it then
+ * survives configuration changes and is disposed exactly once when the owning fragment is
+ * destroyed for real. The graph is resolved live at each screen's view creation and is never
+ * serialized; process death rebuilds it like every other dependency.
+ */
+interface GooseScopeOwner {
+    val gooseScopeGraph: Any
 }
 
 /**
@@ -39,14 +57,31 @@ class ScreenFragment : Fragment() {
         val screen = ScreenBundler.fromBundle(requireArguments())
         val graph = (requireActivity().application as GooseGraphHolder).gooseGraph
         val navigator = findNavigator()
+        val scopeGraph = findScopeGraph()
         return ComposeView(requireContext()).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 GooseCompositionLocals(graph) {
-                    GooseContent(screen, navigator, Modifier.fillMaxSize())
+                    if (scopeGraph != null) {
+                        GooseScope(scopeGraph) {
+                            GooseContent(screen, navigator, Modifier.fillMaxSize())
+                        }
+                    } else {
+                        GooseContent(screen, navigator, Modifier.fillMaxSize())
+                    }
                 }
             }
         }
+    }
+
+    /** Nearest [GooseScopeOwner] up the parent chain, then the activity; null means app scope. */
+    private fun findScopeGraph(): Any? {
+        var parent = parentFragment
+        while (parent != null) {
+            if (parent is GooseScopeOwner) return parent.gooseScopeGraph
+            parent = parent.parentFragment
+        }
+        return (activity as? GooseScopeOwner)?.gooseScopeGraph
     }
 
     /**
