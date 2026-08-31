@@ -121,10 +121,10 @@ jobs:
           arch: x86_64
           target: aosp_atd
           disable-animations: true
+          # NOTE: script lines run as separate processes (no shared shell), so no export.
           script: |
             adb install samples/gaggle/app/build/outputs/apk/debug/app-debug.apk
-            export PATH="$HOME/.maestro/bin:$PATH"
-            maestro test .maestro/
+            $HOME/.maestro/bin/maestro test .maestro/
 
       - name: Upload Maestro artifacts
         if: failure()
