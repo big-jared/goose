@@ -134,6 +134,32 @@ class M3MigrationRobolectricTest {
         }
     }
 
+    /**
+     * Typed legacy-fragment hosting on Nav3 (issue #5): a feature-owned @Serializable screen
+     * builds the fragment's Bundle from typed fields (including a Parcelable), and recreation
+     * rebuilds the equivalent fragment from the restored screen value.
+     */
+    @Test
+    fun typedFragmentArgsOnNav3StackSurviveRecreation() {
+        ActivityScenario.launch(SettingsActivity::class.java).use { scenario ->
+            composeRule.waitFor("Settings (converted, Nav3 stack)")
+            composeRule.onNodeWithText("Terms (typed args)").performClick()
+            waitForView("Terms TOS-7 rev 3 by Legal Goose")
+
+            scenario.recreate()
+            composeRule.waitForIdle()
+            waitForView("Terms TOS-7 rev 3 by Legal Goose")
+        }
+    }
+
+    private fun waitForView(text: String) {
+        composeRule.waitUntil(10_000) {
+            runCatching {
+                onView(withText(containsString(text))).check(matches(isDisplayed()))
+            }.isSuccess
+        }
+    }
+
     /** Direction 2: a legacy fragment hosted on a Nav3-owned stack via FragmentScreen. */
     @Test
     fun legacyFragmentOnNav3Stack() {

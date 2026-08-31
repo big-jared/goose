@@ -258,6 +258,21 @@ A converted flow can still carry a fragment you haven't gotten to yet:
 navigator.goTo(FragmentScreen.of<LegacyAboutFragment>())    // a fragment on a Compose stack
 ```
 
+For fragments with real typed arguments (Parcelables, enums, models), give them a normal typed
+screen instead of the string form, and one registration builds the Bundle from its fields:
+
+```kotlin
+@Serializable data class TermsScreen(val termsId: String, val revision: Int) : Screen
+
+@Provides @IntoMap @ClassKey(TermsScreen::class)
+fun termsEntry(): ScreenEntry = fragmentScreenEntry<TermsFragment, TermsScreen> { screen ->
+    bundleOf("termsId" to screen.termsId, "revision" to screen.revision, "author" to author)
+}
+```
+
+The fragment comes from the FragmentManager's own FragmentFactory, and the typed screen rides
+the persisted back stack, so recreation and process death rebuild the same fragment.
+
 ## What @GooseUi generates
 
 The annotation expands (via KSP, at compile time, no reflection) to plain code you could write

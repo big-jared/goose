@@ -70,6 +70,9 @@ class SettingsHomeUi : ScreenUi<SettingsHomeScreen>() {
             Button(onClick = { navigator.goTo(FragmentScreen.of<AboutFragment>()) }) {
                 Text("About (legacy fragment on Nav3 stack)")
             }
+            Button(onClick = { navigator.goTo(TermsScreen(termsId = "TOS-7", revision = 3)) }) {
+                Text("Terms (typed args)")
+            }
         }
     }
 }
