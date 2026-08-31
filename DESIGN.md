@@ -224,6 +224,13 @@ here and in KDoc), or **deferred** (real, tracked in TODO.md, not blocking).
     the child map), not a silent shadow. Exercised end to end by the m2 checkout session sample
     and its Robolectric test (shared within a flow, fresh per flow, parent fallback).
 
+36b. **Dagger/Hilt adoption. Done.** The m4 sample proves the biggest adoption question: a
+    Metro graph `@Includes` an existing Dagger component, whose public accessors become
+    ordinary bindings for goose screens and ViewModels; Dagger's KSP processor, Metro's
+    compiler plugin, and goose-compiler coexist in one module. Tested. Hilt exposes bindings
+    the same way via an accessor interface; Metro's `includeDagger()` annotation interop
+    covers classes still carrying javax.inject annotations.
+
 37. **Flavors and controlled replacement. Decided.** Metro's own mechanisms are the answer:
     `replaces = [...]` on a contribution swaps a registration wholesale, and flavor source sets
     can contribute different entries per variant. Goose adds no second replacement system; two

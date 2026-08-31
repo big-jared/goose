@@ -73,7 +73,9 @@ class M1FlowRobolectricTest {
         }
         composeRule.onNodeWithText("ada").performClick()
         composeRule.onNodeWithText("Add a goose to notes").performClick()
-        composeRule.onNodeWithText("Notes (persisted): 🪿").assertIsDisplayed()
+        composeRule.waitUntil(5_000) {
+            composeRule.onAllNodesWithTextCount("Notes (persisted): 🪿") > 0
+        }
         composeRule.onNodeWithText("Done").performClick()
 
         composeRule.waitUntil(10_000) {

@@ -35,4 +35,5 @@ include(
     ":samples:m2:feature-cart-impl",
     ":samples:m2:app",
     ":samples:m3:app",
+    ":samples:m4:app",
 )

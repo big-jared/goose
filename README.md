@@ -455,6 +455,32 @@ What you give up is Mavericks' machinery: no `@PersistState` process-death resto
 persistence matters. Because the contract is free of Mavericks and Android ViewModel types,
 it is also the seam a future multiplatform goose builds on.
 
+## Already on Dagger or Hilt?
+
+You don't migrate your graph to adopt goose. Metro consumes an existing Dagger component
+through its public accessors:
+
+```kotlin
+@DependencyGraph(AppScope::class)
+interface AppGraph {
+    @DependencyGraph.Factory
+    fun interface Factory {
+        fun create(@Includes legacy: LegacyComponent): AppGraph
+    }
+}
+
+// at startup
+createGraphFactory<AppGraph.Factory>().create(DaggerLegacyComponent.create())
+```
+
+Everything the Dagger component exposes becomes an ordinary binding goose screens and
+ViewModels inject; the Dagger side keeps compiling with Dagger's own processor, untouched. The
+`m4` sample is exactly this shape (a plain Dagger component, a goose screen injecting its
+repository) and is covered by a test. Hilt apps expose their bindings the same way through an
+`@EntryPoint`-style accessor interface handed to `@Includes`; Metro also ships annotation
+interop (`metro { interop { includeDagger() } }`) if you want Metro to compile classes that
+still carry javax.inject annotations.
+
 ## Keeping your existing navigation APIs
 
 Mature apps have their own navigation helpers that everything else uses: a
