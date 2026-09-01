@@ -61,12 +61,15 @@ fun FragmentActivity.installGooseNavigator(
     val holder = ViewModelProvider(this)[ActivityNavigatorHandleHolder::class.java]
     holder.installed = true
     val handle = holder.handle
+    // A graph without GooseFragmentAccessors (a hand-built GooseEnvironment, say) just has no
+    // legacy binders or overrides — migrated screens still host in ScreenFragments fine.
+    val fragmentAccessors = graph as? GooseFragmentAccessors
     val navigator = FragmentNavigator(
         fragmentManager = fragmentManager,
         containerId = containerId,
-        binders = (graph as GooseFragmentAccessors).fragmentBinders,
+        binders = fragmentAccessors?.fragmentBinders ?: emptyMap(),
         resultRouter = (graph as GooseRuntimeAccessors).resultRouter,
-        navigationOverrides = graph.fragmentNavigationOverrides,
+        navigationOverrides = fragmentAccessors?.fragmentNavigationOverrides ?: emptyMap(),
         stackTag = holder.stackTag,
         defaultNavigation = defaultNavigation,
     )

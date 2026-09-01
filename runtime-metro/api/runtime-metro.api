@@ -4,6 +4,27 @@ public final class dev/goose/metro/GooseContentKt {
 	public static final fun screenSerializers (Lkotlin/jvm/functions/Function1;)Lkotlinx/serialization/modules/SerializersModule;
 }
 
+public final class dev/goose/metro/GooseEnvironment : dev/goose/metro/GooseRuntimeAccessors {
+	public static final field $stable I
+	public synthetic fun <init> (Ljava/util/Map;Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getGooseDecorations ()Ljava/util/Set;
+	public fun getNavSerializersModule ()Lkotlinx/serialization/modules/SerializersModule;
+	public fun getResultRouter ()Ldev/goose/runtime/ResultRouter;
+	public fun getScreenEntries ()Ljava/util/Map;
+	public fun getScreenRegistry ()Ldev/goose/metro/ScreenRegistry;
+	public fun getSerializersModules ()Ljava/util/Set;
+}
+
+public final class dev/goose/metro/GooseEnvironment$Builder {
+	public static final field $stable I
+	public fun <init> ()V
+	public final fun addDecoration (Ldev/goose/runtime/GooseDecoration;)Ldev/goose/metro/GooseEnvironment$Builder;
+	public final fun addEntry (Lkotlin/reflect/KClass;Ldev/goose/runtime/ScreenEntry;)Ldev/goose/metro/GooseEnvironment$Builder;
+	public final fun addSerializers (Lkotlinx/serialization/modules/SerializersModule;)Ldev/goose/metro/GooseEnvironment$Builder;
+	public final fun addUi (Lkotlin/reflect/KClass;Ldev/goose/runtime/ScreenUi;)Ldev/goose/metro/GooseEnvironment$Builder;
+	public final fun build ()Ldev/goose/metro/GooseEnvironment;
+}
+
 public abstract interface class dev/goose/metro/GooseGraphHolder {
 	public abstract fun getGooseGraph ()Ljava/lang/Object;
 }

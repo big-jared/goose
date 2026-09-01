@@ -7,61 +7,50 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import dev.goose.metro.GooseEnvironment
 import dev.goose.metro.GooseGraphHolder
-import dev.goose.metro.GooseRuntimeAccessors
-import dev.goose.metro.ScreenRegistry
 import dev.goose.runtime.GooseDecoration
-import dev.goose.runtime.ResultRouter
 import dev.goose.runtime.Screen
 import dev.goose.runtime.ScreenEntry
-import dev.zacsweers.metro.Provider
-import dev.zacsweers.metro.providerOf
-import kotlin.reflect.KClass
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.modules.SerializersModule
+import org.junit.Assert.assertSame
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import android.os.Looper
 
 @Serializable
 data class DecorationTestScreen(val id: String) : Screen
 
+@Serializable
+data class LegacyBoundScreen(val id: String) : Screen
+
 /** The CompositionLocal a decoration provides and the hosted screen reads — the whole point. */
 val LocalPondTheme = staticCompositionLocalOf { "unthemed" }
 
-private class FakeGraph(
-    override val gooseDecorations: Set<GooseDecoration>,
-) : GooseRuntimeAccessors, GooseFragmentAccessors {
-    override val resultRouter = ResultRouter()
-    override val navSerializersModule: SerializersModule =
-        GooseRuntimeAccessors.provideNavSerializersModule(emptySet())
-    override val screenEntries: Map<KClass<*>, ScreenEntry> = emptyMap()
-    override val serializersModules: Set<SerializersModule> = emptySet()
-    override val fragmentBinders: Map<KClass<*>, ScreenFragmentBinder> = emptyMap()
-    override val fragmentNavigationOverrides: Map<KClass<*>, FragmentScreenNavigation> = emptyMap()
-    override val screenRegistry = ScreenRegistry(
-        mapOf<KClass<*>, Provider<ScreenEntry>>(
-            DecorationTestScreen::class to providerOf(
-                ScreenEntry { _, _ -> BasicText("pond: ${LocalPondTheme.current}") }
-            ),
-        ),
-    )
-}
-
 class DecorationTestApp : Application(), GooseGraphHolder {
-    var decorations: Set<GooseDecoration> = emptySet()
-    override val gooseGraph: Any by lazy { FakeGraph(decorations) }
+    // Tests assign a hand-built environment: this suite is ALSO the proof that goose runs
+    // against GooseEnvironment with no Metro graph anywhere.
+    lateinit var environment: Any
+    override val gooseGraph: Any get() = environment
 }
 
 /**
- * The fragment-host decoration contract: a ScreenFragment roots its own ComposeView, so the
- * graph's contributed [GooseDecoration]s (app theme, CompositionLocal providers) wrap the
- * screen content there — and an empty contribution set renders the screen bare, unchanged.
+ * Two contracts at once, both running WITHOUT a Metro-compiled graph:
+ *
+ * 1. Decorations: a ScreenFragment roots its own ComposeView, so the environment's contributed
+ *    [GooseDecoration]s wrap the screen content there, and an empty set renders it bare.
+ * 2. GooseEnvironment: the hand-assembled builder satisfies every fragment-host seam — the
+ *    registry renders the screen, and a plain environment WITHOUT GooseFragmentAccessors
+ *    installs fine (no legacy binders is a supported state); [GooseFragmentEnvironment] adds
+ *    legacy binders on top.
  */
 @RunWith(AndroidJUnit4::class)
 @Config(application = DecorationTestApp::class)
@@ -70,16 +59,26 @@ class ScreenFragmentDecorationTest {
     @get:Rule
     val composeRule = createEmptyComposeRule()
 
-    private fun showScreen(decorations: Set<GooseDecoration>) {
-        ApplicationProvider.getApplicationContext<DecorationTestApp>().decorations = decorations
+    private fun environment(decorations: Set<GooseDecoration>): GooseEnvironment {
+        val builder = GooseEnvironment.Builder()
+            .addEntry(
+                DecorationTestScreen::class,
+                ScreenEntry { _, _ -> BasicText("pond: ${LocalPondTheme.current}") },
+            )
+        decorations.forEach { builder.addDecoration(it) }
+        return builder.build()
+    }
+
+    private fun launch(graph: Any): FragmentActivity {
+        ApplicationProvider.getApplicationContext<DecorationTestApp>().environment = graph
         val activity = Robolectric.buildActivity(FragmentActivity::class.java).setup().get()
         activity.installGooseNavigator(android.R.id.content)
-        activity.gooseNavigator.goTo(DecorationTestScreen("d1"))
+        return activity
     }
 
     @Test
     fun decorationsWrapFragmentHostedScreens() {
-        showScreen(
+        val environment = environment(
             setOf(
                 GooseDecoration { content ->
                     Column {
@@ -91,6 +90,7 @@ class ScreenFragmentDecorationTest {
                 },
             ),
         )
+        launch(environment).gooseNavigator.goTo(DecorationTestScreen("d1"))
         // The decoration's own UI renders, and its provided local REACHES the screen content.
         composeRule.onNodeWithText("decoration frame").assertIsDisplayed()
         composeRule.onNodeWithText("pond: golden").assertIsDisplayed()
@@ -98,7 +98,21 @@ class ScreenFragmentDecorationTest {
 
     @Test
     fun noDecorationsRendersScreenBare() {
-        showScreen(emptySet())
+        launch(environment(emptySet())).gooseNavigator.goTo(DecorationTestScreen("d1"))
         composeRule.onNodeWithText("pond: unthemed").assertIsDisplayed()
+    }
+
+    @Test
+    fun fragmentEnvironmentBindsLegacyFragments() {
+        val bound = Fragment()
+        val activity = launch(
+            GooseFragmentEnvironment(
+                base = environment(emptySet()),
+                binders = mapOf(LegacyBoundScreen::class to ScreenFragmentBinder { bound }),
+            ),
+        )
+        activity.gooseNavigator.goTo(LegacyBoundScreen("x"))
+        shadowOf(Looper.getMainLooper()).idle()
+        assertSame(bound, activity.supportFragmentManager.fragments.last())
     }
 }

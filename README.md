@@ -648,6 +648,37 @@ fun coachUi(factory: CoachViewModel.Factory): ScreenEntry =
     screenUi<CoachScreen> { screen, modifier -> /* compose content */ }
 ```
 
+### No Metro at all? Build the environment by hand
+
+The graph's only job for goose is aggregation: which screen renders how, which serializers,
+which decorations. On Metro that assembles itself by contribution; without Metro you assemble
+it explicitly, Circuit-Builder style, and use it anywhere a goose graph goes — no Metro
+compiler plugin in your build:
+
+```kotlin
+val environment = GooseEnvironment.Builder()
+    .addUi<ProfileScreen> { screen, modifier ->
+        // close over YOUR DI here — a Dagger component's factory, a service locator, anything
+        ProfileUi(screen, modifier, daggerComponent.profileVmFactory())
+    }
+    .addDecoration { content -> AppTheme { content() } }
+    .build()
+
+// pure Compose:
+GooseCompositionLocals(environment) { NavigableGooseContent(stack) }
+
+// or, while fragments still host screens, as the Application-held graph
+// (GooseFragmentEnvironment adds legacy fragment binders when you need them):
+class MyApp : Application(), GooseGraphHolder {
+    override val gooseGraph: Any = environment
+}
+```
+
+What stays Metro-only: the `@GooseUi` annotation (its generated registration IS a Metro
+contribution) and session child scopes (`GooseScope` graph extensions). Everything else —
+typed navigation, results, fragment hosting, persistence, decorations — runs against a built
+environment, and the environment tests in `runtime-fragment` pin exactly that.
+
 ## Keeping your existing navigation APIs
 
 Mature apps have their own navigation helpers that everything else uses: a
