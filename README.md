@@ -1,28 +1,29 @@
 # 🪿 goose
 
-**Modern Compose navigation for apps that grew up on MvRx and fragments, without the rewrite.**
+**Compose navigation for apps that grew up on MvRx and fragments, without the rewrite.**
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![API docs](https://img.shields.io/badge/API%20docs-big--jared.github.io%2Fgoose-blue)](https://big-jared.github.io/goose/)
 
 Goose moves a Mavericks (MvRx) + fragments app to Compose one screen at a time.
 
-Your ViewModels don't change. `setState`, `execute`, `Async`, and `@PersistState` all keep
+Your ViewModels don't change. `setState`, `execute`, `Async`, and `@PersistState` keep
 working. What changes is the stuff around them:
 
-- **Navigation 3** owns the back stack. It's just a list.
-- **[Metro](https://zacsweers.github.io/metro/)** connects your feature modules at compile time.
-- ViewModels navigate through a small **`Navigator`** interface. They never see a
-  FragmentManager or a NavController.
+- [Navigation 3](https://developer.android.com/guide/navigation/navigation-3) owns the back
+  stack. It's just a list.
+- [Metro](https://zacsweers.github.io/metro/) connects your feature modules at compile time.
+- ViewModels navigate through a small `Navigator` interface. They never see a FragmentManager
+  or a NavController.
 
-Because a ViewModel only knows the Navigator, it doesn't care whether its screen is a fragment
-today or Compose tomorrow. So you migrate one screen per PR, ship it, and roll it back if you
-have to.
+A ViewModel that only knows the Navigator doesn't care whether its screen is a fragment today
+or Compose tomorrow. So you migrate one screen per PR, ship it, and roll it back if you have
+to.
 
 ## Setup (once per app)
 
 Build requirement first, because it fails confusingly otherwise: Gradle must run on JDK 21 or
-newer (Metro's compiler plugin requires it). On JDK 17 the build fails before configuration.
+newer. Metro's compiler plugin requires it, and on JDK 17 the build fails before configuration.
 
 Goose is on Maven Central under `io.github.big-jared`:
 
@@ -39,13 +40,11 @@ dependencies {
 }
 ```
 
-
-Not on Maven yet; include the `runtime*` modules with Gradle's `includeBuild` or as a
-submodule. Then two steps:
+Then two steps.
 
 **1. Point goose at your app graph.** If you're already on Metro, this is your existing
-`@DependencyGraph(AppScope::class)` graph — goose's own wiring (registry, result router,
-serializers) arrives by contribution like any feature, so having the `runtime*` modules on that
+`@DependencyGraph(AppScope::class)` graph. Goose's own wiring (registry, result router,
+serializers) arrives by contribution like any feature, so having the `runtime*` modules on the
 graph's classpath is the whole integration. Just expose the graph you already build:
 
 ```kotlin
@@ -55,8 +54,8 @@ class MyApp : Application(), GooseGraphHolder {
 }
 ```
 
-Starting from scratch (or coming from Dagger — see [below](#already-on-dagger-or-hilt)), the
-graph is one empty interface; features fill it by contribution:
+Starting from scratch (or coming from Dagger, see [below](#already-on-dagger-or-hilt)), the
+graph is one empty interface and features fill it by contribution:
 
 ```kotlin
 @DependencyGraph(AppScope::class)
@@ -68,17 +67,17 @@ class MyApp : Application(), GooseGraphHolder {
 }
 ```
 
-> The `GooseGraphHolder` part is only needed while you still have fragment hosts. Android
-> creates fragments (and recreated activities) itself, with no constructor to hand the graph
-> through — so they reach up to the one object every framework component can see, the
-> Application. A pure-Compose app can skip the interface and pass the graph straight to
+> `GooseGraphHolder` is only needed while you still have fragment hosts. Android creates
+> fragments and recreated activities itself, with no constructor to hand the graph through, so
+> they reach up to the one object every framework component can see, the Application. A
+> pure-Compose app can skip the interface and pass the graph straight to
 > `GooseCompositionLocals`.
 
 One caveat for existing Metro apps: goose's contributions target Metro's standard
-`dev.zacsweers.metro.AppScope`. If your root graph merges a custom scope marker instead, merge
-both: `@DependencyGraph(scope = MyRootScope::class, additionalScopes = [AppScope::class])`.
-Existing `@GraphExtension` child scopes need nothing — unless one should host goose screens,
-covered under [session scopes](#session-scopes-child-graphs) later.
+`dev.zacsweers.metro.AppScope`. If your root graph merges a custom scope marker, merge both:
+`@DependencyGraph(scope = MyRootScope::class, additionalScopes = [AppScope::class])`. Existing
+`@GraphExtension` child scopes need nothing, unless one should host goose screens, covered
+under [session scopes](#session-scopes-child-graphs).
 
 **2. Install a navigator in your existing activity.** One call:
 
@@ -92,22 +91,20 @@ class MainActivity : FragmentActivity() {
 }
 ```
 
-> This step is migration-only too: it exists to drive an existing FragmentManager stack. In a
-> pure-Compose activity there is no fragment container to install into — `setContent` with
-> `GooseCompositionLocals` + `NavigableGooseContent` is the whole setup.
+> This step is migration-only too. It exists to drive an existing FragmentManager stack. A
+> pure-Compose activity has no fragment container, so `setContent` with
+> `GooseCompositionLocals` + `NavigableGooseContent` is the whole setup there.
 
-Why is even this needed, if the nav API drives your FragmentManager anyway? Because three
-things can't be guessed: which container in your layout to push into, a stable object for
-rotation-surviving ViewModels to hold (the FragmentManager itself dies with the activity), and
-routing back presses so awaited results resolve. This call wires all three; there is no new nav
-stack here. During migration, your FragmentManager back stack IS the stack. Afterwards the
+Why is this needed if the nav API drives your FragmentManager anyway? Three things can't be
+guessed: which container to push into, a stable object for rotation-surviving ViewModels to
+hold (the FragmentManager dies with the activity), and routing back presses so awaited results
+resolve. During migration your FragmentManager back stack is the stack. Afterwards the
 navigator is available anywhere as `activity.gooseNavigator`.
 
-Have multiple activities? Call `installGooseNavigator` in each one that owns a fragment stack.
-Each activity gets its own independent navigator; separate activities are separate navigation
-roots, stacked by Android itself, same as today.
+Multiple activities: call `installGooseNavigator` in each one that owns a fragment stack.
+Separate activities stay separate navigation roots, stacked by Android itself, same as today.
 
-That's it. Nothing about your existing fragments changes yet.
+Nothing about your existing fragments changes yet.
 
 ## Migrating a screen
 
@@ -148,7 +145,7 @@ class ProfileViewModel(initialState: ProfileState) :
 }
 ```
 
-Five steps to migrate it.
+Four steps to migrate it.
 
 **1. Define the screen.** This replaces the args Bundle. It's a data class in the feature's
 `:api` module, so other features can navigate to it without depending on your implementation:
@@ -165,8 +162,8 @@ data class ProfileState(...) : MavericksState {
 }
 ```
 
-**2. Move navigation into the ViewModel, and change how it's built. The state logic doesn't
-change:**
+**2. Move navigation into the ViewModel, and change how it's built.** The state logic doesn't
+change:
 
 ```kotlin
 @AssistedInject                                            // was: nothing
@@ -190,8 +187,8 @@ class ProfileViewModel(
 }
 ```
 
-**3. Replace the fragment + XML with an annotated composable.** One annotation is the entire
-registration; the goose-compiler KSP processor generates everything else:
+**3. Replace the fragment and its XML with an annotated composable.** One annotation is the
+entire registration:
 
 ```kotlin
 @GooseUi(ProfileScreen::class)
@@ -212,11 +209,11 @@ the way `fragmentViewModel` scoped it: same instance across rotation, cleared wh
 pops, `@PersistState` restored after process death. The `ProfileState` parameter is that VM's
 state, observed, so the function recomposes on every state change. `Modifier` comes from the
 host, a parameter typed as the screen receives the screen, and any other parameter is injected
-from the app graph, checked at compile time. All of them are optional: a screen with no
+from the app graph, checked at compile time. All of them are optional. A screen with no
 ViewModel just asks for whatever it renders.
 
-**4. Delete the fragment and its XML, and update the call sites that opened it.** A legacy
-fragment opens the new screen through the activity's navigator:
+**4. Delete the fragment, update the call sites that opened it.** A legacy fragment opens the
+new screen through the activity's navigator:
 
 ```kotlin
 // in a legacy fragment that used to push ProfileFragment
@@ -230,11 +227,7 @@ Migrated ViewModels just call `navigator.goTo(ProfileScreen(user.id))`.
 ### What's on the stack now?
 
 You deleted `ProfileFragment`, but the FragmentManager still owns navigation. So what happens
-when something calls this?
-
-```kotlin
-navigator.goTo(ProfileScreen("ada"))
-```
+when something calls `goTo(ProfileScreen("ada"))`?
 
 The `FragmentNavigator` looks for a fragment registered for that screen. There isn't one
 anymore, so it wraps your Compose `ProfileUi` in an invisible host fragment and pushes that:
@@ -258,9 +251,9 @@ FragmentManager back stack
 └── DetailFragment                    // legacy
 ```
 
-### Your theme and providers, inside the fragment host
+### Your theme, inside the fragment host
 
-Each `ScreenFragment` roots its own ComposeView — outside whatever `AppTheme { ... }` your
+Each `ScreenFragment` roots its own ComposeView, outside whatever `AppTheme { ... }` your
 Compose shell wraps. Contribute a `GooseDecoration` once and every fragment-hosted screen
 renders inside it:
 
@@ -276,14 +269,14 @@ class AppThemeDecoration(private val imageLoader: ImageLoader) : GooseDecoration
 }
 ```
 
-Decorations are constructor-injected from the graph, so providers can carry real dependencies.
-Compose hosts (`NavigableGooseContent`, tabs) deliberately don't apply them — they already
-render inside your shell's composition, so flipping a flow to Compose never double-themes.
+Decorations are constructor-injected, so providers can carry real dependencies. Compose hosts
+don't apply them, because they already render inside your shell's composition. Flipping a flow
+to Compose never double-themes.
 
 ### Flipping a flow once it's fully converted
 
 When every screen in a flow is Compose, delete the fragment host and let a plain list own that
-stack instead:
+stack:
 
 ```kotlin
 // before: fragments own the stack
@@ -302,16 +295,9 @@ yesterday renders as a Nav3 entry today, driven by the same ViewModel.
 
 ### The reverse also works
 
-A converted flow can still carry a fragment you haven't gotten to yet:
-
-```kotlin
-navigator.goTo(FragmentScreen.of<LegacyAboutFragment>())    // a fragment on a Compose stack
-```
-
-Your old fragment needs real arguments, though, and `FragmentScreen.of` can only pass strings.
-So instead you give that fragment a normal typed screen. The common case is one annotation on
-the fragment — goose-compiler generates the registration, with the Bundle built from the
-screen's constructor properties by name:
+A converted flow can still carry a fragment you haven't gotten to yet. Give the fragment a
+typed screen and one annotation, and goose-compiler generates the registration, building the
+Bundle from the screen's constructor properties by name:
 
 ```kotlin
 @Serializable data class TermsScreen(val termsId: String, val revision: Int) : Screen
@@ -324,8 +310,7 @@ class TermsFragment : Fragment() {
 
 The name convention is the whole contract: the fragment reads each argument under the screen
 property's own name. When the keys differ, or the fragment needs Bundle entries beyond the
-screen's fields, write the registration by hand instead — the general form the annotation
-generates for you:
+screen's fields, write the registration by hand instead:
 
 ```kotlin
 @Provides @IntoMap @ClassKey(TermsScreen::class)
@@ -338,17 +323,16 @@ fun termsEntry(): ScreenEntry = fragmentScreenEntry<TermsFragment, TermsScreen> 
 }
 ```
 
-Either way, callers just do `goTo(TermsScreen("TOS-7", 3))`, the fragment gets the Bundle it
-always got, and since only the little screen object is saved, rotation and process death
-rebuild the same fragment automatically. When you eventually migrate the fragment, delete the
-registration (or annotation) and register a composable for the SAME screen; no caller notices.
-(Fragments are created through your FragmentManager's `FragmentFactory`, so custom factories
-keep working too.)
+Either way, callers just do `goTo(TermsScreen("TOS-7", 3))` and the fragment gets the Bundle
+it always got. Only the small screen object is saved, so rotation and process death rebuild
+the same fragment. When you eventually migrate the fragment, delete the registration and
+register a composable for the same screen. No caller notices. Fragments are created through
+your FragmentManager's `FragmentFactory`, so custom factories keep working.
 
 ## What @GooseUi generates
 
-The annotation expands (via KSP, at compile time, no reflection) to plain code you could write
-by hand:
+The annotation expands at compile time (KSP, no reflection) to plain code you could write by
+hand:
 
 ```kotlin
 @ContributesTo(AppScope::class)
@@ -365,14 +349,14 @@ interface ProfileUiGooseModule {
 }
 ```
 
-Reading it bottom to top: the VM parameter becomes a `screenViewModel` call, with the assisted
-factory from step 2 injected from the graph. The state parameter observes that VM. The whole
-thing lands in an app-wide map keyed by the screen class. That map is how the app renders
-screens from modules it never imports, and what `goTo(ProfileScreen(...))` looks up.
+The VM parameter becomes a `screenViewModel` call with the assisted factory injected from the
+graph, the state parameter observes that VM, and the whole thing lands in an app-wide map
+keyed by the screen class. That map is how the app renders screens from modules it never
+imports, and what `goTo(ProfileScreen(...))` looks up.
 
-Two notes. A flow-shared ViewModel is never a parameter; call `flowViewModel()` inside the
-function (next section). And the hand-written forms remain supported if you prefer them: a
-`@Provides` function with `screenUi { }`, or a `ScreenUi<S>` class.
+A flow-shared ViewModel is never a parameter. Call `flowViewModel()` inside the function
+(see [nested flows](#nested-flows-and-deep-links)). The hand-written forms also remain
+supported: a `@Provides` function with `screenUi { }`, or a `ScreenUi<S>` class.
 
 ## Typed results
 
@@ -400,19 +384,19 @@ Results are typed, survive rotation, and can't cross between stacks, tabs, or ac
 Every way a user can dismiss the screen resumes the caller with `null` instead of hanging it,
 including a legacy fragment popping itself.
 
-One contract to know. Suspended `goToForResult` callers do not survive process death: the
+One contract to know: suspended `goToForResult` callers do not survive process death. The
 coroutine dies with the process, so treat a restart as "no answer", the same deal as a
-coroutine-wrapped ActivityResult (stacks, tabs, and `@PersistState` fields all DO come back).
-Pushing the same screen value twice is fine, by the way: every push has its own identity, so
-equal screens stacked together get independent ViewModels and state.
+coroutine-wrapped ActivityResult. Stacks, tabs, and `@PersistState` fields all do come back.
+Pushing the same screen value twice is fine: every push has its own identity, so equal screens
+stacked together get independent ViewModels and state.
 
 ## Nested flows and deep links
 
 A flow (a checkout wizard, an onboarding sequence) is just a screen that hosts its own back
 stack. Steps inside it navigate normally. Navigators form a tree: pass the enclosing navigator
 as `parent`, and when the flow's own stack runs out of screens, back bubbles out to the parent
-stack. `FlowViewModelScope` gives every step one shared `flowViewModel()` to accumulate answers
-in, retained until the flow pops:
+stack. `FlowViewModelScope` gives every step one shared `flowViewModel()` to accumulate
+answers in, retained until the flow pops:
 
 ```kotlin
 @GooseUi(CheckoutScreen::class)
@@ -429,9 +413,8 @@ fun CheckoutUi(screen: CheckoutScreen, modifier: Modifier) {
 }
 ```
 
-Deep links are the same idea one level up. A back stack is a list of screens, so a deep link is
-not a route table entry: it is you building the list the user should land on. From a
-notification that should open the payment step, three screens deep inside the flow:
+Deep links are the same idea one level up. A back stack is a list of screens, so a deep link
+is not a route table entry. It is you building the list the user should land on:
 
 ```kotlin
 // in the activity
@@ -443,19 +426,19 @@ NavigableGooseContent(stack)
 ```
 
 The `CheckoutUi` above reads `startAtPayment` and synthesizes its child stack with shipping
-beneath payment. The user lands on payment; back walks down exactly what was built: payment to
-shipping, shipping out of the flow to home. State restoration uses the same mechanism, so if
-this survives process death (it does, the stacks serialize), a deep link does too.
+beneath payment. The user lands on payment, and back walks down exactly what was built:
+payment to shipping, shipping out of the flow to home. Restoration uses the same mechanism, so
+if this survives process death (it does, the stacks serialize), a deep link does too.
 
 A deep link arriving while the app is already running (`onNewIntent`) is just a navigator
-mutation: parse the intent, then call `resetRoot` and `goTo` — or, to land in another tab,
-`switchTo(key).goTo(screen)` (see [tabs](#tabs-and-cross-stack-navigation) below). The list
-overload above is only the cold-start half.
+mutation: parse the intent, then call `resetRoot` and `goTo`, or `switchTo(key).goTo(screen)`
+to land in another tab (see [tabs](#tabs-and-cross-stack-navigation)). The list overload above
+is only the cold-start half.
 
 One more restoration guarantee, because deep links and app updates meet here: if a saved stack
 cannot be decoded on launch (a screen class was renamed or removed in an update), the stack
-restarts at its roots instead of crash-looping. Losing navigation state is recoverable; a crash
-loop is not.
+restarts at its roots instead of crash-looping. Losing navigation state is recoverable, a
+crash loop is not.
 
 ## Tabs and cross-stack navigation
 
@@ -477,46 +460,45 @@ Column {
 ```
 
 Each tab's stack survives switching away, configuration changes, and process death. The keys
-(`StackKey("shop")` etc.) live in a shared `:api` module so any feature can address a stack;
-they're also the persistence identity for the selected tab, so keep them stable across releases.
+(`StackKey("shop")` and friends) live in a shared `:api` module so any feature can address a
+stack. They're also the persistence identity for the selected tab, so keep them stable across
+releases.
 
-**The routing contract is deliberately dumb.** Screens carry no tab affinity, and there is no
-route table deciding where a screen "belongs":
+The routing has no route table, and screens carry no tab affinity:
 
-- `goTo(screen)` **always pushes onto the stack you're standing in.** Any screen is pushable in
-  any stack — showing a profile page inside the shop tab is a normal thing to do, and a feature
+- `goTo(screen)` always pushes onto the stack you're standing in. Any screen is pushable in
+  any stack. Showing a profile page inside the shop tab is a normal thing to do, and a feature
   module can push a screen it imported without registering anything.
-- **Leaving your stack is a separate, explicit intent:** `switchTo(key)`. It selects that stack
-  (keeping the state of the one you left) and returns the host's navigator, so a cross-stack
+- Leaving your stack is a separate, explicit call: `switchTo(key)`. It selects that stack,
+  keeping the state of the one you left, and returns the host's navigator so a cross-stack
   push chains:
 
 ```kotlin
-// "open my order history, in the Profile tab" — from anywhere:
+// open my order history, in the Profile tab, from anywhere:
 navigator.switchTo(GaggleTabs.Profile).goTo(OrderHistoryScreen(orderId))
 
-// just "go to the Profile tab":
+// just go to the Profile tab:
 navigator.switchTo(GaggleTabs.Profile)
 ```
 
-`switchTo` is an extension on every `Navigator`: it walks up the navigator tree to the nearest
-host owning that key. So the call above works unchanged from a screen sitting directly in a tab
-stack, or three levels down inside a nested checkout flow — the flow's own stack is untouched,
-and the push lands on the profile stack. Both mutations happen before the next frame renders,
-so the switch-and-push is visually atomic. Addressing a key no ancestor hosts is a programming
-error and throws.
+`switchTo` is an extension on every `Navigator`. It walks up the navigator tree to the nearest
+host owning that key, so the call works unchanged from a screen sitting directly in a tab
+stack or three levels down inside a nested checkout flow. Both mutations happen before the
+next frame renders, so the switch-and-push is visually atomic. Addressing a key no ancestor
+hosts is a programming error and throws.
 
-`selectTab(key)` is the tab-bar button, not a nav primitive: it behaves like `switchTo` except
+`selectTab(key)` is the tab-bar button, not a nav primitive. It behaves like `switchTo` except
 re-selecting the current tab pops it to its root, the platform-conventional gesture. Feature
-code navigating somewhere should use `switchTo`; only your tab bar should call `selectTab`.
+code should use `switchTo`, and only your tab bar should call `selectTab`.
 
-Back inside a tab host: pop the current stack; at a non-primary tab's root, back falls to the
-primary tab; at the primary tab's root, `onRootBack` fires (typically `finish()`).
+Back inside a tab host: pop the current stack. At a non-primary tab's root, back falls to the
+primary tab. At the primary tab's root, `onRootBack` fires (typically `finish()`).
 
 ## Session scopes (child graphs)
 
 Some dependencies should not live as long as the app: a checkout session, a signed-in user's
-repositories, a workflow's scratch state. Goose supports Metro child graphs end to end. Declare
-the scope and its graph once, in the owning feature:
+repositories, a workflow's scratch state. Goose supports Metro child graphs end to end.
+Declare the scope and its graph once, in the owning feature:
 
 ```kotlin
 abstract class CheckoutScope private constructor()
@@ -533,7 +515,7 @@ interface CheckoutGraph : GooseScopeAccessors {
 }
 ```
 
-Register screens INTO the scope with the same annotation, one extra argument. Injected
+Register screens into the scope with the same annotation, one extra argument. Injected
 parameters resolve from the child graph:
 
 ```kotlin
@@ -554,14 +536,14 @@ GooseScope(checkoutGraph) {
 
 The rules, all tested in the [Gaggle sample](samples/gaggle):
 
-- Screens registered to the scope resolve only inside `GooseScope`; their dependencies come
-  from the child graph.
+- Screens registered to the scope resolve only inside `GooseScope`, with dependencies from the
+  child graph.
 - App-scoped screens keep working inside the scope (registries chain to the parent).
-- Leaving the flow drops the child registry and everything it cached; re-entering builds a
+- Leaving the flow drops the child registry and everything it cached. Re-entering builds a
   fresh graph, so session-scoped objects never outlive their session.
 - `rememberRetainedGraph` keeps the graph alive across rotation, together with the ViewModels
-  it was injected into (one session per flow, however many times the device rotates); process
-  death rebuilds it fresh. Durable state still belongs in ViewModels, exactly as before.
+  it was injected into. Process death rebuilds it fresh. Durable state still belongs in
+  ViewModels, exactly as before.
 - Scoping is composition-based: it works in Nav3 entries and inside a fragment-hosted screen's
   own compose content. It does not cross a FragmentManager push, so during migration keep
   scoped screens inside compose-hosted flows.
@@ -569,9 +551,9 @@ The rules, all tested in the [Gaggle sample](samples/gaggle):
 ## Screens without Mavericks
 
 Mavericks is the presenter layer goose is built around, but it is not required per screen. A
-`StateHolder` is the presenter-agnostic option: pure Kotlin plus coroutines, one `StateFlow` of
-state, the same entry-scoped lifecycle as `screenViewModel` (retained across rotation, cleared
-on pop, a navigator that is safe to hold):
+`StateHolder` is the presenter-agnostic option: pure Kotlin plus coroutines, one `StateFlow`
+of state, the same entry-scoped lifecycle as `screenViewModel` (retained across rotation,
+cleared on pop, a navigator that is safe to hold):
 
 ```kotlin
 class TeamStatsHolder(private val navigator: Navigator) :
@@ -591,8 +573,8 @@ fun StatsUi(modifier: Modifier) {
 
 What you give up is Mavericks' machinery: no `@PersistState` process-death restoration, no
 `Async`. Both styles coexist per screen, so use holders where they fit and ViewModels where
-persistence matters. Because the contract is free of Mavericks and Android ViewModel types,
-it is also the seam a future multiplatform goose builds on.
+persistence matters. The contract is free of Mavericks and Android ViewModel types, which is
+what a future multiplatform goose would build on.
 
 ## Already on Dagger or Hilt?
 
@@ -613,15 +595,15 @@ createGraphFactory<AppGraph.Factory>().create(DaggerLegacyComponent.create())
 ```
 
 Everything the Dagger component exposes becomes an ordinary binding goose screens and
-ViewModels inject; the Dagger side keeps compiling with Dagger's own processor, untouched. The
-[dagger-interop sample](samples/dagger-interop) is exactly this shape (a plain Dagger component, a goose screen injecting its
-repository) and is covered by a test. Hilt apps expose their bindings the same way through an
-`@EntryPoint`-style accessor interface handed to `@Includes`; Metro also ships annotation
-interop (`metro { interop { includeDagger() } }`) if you want Metro to compile classes that
-still carry javax.inject annotations.
+ViewModels inject, and the Dagger side keeps compiling with Dagger's own processor, untouched.
+The [dagger-interop sample](samples/dagger-interop) is exactly this shape and is covered by a
+test. Hilt apps expose their bindings the same way through an `@EntryPoint`-style accessor
+interface handed to `@Includes`. Metro also ships annotation interop
+(`metro { interop { includeDagger() } }`) if you want Metro to compile classes that still
+carry javax.inject annotations.
 
 Your Mavericks ViewModels don't migrate their factories either. `@GooseUi` accepts a nested
-`@AssistedFactory` from **either** DI world — Metro's or Dagger's — as long as it has the
+`@AssistedFactory` from either DI world, Metro's or Dagger's, as long as it has the
 `(initialState, navigator)` create shape:
 
 ```kotlin
@@ -637,10 +619,10 @@ class CoachViewModel @AssistedInject constructor(          // dagger.assisted, u
 }
 ```
 
-(The `navigator` parameter is the one addition — it's how the VM navigates through goose at
-all.) And if a screen doesn't fit `@GooseUi`'s grammar, you never need the full hand-written
-`ScreenUi` class with its multibinding annotations: the `@Provides` + `screenUi` function form
-is the one-liner escape hatch:
+The `navigator` parameter is the one addition. It's how the VM navigates through goose at all.
+
+If a screen doesn't fit `@GooseUi`'s grammar, the `@Provides` + `screenUi` function form is
+the one-line escape hatch, no hand-written `ScreenUi` class needed:
 
 ```kotlin
 @Provides @IntoMap @ClassKey(CoachScreen::class)
@@ -651,14 +633,14 @@ fun coachUi(factory: CoachViewModel.Factory): ScreenEntry =
 ### No Metro at all? Build the environment by hand
 
 The graph's only job for goose is aggregation: which screen renders how, which serializers,
-which decorations. On Metro that assembles itself by contribution; without Metro you assemble
-it explicitly, Circuit-Builder style, and use it anywhere a goose graph goes — no Metro
+which decorations. On Metro that assembles itself by contribution. Without Metro you assemble
+it explicitly, Circuit-Builder style, and use it anywhere a goose graph goes, with no Metro
 compiler plugin in your build:
 
 ```kotlin
 val environment = GooseEnvironment.Builder()
     .addUi<ProfileScreen> { screen, modifier ->
-        // close over YOUR DI here — a Dagger component's factory, a service locator, anything
+        // close over your own DI here: a Dagger factory, a service locator, anything
         ProfileUi(screen, modifier, daggerComponent.profileVmFactory())
     }
     .addDecoration { content -> AppTheme { content() } }
@@ -674,17 +656,16 @@ class MyApp : Application(), GooseGraphHolder {
 }
 ```
 
-What stays Metro-only: the `@GooseUi` annotation (its generated registration IS a Metro
-contribution) and session child scopes (`GooseScope` graph extensions). Everything else —
-typed navigation, results, fragment hosting, persistence, decorations — runs against a built
-environment, and the environment tests in `runtime-fragment` pin exactly that.
+What stays Metro-only: the `@GooseUi` annotation, whose generated registration is a Metro
+contribution, and session child scopes. Everything else runs against a built environment:
+typed navigation, results, fragment hosting, persistence, decorations.
 
 ## Keeping your existing navigation APIs
 
 Mature apps have their own navigation helpers that everything else uses: a
 `startDialogForResult` extension, a router module, a framework someone built years ago.
-Migrated screens do not need to bypass them. The compose side keeps talking to the goose
-`Navigator`, so the ViewModel is portable and testable:
+Migrated screens don't need to bypass them. The compose side keeps talking to the goose
+`Navigator`, so the ViewModel stays portable and testable:
 
 ```kotlin
 // the migrated VM neither knows nor cares how this screen gets shown
@@ -694,8 +675,8 @@ fun changePlan() = viewModelScope.launch {
 }
 ```
 
-And you contribute one adapter per screen telling the fragment host how to actually execute it,
-using whatever API your project already trusts:
+And you contribute one adapter per screen telling the fragment host how to execute it, using
+whatever API your project already trusts:
 
 ```kotlin
 @ContributesIntoMap(AppScope::class, binding = binding<FragmentScreenNavigation>())
@@ -714,16 +695,16 @@ class PickPlanNavigation : FragmentScreenNavigation {
 }
 ```
 
-`deliverResult` answers the caller suspended in `goToForResult` (null means dismissed). If your
-destination pushes onto the FragmentManager back stack instead of showing a dialog, use
-`request.backStackEntryName` as the `addToBackStack` name; results then deliver automatically
+`deliverResult` answers the caller suspended in `goToForResult` (null means dismissed). If
+your destination pushes onto the FragmentManager back stack instead of showing a dialog, use
+`request.backStackEntryName` as the `addToBackStack` name, and results deliver automatically
 when the entry pops, no matter what pops it. Screens without an adapter get the default
 transaction, a plain `replace` + `addToBackStack`. Once the app is fully migrated, delete the
 adapters and nothing else changes.
 
-The host is configurable too, not just individual screens. `installGooseNavigator` takes an
-optional FragmentManager (pass a fragment's `childFragmentManager` for nested stack ownership)
-and an optional host-wide policy that sees every screen without a per-screen adapter:
+The host is configurable too. `installGooseNavigator` takes an optional FragmentManager (pass
+a fragment's `childFragmentManager` for nested stack ownership) and an optional host-wide
+policy that sees every screen without a per-screen adapter:
 
 ```kotlin
 installGooseNavigator(
@@ -739,47 +720,47 @@ installGooseNavigator(
 )
 ```
 
-`request.createFragment()` hands you the fragment goose would have shown (the bound legacy
-fragment, or the compose host created through your FragmentManager's own `FragmentFactory`), so
-custom transactions change HOW a screen appears without changing WHAT appears.
+`request.createFragment()` hands you the fragment goose would have shown, created through your
+FragmentManager's own `FragmentFactory`. Custom transactions change how a screen appears
+without changing what appears.
 
 ## Embedding without navigating
 
 Not every child fragment is navigation. A parent attaches a chat panel, a map, a payment sheet
-into one of its containers — no back stack entry, no navigator call. Goose never owns your
-FragmentManager, so those transactions keep working untouched, including when the thing you
-embed is a migrated goose screen:
+into one of its containers, with no back stack entry and no navigator call. Goose never owns
+your FragmentManager, so those transactions keep working untouched, including when the thing
+you embed is a migrated goose screen:
 
 ```kotlin
 val fragment = ScreenFragment.newInstance(childFragmentManager, ChatPanelScreen(ticketId))
 childFragmentManager.commit { add(R.id.panel_container, fragment) }
 ```
 
-Prefer this `newInstance(fragmentManager, screen)` overload: it creates the fragment through
+Prefer this `newInstance(fragmentManager, screen)` overload. It creates the fragment through
 that FragmentManager's own `FragmentFactory`, so a host with a custom factory sees goose's
 fragments go through the same path as its own.
 
-The embedded fragment wires itself up when its view is created; you configure it by being the
+The embedded fragment wires itself up when its view is created. You configure it by being the
 right kind of parent, not by passing anything in:
 
-- **Navigator.** It walks up the parent-fragment chain for the nearest `FragmentNavigatorOwner`
-  and falls back to the activity's navigator. So when the embedded screen's ViewModel calls
-  `navigator.goTo(...)`, that pushes onto the nearest enclosing stack. If its navigations
-  should land in one of YOUR containers instead, implement `FragmentNavigatorOwner` on the
-  parent fragment with a `FragmentNavigator` over your `childFragmentManager` — the shape
-  `SupportFlowFragment` in the [Gaggle sample](samples/gaggle) demonstrates.
-- **Scoped dependencies.** Same walk, for the nearest `GooseScopeOwner`: embedded inside a
-  scoped flow, the screen resolves the flow's child graph.
-- **ViewModel lifetime.** The embedded fragment is the screen's `ViewModelStoreOwner`, so the
-  ViewModel is retained across rotation and cleared when the fragment is removed — it lives
-  exactly as long as the embedding, which is what embedding means.
+- Navigator: it walks up the parent-fragment chain for the nearest `FragmentNavigatorOwner`
+  and falls back to the activity's navigator, so the embedded screen's `goTo` pushes onto the
+  nearest enclosing stack. If its navigations should land in one of your containers instead,
+  implement `FragmentNavigatorOwner` on the parent fragment with a `FragmentNavigator` over
+  your `childFragmentManager`. `SupportFlowFragment` in the [Gaggle sample](samples/gaggle)
+  shows the shape.
+- Scoped dependencies: same walk, for the nearest `GooseScopeOwner`. Embedded inside a scoped
+  flow, the screen resolves the flow's child graph.
+- ViewModel lifetime: the embedded fragment is the screen's `ViewModelStoreOwner`, so the
+  ViewModel is retained across rotation and cleared when the fragment is removed. It lives
+  exactly as long as the embedding.
 
-One semantic difference from navigation: nobody is awaiting an embedded screen. Typed results
-(`goToForResult`) ride the navigator and back stack, so a screen designed to answer a caller
-should be pushed, not embedded.
+One difference from navigation: nobody is awaiting an embedded screen. Typed results ride the
+navigator and back stack, so a screen designed to answer a caller should be pushed, not
+embedded.
 
 The compose side mirrors both directions. A goose screen (or any composable) embeds a fragment
-without a stack entry via `AndroidFragment` from `androidx.fragment.compose` — that is all
+without a stack entry via `AndroidFragment` from `androidx.fragment.compose`, which is all
 `fragmentScreenEntry` does internally. And non-goose compose UI embeds a single goose screen
 with `GooseContent(screen, navigator)`, no stack host required.
 
@@ -802,8 +783,7 @@ data class CheckoutScreen(val itemId: String? = null) :
 
 That checkout now slides up over the cart and slides back down when it pops, from every call
 site, because the screen owns its presentation. Screens without the interface get the host's
-default (Nav3's standard transition). Nothing here is serialized; the functions are behavior,
-not state.
+default. Nothing here is serialized. The functions are behavior, not state.
 
 **Shared elements.** Tag an element on both screens with the same key and it animates between
 them during the transition:
@@ -823,7 +803,7 @@ converted.
 **Dialogs.** Mark a screen `OverlayScreen` and it renders as a dialog above the previous
 screen, on the same back stack, with the same result semantics: push it with `goTo` or
 `goToForResult`, and tapping outside or pressing back pops it (a `null` result for anyone
-awaiting one). The window is configured on the screen; the size is whatever your composable
+awaiting one). The window is configured on the screen. The size is whatever your composable
 measures:
 
 ```kotlin
@@ -858,37 +838,37 @@ fun ConfirmDeleteUi(screen: ConfirmDeleteScreen, modifier: Modifier) {
 ```
 
 There is no custom dialog machinery here. `OverlayScreen` forwards to Nav3's
-`DialogSceneStrategy`, which renders a regular Compose `Dialog`; `DialogProperties` is passed
-straight through, not wrapped. Goose only moves the "I am a dialog" declaration onto the screen
-class, so a feature can say it in its `:api` module and every host renders it right.
+`DialogSceneStrategy`, which renders a regular Compose `Dialog`, and `DialogProperties` passes
+straight through. Goose only moves the "I am a dialog" declaration onto the screen class, so a
+feature can say it in its `:api` module and every host renders it right.
 
 Why not skip `OverlayScreen` and call `Dialog()` inside a normal screen? Because a normal
-screen replaces the one before it: your dialog would float over an empty background.
-`OverlayScreen` is what keeps the previous screen visible underneath.
+screen replaces the one before it, so your dialog would float over an empty background.
+`OverlayScreen` keeps the previous screen visible underneath.
 
 Two things dialogs cannot do:
 
-- **Animate in.** Android shows dialog windows instantly; `ScreenTransitions` cannot change
-  that, because it animates screens inside your app's window and a dialog is its own window.
-  A screen that should slide up is not really a dialog: make it a normal screen with
+- Animate in. Android shows dialog windows instantly, and `ScreenTransitions` cannot change
+  that: it animates screens inside your app's window and a dialog is its own window. A screen
+  that should slide up is not really a dialog. Make it a normal screen with
   `ScreenTransitions` (like the checkout above) and draw it shaped like a sheet.
-- **Render as a dialog on the fragment side.** If this screen gets pushed while navigation is
+- Render as a dialog on the fragment side. If this screen gets pushed while navigation is
   still running on fragments, it shows through a normal fragment transaction. To get a dialog
   there during migration, contribute a `FragmentScreenNavigation` adapter (previous section)
   that shows a `DialogFragment`.
 
 ## Design decisions
 
-The sharp edges are decided, not accidental: result-request identity, the exact `@GooseUi`
-grammar, thread contracts, saved-state compatibility across releases, R8, tabs, and scoping are
-all written down with their reasoning in [DESIGN.md](DESIGN.md). One in-depth sample app,
-[Gaggle](samples/gaggle), exercises everything above as a mid-migration shop, with a
-claim-by-claim map to its tests in [samples/README.md](samples/README.md); the tiny
-[dagger-interop](samples/dagger-interop) sample proves adoption next to an existing Dagger
-graph. The screen-scoped ViewModel
-lifecycle (identity, retention, clearing, restoration, result cancellation) is one documented
-contract with the tests that pin it on both hosts:
+The sharp edges are decided, not accidental. Result-request identity, the `@GooseUi` grammar,
+thread contracts, saved-state compatibility across releases, R8, tabs, and scoping are written
+down with their reasoning in [DESIGN.md](DESIGN.md). The screen-scoped ViewModel lifecycle is
+one documented contract with the tests that pin it on both hosts:
 [docs/VIEWMODEL_CONTRACT.md](docs/VIEWMODEL_CONTRACT.md).
+
+One in-depth sample app, [Gaggle](samples/gaggle), exercises everything above as a
+mid-migration shop, with a claim-by-claim map to its tests in
+[samples/README.md](samples/README.md). The small [dagger-interop](samples/dagger-interop)
+sample proves adoption next to an existing Dagger graph.
 
 ## License
 
