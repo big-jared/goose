@@ -18,6 +18,7 @@ dependencies {
     dokka(project(":runtime-nav3"))
     dokka(project(":runtime-fragment"))
     dokka(project(":goose-compiler"))
+    dokka(project(":goose-compiler-plugin"))
 }
 
 // Public-API surface tracking: apiDump writes per-module .api files, apiCheck (wired into

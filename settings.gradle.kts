@@ -19,6 +19,7 @@ rootProject.name = "goose"
 
 include(
     ":goose-compiler",
+    ":goose-compiler-plugin",
     ":runtime",
     ":runtime-metro",
     ":runtime-mavericks",

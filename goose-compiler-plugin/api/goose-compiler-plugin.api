@@ -1,0 +1,30 @@
+public final class dev/goose/compiler/plugin/GoosePluginRegistrar : org/jetbrains/kotlin/compiler/plugin/CompilerPluginRegistrar {
+	public fun <init> ()V
+	public fun getPluginId ()Ljava/lang/String;
+	public fun getSupportsK2 ()Z
+	public fun registerExtensions (Lorg/jetbrains/kotlin/compiler/plugin/CompilerPluginRegistrar$ExtensionStorage;Lorg/jetbrains/kotlin/config/CompilerConfiguration;)V
+}
+
+public final class dev/goose/compiler/plugin/ReadResolveBodyGenerator : org/jetbrains/kotlin/backend/common/extensions/IrGenerationExtension {
+	public fun <init> ()V
+	public fun generate (Lorg/jetbrains/kotlin/ir/declarations/IrModuleFragment;Lorg/jetbrains/kotlin/backend/common/extensions/IrPluginContext;)V
+	public fun getPlatformIntrinsicExtension (Lorg/jetbrains/kotlin/backend/common/LoweringContext;)Lorg/jetbrains/kotlin/backend/common/extensions/IrIntrinsicExtension;
+	public fun getShouldAlsoBeAppliedInKaptStubGenerationMode ()Z
+}
+
+public final class dev/goose/compiler/plugin/ReadResolveDeclarationGenerator : org/jetbrains/kotlin/fir/extensions/FirDeclarationGenerationExtension {
+	public static final field Companion Ldev/goose/compiler/plugin/ReadResolveDeclarationGenerator$Companion;
+	public fun <init> (Lorg/jetbrains/kotlin/fir/FirSession;)V
+	public fun generateFunctions (Lorg/jetbrains/kotlin/name/CallableId;Lorg/jetbrains/kotlin/fir/extensions/DeclarationGenerationContext$Member;)Ljava/util/List;
+	public fun getCallableNamesForClass (Lorg/jetbrains/kotlin/fir/symbols/impl/FirClassSymbol;Lorg/jetbrains/kotlin/fir/extensions/DeclarationGenerationContext$Member;)Ljava/util/Set;
+}
+
+public final class dev/goose/compiler/plugin/ReadResolveDeclarationGenerator$Companion {
+	public final fun getREAD_RESOLVE ()Lorg/jetbrains/kotlin/name/Name;
+}
+
+public final class dev/goose/compiler/plugin/ReadResolveDeclarationGenerator$Key : org/jetbrains/kotlin/GeneratedDeclarationKey {
+	public static final field INSTANCE Ldev/goose/compiler/plugin/ReadResolveDeclarationGenerator$Key;
+	public fun toString ()Ljava/lang/String;
+}
+

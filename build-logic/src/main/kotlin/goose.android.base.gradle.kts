@@ -9,3 +9,9 @@ extensions.configure<CommonExtension>("android") {
     compileOptions.sourceCompatibility = JavaVersion.VERSION_17
     compileOptions.targetCompatibility = JavaVersion.VERSION_17
 }
+
+// Goose's compiler plugin: generates readResolve on Serializable objects (object screens), so
+// they stay singletons across Java deserialization and skip the hand-written boilerplate.
+configurations.matching { it.name == "kotlinCompilerPluginClasspath" }.all {
+    project.dependencies.add(name, project.project(":goose-compiler-plugin"))
+}
