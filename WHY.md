@@ -1,5 +1,9 @@
 # Migrating a Few Hundred Screens to Compose
 
+*An adoption RFC written for a real team evaluating goose against its alternatives —
+published here as the honest version of "why does this exist." It argues for the bet,
+not the library: the conclusion is a pilot, and the risks stay named.*
+
 *How we are choosing a path from fragments and MvRx to Compose, told through one
 screen's migration.*
 
