@@ -287,27 +287,41 @@ navigator.goTo(FragmentScreen.of<LegacyAboutFragment>())    // a fragment on a C
 ```
 
 Your old fragment needs real arguments, though, and `FragmentScreen.of` can only pass strings.
-So instead you give that fragment a normal typed screen, plus one registration that says "when
-this screen shows, create this fragment with this Bundle":
+So instead you give that fragment a normal typed screen. The common case is one annotation on
+the fragment — goose-compiler generates the registration, with the Bundle built from the
+screen's constructor properties by name:
 
 ```kotlin
 @Serializable data class TermsScreen(val termsId: String, val revision: Int) : Screen
 
+@GooseFragment(TermsScreen::class)
+class TermsFragment : Fragment() {
+    // requireArguments().getString("termsId"), getInt("revision")
+}
+```
+
+The name convention is the whole contract: the fragment reads each argument under the screen
+property's own name. When the keys differ, or the fragment needs Bundle entries beyond the
+screen's fields, write the registration by hand instead — the general form the annotation
+generates for you:
+
+```kotlin
 @Provides @IntoMap @ClassKey(TermsScreen::class)
 fun termsEntry(): ScreenEntry = fragmentScreenEntry<TermsFragment, TermsScreen> { screen ->
     bundleOf(
-        "termsId" to screen.termsId,                 // typed fields, straight off the screen
+        "terms_id" to screen.termsId,                // legacy key names, verbatim
         "revision" to screen.revision,
         "author" to Author(name = "Legal"),          // Parcelables are fine
     )
 }
 ```
 
-Callers just do `goTo(TermsScreen("TOS-7", 3))`, the fragment gets the Bundle it always got, and
-since only the little screen object is saved, rotation and process death rebuild the same
-fragment automatically. When you eventually migrate the fragment, delete this registration and
-register a composable for the SAME screen; no caller notices. (Fragments are created through
-your FragmentManager's `FragmentFactory`, so custom factories keep working too.)
+Either way, callers just do `goTo(TermsScreen("TOS-7", 3))`, the fragment gets the Bundle it
+always got, and since only the little screen object is saved, rotation and process death
+rebuild the same fragment automatically. When you eventually migrate the fragment, delete the
+registration (or annotation) and register a composable for the SAME screen; no caller notices.
+(Fragments are created through your FragmentManager's `FragmentFactory`, so custom factories
+keep working too.)
 
 ## What @GooseUi generates
 
@@ -583,6 +597,34 @@ repository) and is covered by a test. Hilt apps expose their bindings the same w
 `@EntryPoint`-style accessor interface handed to `@Includes`; Metro also ships annotation
 interop (`metro { interop { includeDagger() } }`) if you want Metro to compile classes that
 still carry javax.inject annotations.
+
+Your Mavericks ViewModels don't migrate their factories either. `@GooseUi` accepts a nested
+`@AssistedFactory` from **either** DI world — Metro's or Dagger's — as long as it has the
+`(initialState, navigator)` create shape:
+
+```kotlin
+class CoachViewModel @AssistedInject constructor(          // dagger.assisted, unchanged
+    @Assisted initialState: CoachState,
+    @Assisted private val navigator: Navigator,
+    private val repo: CoachRepository,
+) : MavericksViewModel<CoachState>(initialState) {
+    @dagger.assisted.AssistedFactory
+    interface Factory {
+        fun create(initialState: CoachState, navigator: Navigator): CoachViewModel
+    }
+}
+```
+
+(The `navigator` parameter is the one addition — it's how the VM navigates through goose at
+all.) And if a screen doesn't fit `@GooseUi`'s grammar, you never need the full hand-written
+`ScreenUi` class with its multibinding annotations: the `@Provides` + `screenUi` function form
+is the one-liner escape hatch:
+
+```kotlin
+@Provides @IntoMap @ClassKey(CoachScreen::class)
+fun coachUi(factory: CoachViewModel.Factory): ScreenEntry =
+    screenUi<CoachScreen> { screen, modifier -> /* compose content */ }
+```
 
 ## Keeping your existing navigation APIs
 

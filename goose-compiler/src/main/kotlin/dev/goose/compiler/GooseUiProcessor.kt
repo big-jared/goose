@@ -22,14 +22,20 @@ import com.google.devtools.ksp.symbol.Nullability
 import com.google.devtools.ksp.validate
 
 private const val GOOSE_UI = "dev.goose.runtime.GooseUi"
+private const val GOOSE_FRAGMENT = "dev.goose.fragment.GooseFragment"
+private const val FRAGMENT = "androidx.fragment.app.Fragment"
 private const val MODIFIER = "androidx.compose.ui.Modifier"
 private const val COMPOSABLE = "androidx.compose.runtime.Composable"
 private const val MAVERICKS_VM = "com.airbnb.mvrx.MavericksViewModel"
 private const val NAVIGATOR = "dev.goose.runtime.Navigator"
 private const val ASSISTED_FACTORY = "dev.zacsweers.metro.AssistedFactory"
+private const val DAGGER_ASSISTED_FACTORY = "dagger.assisted.AssistedFactory"
 private const val QUALIFIER = "dev.zacsweers.metro.Qualifier"
 private const val SERIALIZABLE = "kotlinx.serialization.Serializable"
 private const val APP_SCOPE = "dev.zacsweers.metro.AppScope"
+
+/** Both DI worlds' assisted-factory markers; a migrating Dagger/Anvil app keeps its own. */
+private val ASSISTED_FACTORY_ANNOTATIONS = setOf(ASSISTED_FACTORY, DAGGER_ASSISTED_FACTORY)
 
 /** Internal names in the generated ScreenEntry lambda, reserved so user params can't shadow them. */
 private val RESERVED_PARAM_NAMES = setOf("gooseScreen", "gooseModifier")
@@ -40,8 +46,9 @@ private val RESERVED_PARAM_NAMES = setOf("gooseScreen", "gooseModifier")
  * the screen class. Parameters are wired by type:
  * - the screen class -> the screen being rendered
  * - [Modifier] -> the host's modifier
- * - a MavericksViewModel with a nested @AssistedFactory `(State, Navigator) -> VM` -> a generated
- *   `screenViewModel` call (the factory itself is injected from the graph)
+ * - a MavericksViewModel with a nested @AssistedFactory (Metro's or Dagger's) shaped
+ *   `(State, Navigator) -> VM` -> a generated `screenViewModel` call (the factory itself is
+ *   injected from the graph)
  * - that ViewModel's state class (exact type) -> a generated `collectAsState().value`
  * - anything else -> an injected provider parameter, resolved from the graph at compile time,
  *   with Metro qualifier annotations copied over
@@ -61,9 +68,8 @@ class GooseUiProcessor(
     private val generatedModules = mutableSetOf<Pair<String, String>>()
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
-        val symbols = resolver.getSymbolsWithAnnotation(GOOSE_UI)
         val deferred = mutableListOf<KSAnnotated>()
-        for (symbol in symbols) {
+        for (symbol in resolver.getSymbolsWithAnnotation(GOOSE_UI)) {
             if (!symbol.validate()) {
                 deferred += symbol
                 continue
@@ -73,6 +79,17 @@ class GooseUiProcessor(
                 continue
             }
             generate(function)
+        }
+        for (symbol in resolver.getSymbolsWithAnnotation(GOOSE_FRAGMENT)) {
+            if (!symbol.validate()) {
+                deferred += symbol
+                continue
+            }
+            val clazz = symbol as? KSClassDeclaration ?: run {
+                logger.error("@GooseFragment is only valid on classes", symbol)
+                continue
+            }
+            generateFragmentEntry(clazz)
         }
         return deferred
     }
@@ -179,7 +196,7 @@ class GooseUiProcessor(
             if (factory.first.isEmpty()) {
                 logger.error(
                     "@GooseUi cannot wire '$name: ${decl.simpleName.asString()}': no nested " +
-                        "@AssistedFactory with a `(initialState, navigator)` create function. For a " +
+                        "@AssistedFactory (Metro or Dagger) with a `(initialState, navigator)` create function. For a " +
                         "screen-scoped ViewModel, add one (see the goose README). For a flow-shared " +
                         "ViewModel, call flowViewModel() inside the function instead of taking it as " +
                         "a parameter.",
@@ -284,6 +301,109 @@ class GooseUiProcessor(
     }
 
     /**
+     * Turns `@GooseFragment(SomeScreen::class)` fragment classes into the typed-fragment
+     * registration that previously required a hand-written @Provides: a contributed module
+     * whose entry renders the fragment via `fragmentScreenEntry`, with the Bundle built from
+     * the screen's constructor properties BY NAME (`screen.termsId` -> `"termsId"`). The
+     * convention is the whole feature: a fragment whose argument keys differ from the screen's
+     * property names, or that needs Bundle entries beyond the screen's fields, keeps the
+     * explicit `fragmentScreenEntry { }` registration.
+     */
+    private fun generateFragmentEntry(clazz: KSClassDeclaration) {
+        fun err(message: String) = logger.error("@GooseFragment: $message", clazz)
+
+        if (Modifier.PRIVATE in clazz.modifiers) {
+            return err("must not be private (the generated registration lives in a separate file)")
+        }
+        if (clazz.isAbstract()) {
+            return err("must not be abstract (the entry instantiates the fragment)")
+        }
+        if (clazz.getAllSuperTypes().none { it.declaration.qualifiedName?.asString() == FRAGMENT }) {
+            return err("${clazz.simpleName.asString()} must extend androidx.fragment.app.Fragment")
+        }
+
+        val annotation = clazz.annotations.first {
+            it.annotationType.resolve().declaration.qualifiedName?.asString() == GOOSE_FRAGMENT
+        }
+        val screenType = annotation.classArgument("screen", index = 0)
+            ?: return err("requires a screen class argument")
+        val screenDecl = screenType.declaration as? KSClassDeclaration
+            ?: return err("screen argument must be a class")
+        val screenFqn = screenDecl.qualifiedName?.asString()
+            ?: return err("screen class has no qualified name")
+        val scopeFqn = annotation.classArgument("scope", index = 1)
+            ?.declaration?.qualifiedName?.asString()
+            .let { if (it == null || it == "kotlin.Unit") APP_SCOPE else it }
+        val screenSerializable = screenDecl.annotations.any {
+            it.annotationType.resolve().declaration.qualifiedName?.asString() == SERIALIZABLE
+        }
+        if (!screenSerializable) {
+            return err(
+                "screen ${screenDecl.simpleName.asString()} must be @Serializable " +
+                    "(back stacks persist screens across process death)"
+            )
+        }
+
+        // The Bundle convention: every primary-constructor property, keyed by its own name.
+        val params = screenDecl.primaryConstructor?.parameters.orEmpty()
+        val pairs = params.map { param ->
+            val name = param.name?.asString()
+                ?: return err("screen constructor parameters must be named")
+            if (!param.isVal && !param.isVar) {
+                return err(
+                    "screen constructor parameter '$name' must be a val/var property " +
+                        "so the generated entry can read it"
+                )
+            }
+            "\"$name\" to gooseScreen.$name"
+        }
+
+        val fragmentFqn = clazz.qualifiedName?.asString()
+            ?: return err("fragment class has no qualified name")
+        val fragmentName = clazz.simpleName.asString()
+        val packageName = clazz.packageName.asString()
+        val moduleName = "${fragmentName}GooseModule"
+        if (!generatedModules.add(packageName to moduleName)) {
+            return err("two @GooseFragment classes named '$fragmentName' in package '$packageName'; rename one")
+        }
+
+        val entryExpression = if (pairs.isEmpty()) {
+            "dev.goose.fragment.fragmentScreenEntry<$fragmentFqn, $screenFqn>()"
+        } else {
+            """dev.goose.fragment.fragmentScreenEntry<$fragmentFqn, $screenFqn> { gooseScreen ->
+                |            androidx.core.os.bundleOf(
+                |                ${pairs.joinToString(",\n                |                ")},
+                |            )
+                |        }""".trimMargin()
+        }
+
+        val file = codeGenerator.createNewFile(
+            dependencies = Dependencies(aggregating = false, clazz.containingFile!!),
+            packageName = packageName,
+            fileName = moduleName,
+        )
+        file.bufferedWriter().use { writer ->
+            writer.write(
+                """
+                |// Generated by goose-compiler from @GooseFragment on $fragmentName. Do not edit.
+                |package $packageName
+                |
+                |@dev.zacsweers.metro.ContributesTo($scopeFqn::class)
+                |public interface $moduleName {
+                |    public companion object {
+                |        @dev.zacsweers.metro.Provides
+                |        @dev.zacsweers.metro.IntoMap
+                |        @dev.zacsweers.metro.ClassKey($screenFqn::class)
+                |        public fun provide$fragmentName(): dev.goose.runtime.ScreenEntry =
+                |            $entryExpression
+                |    }
+                |}
+                |""".trimMargin()
+            )
+        }
+    }
+
+    /**
      * Finds the ViewModel's goose assisted factory among nested classifiers annotated
      * `@AssistedFactory`: an abstract function of shape `(stateType, Navigator) -> vmType`
      * (declared or inherited; other non-abstract members are fine). Returns (factory FQN,
@@ -299,7 +419,7 @@ class GooseUiProcessor(
         val matches = mutableListOf<Pair<String, String>>()
         for (nested in vm.declarations.filterIsInstance<KSClassDeclaration>()) {
             val isAssistedFactory = nested.annotations.any {
-                it.annotationType.resolve().declaration.qualifiedName?.asString() == ASSISTED_FACTORY
+                it.annotationType.resolve().declaration.qualifiedName?.asString() in ASSISTED_FACTORY_ANNOTATIONS
             }
             if (!isAssistedFactory) continue
             val factoryFqn = nested.qualifiedName?.asString() ?: continue

@@ -74,11 +74,33 @@ class GooseUiProcessorTest {
         abstract class MavericksViewModel<S>(initialState: S)
         """.trimIndent(),
     )
+    private val daggerStub = SourceFile.kotlin(
+        "DaggerStub.kt",
+        """
+        package dagger.assisted
+        annotation class AssistedFactory
+        """.trimIndent(),
+    )
+    private val gooseVmStub = SourceFile.kotlin(
+        "GooseVmStub.kt",
+        """
+        package dev.goose.mavericks
+        import dev.goose.runtime.Navigator
+        import dev.goose.runtime.Screen
+        fun <VM, S> screenViewModel(
+            screen: Screen,
+            vmClass: Class<VM>,
+            stateClass: Class<S>,
+            create: (S, Navigator) -> VM,
+        ): VM = throw NotImplementedError()
+        """.trimIndent(),
+    )
 
     private fun compile(source: String): JvmCompilationResult {
         val compilation = KotlinCompilation().apply {
             sources = listOf(
                 stubs, composeStub, modifierStub, serializationStub, metroStub, mavericksStub,
+                daggerStub, gooseVmStub,
                 SourceFile.kotlin("Test.kt", source),
             )
             configureKsp {
@@ -313,4 +335,35 @@ class GooseUiProcessorTest {
         """.trimIndent(),
         "no nested @AssistedFactory",
     )
+
+    /** A Dagger/Anvil app's existing assisted factory is accepted as-is — no Metro migration. */
+    @Test
+    fun daggerAssistedFactoryIsAccepted() {
+        val result = compile(
+            """
+            package test
+            import androidx.compose.runtime.Composable
+            import com.airbnb.mvrx.MavericksViewModel
+            import dev.goose.runtime.GooseUi
+            import dev.goose.runtime.Navigator
+            import dev.goose.runtime.Screen
+            import kotlinx.serialization.Serializable
+
+            @Serializable class HomeScreen : Screen
+            class HomeState
+            class HomeViewModel(initialState: HomeState, navigator: Navigator) :
+                MavericksViewModel<HomeState>(initialState) {
+                @dagger.assisted.AssistedFactory
+                interface Factory {
+                    fun create(initialState: HomeState, navigator: Navigator): HomeViewModel
+                }
+            }
+
+            @GooseUi(HomeScreen::class)
+            @Composable
+            fun HomeUi(screen: HomeScreen, vm: HomeViewModel) { }
+            """.trimIndent(),
+        )
+        assertEquals(result.messages, KotlinCompilation.ExitCode.OK, result.exitCode)
+    }
 }
