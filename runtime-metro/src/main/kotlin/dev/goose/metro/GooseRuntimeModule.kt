@@ -1,5 +1,6 @@
 package dev.goose.metro
 
+import dev.goose.runtime.GooseDecoration
 import dev.goose.runtime.ResultRouter
 import dev.goose.runtime.ScreenEntry
 import dev.zacsweers.metro.AppScope
@@ -32,6 +33,10 @@ interface GooseRuntimeAccessors {
 
     @Multibinds(allowEmpty = true)
     val serializersModules: Set<SerializersModule>
+
+    /** App-contributed wrappers (theme, CompositionLocals) for goose-rooted compositions. */
+    @Multibinds(allowEmpty = true)
+    val gooseDecorations: Set<GooseDecoration>
 
     companion object {
         @Provides

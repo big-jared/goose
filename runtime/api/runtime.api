@@ -21,6 +21,10 @@ public final class dev/goose/runtime/FlowScopeKt {
 	public static final fun getLocalFlowScope ()Landroidx/compose/runtime/ProvidableCompositionLocal;
 }
 
+public abstract interface class dev/goose/runtime/GooseDecoration {
+	public abstract fun Decorate (Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
+}
+
 public abstract interface annotation class dev/goose/runtime/GooseUi : java/lang/annotation/Annotation {
 	public abstract fun scope ()Ljava/lang/Class;
 	public abstract fun screen ()Ljava/lang/Class;

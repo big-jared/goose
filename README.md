@@ -258,6 +258,28 @@ FragmentManager back stack
 └── DetailFragment                    // legacy
 ```
 
+### Your theme and providers, inside the fragment host
+
+Each `ScreenFragment` roots its own ComposeView — outside whatever `AppTheme { ... }` your
+Compose shell wraps. Contribute a `GooseDecoration` once and every fragment-hosted screen
+renders inside it:
+
+```kotlin
+@ContributesIntoSet(AppScope::class)
+@Inject
+class AppThemeDecoration(private val imageLoader: ImageLoader) : GooseDecoration {
+    @Composable override fun Decorate(content: @Composable () -> Unit) {
+        AppTheme {
+            CompositionLocalProvider(LocalImageLoader provides imageLoader) { content() }
+        }
+    }
+}
+```
+
+Decorations are constructor-injected from the graph, so providers can carry real dependencies.
+Compose hosts (`NavigableGooseContent`, tabs) deliberately don't apply them — they already
+render inside your shell's composition, so flipping a flow to Compose never double-themes.
+
 ### Flipping a flow once it's fully converted
 
 When every screen in a flow is Compose, delete the fragment host and let a plain list own that

@@ -14,6 +14,7 @@ public final class dev/goose/metro/GooseGraphKt {
 
 public abstract interface class dev/goose/metro/GooseRuntimeAccessors {
 	public static final field Companion Ldev/goose/metro/GooseRuntimeAccessors$Companion;
+	public abstract fun getGooseDecorations ()Ljava/util/Set;
 	public abstract fun getNavSerializersModule ()Lkotlinx/serialization/modules/SerializersModule;
 	public abstract fun getResultRouter ()Ldev/goose/runtime/ResultRouter;
 	public abstract fun getScreenEntries ()Ljava/util/Map;
@@ -23,6 +24,7 @@ public abstract interface class dev/goose/metro/GooseRuntimeAccessors {
 
 public abstract class dev/goose/metro/GooseRuntimeAccessors$BindsMirror {
 	public static final field $stable I
+	public final fun gooseDecorations_property4205200196 ()Ljava/util/Set;
 	public final fun screenEntries_property4205200196 ()Ljava/util/Map;
 	public final fun serializersModules_property4205200196 ()Ljava/util/Set;
 }

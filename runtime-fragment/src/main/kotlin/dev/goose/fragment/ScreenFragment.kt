@@ -8,11 +8,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.fragment.app.Fragment
 import dev.goose.metro.GooseCompositionLocals
 import dev.goose.metro.GooseContent
+import dev.goose.metro.GooseRuntimeAccessors
 import dev.goose.metro.GooseScope
 import dev.goose.metro.GooseGraphHolder
+import dev.goose.metro.gooseGraph
+import dev.goose.runtime.GooseDecoration
 import dev.goose.runtime.Navigator
 import dev.goose.runtime.Screen
 
@@ -62,14 +67,33 @@ class ScreenFragment : Fragment() {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 GooseCompositionLocals(graph) {
-                    if (scopeGraph != null) {
-                        GooseScope(scopeGraph) {
+                    // This ComposeView is a fresh composition root, OUTSIDE the app shell's
+                    // theme — apply the graph's contributed decorations (theme, providers)
+                    // that a Compose-hosted screen would inherit from the shell.
+                    val accessors = gooseGraph<GooseRuntimeAccessors>()
+                    val decorations = remember(accessors) { accessors.gooseDecorations.toList() }
+                    Decorated(decorations) {
+                        if (scopeGraph != null) {
+                            GooseScope(scopeGraph) {
+                                GooseContent(screen, navigator, Modifier.fillMaxSize())
+                            }
+                        } else {
                             GooseContent(screen, navigator, Modifier.fillMaxSize())
                         }
-                    } else {
-                        GooseContent(screen, navigator, Modifier.fillMaxSize())
                     }
                 }
+            }
+        }
+    }
+
+    /** Nests each decoration around the next; empty renders [content] bare. */
+    @Composable
+    private fun Decorated(decorations: List<GooseDecoration>, content: @Composable () -> Unit) {
+        if (decorations.isEmpty()) {
+            content()
+        } else {
+            decorations.first().Decorate {
+                Decorated(decorations.subList(1, decorations.size), content)
             }
         }
     }
