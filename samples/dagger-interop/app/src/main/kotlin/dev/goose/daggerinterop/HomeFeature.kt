@@ -10,8 +10,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.airbnb.mvrx.MavericksState
 import com.airbnb.mvrx.MavericksViewModel
-import com.airbnb.mvrx.MavericksViewModelFactory
-import dev.goose.mavericks.gooseVmFactory
 import dev.goose.runtime.GooseUi
 import dev.goose.runtime.Navigator
 import dev.goose.runtime.Screen
@@ -42,7 +40,7 @@ class InteropHomeViewModel(
         fun create(initialState: InteropHomeState, navigator: Navigator): InteropHomeViewModel
     }
 
-    companion object : MavericksViewModelFactory<InteropHomeViewModel, InteropHomeState> by gooseVmFactory(InteropHomeViewModel::class)
+    // No Mavericks factory companion: goose-compiler-plugin generates the nested GooseFactory.
 }
 
 @GooseUi(InteropHomeScreen::class)

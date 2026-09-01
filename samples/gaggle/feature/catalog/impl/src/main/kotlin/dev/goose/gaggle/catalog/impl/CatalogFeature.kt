@@ -22,10 +22,8 @@ import com.airbnb.mvrx.Fail
 import com.airbnb.mvrx.Loading
 import com.airbnb.mvrx.MavericksState
 import com.airbnb.mvrx.MavericksViewModel
-import com.airbnb.mvrx.MavericksViewModelFactory
 import com.airbnb.mvrx.Success
 import com.airbnb.mvrx.Uninitialized
-import dev.goose.mavericks.gooseVmFactory
 import dev.goose.gaggle.catalog.api.CatalogScreen
 import dev.goose.gaggle.catalog.api.ProductImageKey
 import dev.goose.gaggle.catalog.api.ProductPeekScreen
@@ -72,7 +70,7 @@ class CatalogViewModel(
         fun create(initialState: CatalogState, navigator: Navigator): CatalogViewModel
     }
 
-    companion object : MavericksViewModelFactory<CatalogViewModel, CatalogState> by gooseVmFactory(CatalogViewModel::class)
+    // No Mavericks factory companion: goose-compiler-plugin generates the nested GooseFactory.
 }
 
 /** Demonstrates: @GooseUi wiring state + VM by type; the shop tab's root screen. */

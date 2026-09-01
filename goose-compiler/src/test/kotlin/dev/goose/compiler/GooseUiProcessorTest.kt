@@ -333,8 +333,42 @@ class GooseUiProcessorTest {
         @Composable
         fun HomeUi(screen: HomeScreen, vm: HomeViewModel) { }
         """.trimIndent(),
-        "no nested @AssistedFactory",
+        "no @AssistedFactory",
     )
+
+    /**
+     * The custom-codegen path: a TOP-LEVEL assisted factory in the ViewModel's package (the
+     * only place another processor can emit one) is found by convention, nothing named.
+     */
+    @Test
+    fun topLevelFactoryInTheViewModelsPackageIsFoundByConvention() {
+        val result = compile(
+            """
+            package test
+            import androidx.compose.runtime.Composable
+            import com.airbnb.mvrx.MavericksViewModel
+            import dev.goose.runtime.GooseUi
+            import dev.goose.runtime.Navigator
+            import dev.goose.runtime.Screen
+            import kotlinx.serialization.Serializable
+
+            @Serializable class HomeScreen : Screen
+            class HomeState
+            class HomeViewModel(initialState: HomeState, navigator: Navigator) :
+                MavericksViewModel<HomeState>(initialState)
+
+            @dagger.assisted.AssistedFactory
+            interface HomeViewModelFactory {
+                fun create(initialState: HomeState, navigator: Navigator): HomeViewModel
+            }
+
+            @GooseUi(HomeScreen::class)
+            @Composable
+            fun HomeUi(screen: HomeScreen, vm: HomeViewModel) { }
+            """.trimIndent(),
+        )
+        assertEquals(result.messages, KotlinCompilation.ExitCode.OK, result.exitCode)
+    }
 
     /** A Dagger/Anvil app's existing assisted factory is accepted as-is — no Metro migration. */
     @Test

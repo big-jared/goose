@@ -1,8 +1,49 @@
+public final class dev/goose/compiler/plugin/GooseCommandLineProcessor : org/jetbrains/kotlin/compiler/plugin/CommandLineProcessor {
+	public static final field Companion Ldev/goose/compiler/plugin/GooseCommandLineProcessor$Companion;
+	public fun <init> ()V
+	public fun appendList (Lorg/jetbrains/kotlin/config/CompilerConfiguration;Lorg/jetbrains/kotlin/config/CompilerConfigurationKey;Ljava/lang/Object;)V
+	public fun appendList (Lorg/jetbrains/kotlin/config/CompilerConfiguration;Lorg/jetbrains/kotlin/config/CompilerConfigurationKey;Ljava/util/List;)V
+	public fun applyOptionsFrom (Lorg/jetbrains/kotlin/config/CompilerConfiguration;Ljava/util/Map;Ljava/util/Collection;)V
+	public fun getPluginId ()Ljava/lang/String;
+	public fun getPluginOptions ()Ljava/util/Collection;
+	public fun processOption (Lorg/jetbrains/kotlin/compiler/plugin/AbstractCliOption;Ljava/lang/String;Lorg/jetbrains/kotlin/config/CompilerConfiguration;)V
+}
+
+public final class dev/goose/compiler/plugin/GooseCommandLineProcessor$Companion {
+	public final fun getEXTRA_VM_BASES_KEY ()Lorg/jetbrains/kotlin/config/CompilerConfigurationKey;
+	public final fun getEXTRA_VM_BASES_OPTION ()Lorg/jetbrains/kotlin/compiler/plugin/CliOption;
+}
+
 public final class dev/goose/compiler/plugin/GoosePluginRegistrar : org/jetbrains/kotlin/compiler/plugin/CompilerPluginRegistrar {
 	public fun <init> ()V
 	public fun getPluginId ()Ljava/lang/String;
 	public fun getSupportsK2 ()Z
 	public fun registerExtensions (Lorg/jetbrains/kotlin/compiler/plugin/CompilerPluginRegistrar$ExtensionStorage;Lorg/jetbrains/kotlin/config/CompilerConfiguration;)V
+}
+
+public final class dev/goose/compiler/plugin/GooseVmCompanionBodyGenerator : org/jetbrains/kotlin/backend/common/extensions/IrGenerationExtension {
+	public fun <init> ()V
+	public fun generate (Lorg/jetbrains/kotlin/ir/declarations/IrModuleFragment;Lorg/jetbrains/kotlin/backend/common/extensions/IrPluginContext;)V
+	public fun getPlatformIntrinsicExtension (Lorg/jetbrains/kotlin/backend/common/LoweringContext;)Lorg/jetbrains/kotlin/backend/common/extensions/IrIntrinsicExtension;
+	public fun getShouldAlsoBeAppliedInKaptStubGenerationMode ()Z
+}
+
+public final class dev/goose/compiler/plugin/GooseVmCompanionGenerator : org/jetbrains/kotlin/fir/extensions/FirDeclarationGenerationExtension {
+	public static final field Companion Ldev/goose/compiler/plugin/GooseVmCompanionGenerator$Companion;
+	public fun <init> (Lorg/jetbrains/kotlin/fir/FirSession;Ljava/util/Set;)V
+	public fun generateConstructors (Lorg/jetbrains/kotlin/fir/extensions/DeclarationGenerationContext$Member;)Ljava/util/List;
+	public fun generateNestedClassLikeDeclaration (Lorg/jetbrains/kotlin/fir/symbols/impl/FirClassSymbol;Lorg/jetbrains/kotlin/name/Name;Lorg/jetbrains/kotlin/fir/extensions/DeclarationGenerationContext$Nested;)Lorg/jetbrains/kotlin/fir/symbols/impl/FirClassLikeSymbol;
+	public fun getCallableNamesForClass (Lorg/jetbrains/kotlin/fir/symbols/impl/FirClassSymbol;Lorg/jetbrains/kotlin/fir/extensions/DeclarationGenerationContext$Member;)Ljava/util/Set;
+	public fun getNestedClassifiersNames (Lorg/jetbrains/kotlin/fir/symbols/impl/FirClassSymbol;Lorg/jetbrains/kotlin/fir/extensions/DeclarationGenerationContext$Nested;)Ljava/util/Set;
+}
+
+public final class dev/goose/compiler/plugin/GooseVmCompanionGenerator$Companion {
+	public final fun getGOOSE_FACTORY ()Lorg/jetbrains/kotlin/name/Name;
+}
+
+public final class dev/goose/compiler/plugin/GooseVmCompanionGenerator$Key : org/jetbrains/kotlin/GeneratedDeclarationKey {
+	public static final field INSTANCE Ldev/goose/compiler/plugin/GooseVmCompanionGenerator$Key;
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class dev/goose/compiler/plugin/ReadResolveBodyGenerator : org/jetbrains/kotlin/backend/common/extensions/IrGenerationExtension {

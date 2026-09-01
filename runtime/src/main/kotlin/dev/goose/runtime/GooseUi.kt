@@ -36,6 +36,11 @@ import kotlin.reflect.KClass
  * the subtree that owns the graph, and the screen's injected parameters resolve from the child
  * graph (session objects, flow-owned repositories), with everything else falling back to the
  * parent.
+ *
+ * Factory lookup for a ViewModel parameter: a nested assisted factory first, then any
+ * top-level `@AssistedFactory` in the ViewModel's own package whose create has the goose
+ * shape — which is where an app's own factory codegen puts them, since processors can only
+ * emit top-level types. Two matches is a compile error.
  */
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.SOURCE)

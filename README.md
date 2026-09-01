@@ -37,6 +37,10 @@ dependencies {
     implementation("io.github.big-jared:goose-runtime-nav3:$gooseVersion")
     implementation("io.github.big-jared:goose-runtime-fragment:$gooseVersion") // during migration
     ksp("io.github.big-jared:goose-compiler:$gooseVersion")
+
+    // Optional but recommended: generates the readResolve on object screens and the Mavericks
+    // factory on ViewModels, so neither is ever written by hand.
+    add("kotlinCompilerPluginClasspath", "io.github.big-jared:goose-compiler-plugin:$gooseVersion")
 }
 ```
 
@@ -182,10 +186,14 @@ class ProfileViewModel(
     @AssistedFactory fun interface Factory {
         fun create(initialState: ProfileState, navigator: Navigator): ProfileViewModel
     }
-    companion object : MavericksViewModelFactory<ProfileViewModel, ProfileState>
-        by gooseVmFactory(ProfileViewModel::class)         // was: your hand-rolled factory
+    // No companion: goose's compiler plugin generates the Mavericks factory. Your old
+    // hand-rolled companion factory just gets deleted.
 }
 ```
+
+Without the compiler plugin, the hand-written form still works:
+`companion object : MavericksViewModelFactory<ProfileViewModel, ProfileState> by
+gooseVmFactory(ProfileViewModel::class)`.
 
 **3. Replace the fragment and its XML with an annotated composable.** One annotation is the
 entire registration:
@@ -620,6 +628,30 @@ class CoachViewModel @AssistedInject constructor(          // dagger.assisted, u
 ```
 
 The `navigator` parameter is the one addition. It's how the VM navigates through goose at all.
+
+### The factory contract, for apps with their own codegen
+
+Apps that already generate Mavericks factories (a custom KSP processor, say) can generate the
+goose shape instead of hand-writing it. The whole contract is:
+
+- An `@AssistedFactory` (Metro's or Dagger's) with a `create(initialState, navigator)`
+  function returning the ViewModel. `@GooseUi` looks for it nested in the ViewModel first,
+  then top-level in the ViewModel's own package — which is where generated factories land,
+  since a processor can only emit top-level types. Nothing is named anywhere.
+- A Mavericks factory the provider can discover. You don't generate this one: goose's
+  compiler plugin nests a `GooseFactory` into every concrete `MavericksViewModel` subclass
+  that declares no companion, and it delegates creation to goose when a goose host is
+  creating and lets Mavericks' own conventions run otherwise. ViewModels extending an
+  intermediate base class opt in by naming it:
+
+```kotlin
+// build.gradle.kts, only when your ViewModels extend a base like AppViewModel
+kotlinOptions.freeCompilerArgs +=
+    "-P plugin:dev.goose.compiler-plugin:extraViewModelBases=AppViewModel"
+```
+
+A hand-written companion always wins: the plugin skips any ViewModel that has one, so
+existing wired-up ViewModels keep their behavior.
 
 If a screen doesn't fit `@GooseUi`'s grammar, the `@Provides` + `screenUi` function form is
 the one-line escape hatch, no hand-written `ScreenUi` class needed:

@@ -92,8 +92,7 @@ class SupportChatViewModel(
         fun create(initialState: SupportChatState, navigator: Navigator): SupportChatViewModel
     }
 
-    companion object : com.airbnb.mvrx.MavericksViewModelFactory<SupportChatViewModel, SupportChatState>
-    by dev.goose.mavericks.gooseVmFactory(SupportChatViewModel::class)
+    // No Mavericks factory companion: goose-compiler-plugin generates the nested GooseFactory.
 }
 
 @GooseUi(SupportChatScreen::class, scope = SupportScope::class)

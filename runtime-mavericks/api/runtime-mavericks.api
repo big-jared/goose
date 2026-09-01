@@ -2,6 +2,13 @@ public final class dev/goose/mavericks/FlowViewModelKt {
 	public static final fun flowViewModel (Ljava/lang/Class;Ljava/lang/Class;Landroidx/compose/runtime/Composer;I)Lcom/airbnb/mvrx/MavericksViewModel;
 }
 
+public abstract class dev/goose/mavericks/GeneratedGooseVmFactory : com/airbnb/mvrx/MavericksViewModelFactory {
+	public static final field $stable I
+	public fun <init> ()V
+	public final fun create (Lcom/airbnb/mvrx/ViewModelContext;Lcom/airbnb/mvrx/MavericksState;)Lcom/airbnb/mvrx/MavericksViewModel;
+	public fun initialState (Lcom/airbnb/mvrx/ViewModelContext;)Lcom/airbnb/mvrx/MavericksState;
+}
+
 public final class dev/goose/mavericks/GooseVmFactoryKt {
 	public static final fun gooseVmFactory (Lkotlin/reflect/KClass;)Lcom/airbnb/mvrx/MavericksViewModelFactory;
 }
