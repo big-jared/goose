@@ -27,7 +27,7 @@ newer (Metro's compiler plugin requires it). On JDK 17 the build fails before co
 Goose is on Maven Central under `io.github.big-jared`:
 
 ```kotlin
-val gooseVersion = "0.1.0"
+val gooseVersion = "0.2.0"
 
 dependencies {
     implementation("io.github.big-jared:goose-runtime:$gooseVersion")
