@@ -53,6 +53,10 @@ public final class dev/goose/runtime/NavigatorHandle : dev/goose/runtime/Navigat
 	public final fun unbind (Ldev/goose/runtime/Navigator;)V
 }
 
+public final class dev/goose/runtime/NavigatorKt {
+	public static final fun switchTo-0pEEQeA (Ldev/goose/runtime/Navigator;Ljava/lang/String;)Ldev/goose/runtime/Navigator;
+}
+
 public abstract interface class dev/goose/runtime/OverlayScreen : dev/goose/runtime/Screen {
 	public fun dialogProperties ()Landroidx/compose/ui/window/DialogProperties;
 }
@@ -117,6 +121,12 @@ public final class dev/goose/runtime/SharedElementsKt {
 	public static final fun sharedScreenElement (Landroidx/compose/ui/Modifier;Ljava/lang/Object;Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/Modifier;
 }
 
+public abstract interface class dev/goose/runtime/StackHost : dev/goose/runtime/Navigator {
+	public abstract fun getCurrentStack-hOg5Z_M ()Ljava/lang/String;
+	public abstract fun getStacks ()Ljava/util/Set;
+	public abstract fun switchTo-iBpPuZw (Ljava/lang/String;)Ldev/goose/runtime/Navigator;
+}
+
 public final class dev/goose/runtime/StackKey {
 	public static final synthetic fun box-impl (Ljava/lang/String;)Ldev/goose/runtime/StackKey;
 	public static fun constructor-impl (Ljava/lang/String;)Ljava/lang/String;
@@ -142,11 +152,5 @@ public abstract class dev/goose/runtime/StateHolder {
 
 public final class dev/goose/runtime/StateHolderKt {
 	public static final fun rememberStateHolder (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Ldev/goose/runtime/StateHolder;
-}
-
-public abstract interface class dev/goose/runtime/TabNavigator : dev/goose/runtime/Navigator {
-	public abstract fun getCurrentTab-hOg5Z_M ()Ljava/lang/String;
-	public abstract fun goTo-sUNl0Ws (Ljava/lang/String;Ldev/goose/runtime/Screen;)V
-	public abstract fun selectTab-iBpPuZw (Ljava/lang/String;)V
 }
 

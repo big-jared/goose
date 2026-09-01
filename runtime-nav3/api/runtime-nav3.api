@@ -4,18 +4,24 @@ public final class dev/goose/nav3/GooseContentKt {
 	public static final fun rememberGooseBackStack ([Ldev/goose/runtime/Screen;Landroidx/compose/runtime/Composer;I)Landroidx/navigation3/runtime/NavBackStack;
 }
 
-public final class dev/goose/nav3/GooseTabNavigator : dev/goose/runtime/BaseNavigator, dev/goose/runtime/TabNavigator {
+public final class dev/goose/nav3/GooseTabNavigator : dev/goose/runtime/BaseNavigator, dev/goose/runtime/StackHost {
 	public static final field $stable I
 	public fun getBackStack ()Ljava/util/List;
-	public fun getCurrentTab-hOg5Z_M ()Ljava/lang/String;
+	public fun getCurrentStack-hOg5Z_M ()Ljava/lang/String;
 	public final fun getDisplayStack ()Ljava/util/List;
 	public fun getParent ()Ldev/goose/runtime/Navigator;
+	public fun getStacks ()Ljava/util/Set;
 	public fun goTo (Ldev/goose/runtime/Screen;)V
-	public fun goTo-sUNl0Ws (Ljava/lang/String;Ldev/goose/runtime/Screen;)V
 	public final fun isStackRoot (Landroidx/navigation3/runtime/NavKey;)Z
 	public fun pop (Ldev/goose/runtime/PopResult;)Z
 	public fun resetRoot (Ldev/goose/runtime/Screen;)V
-	public fun selectTab-iBpPuZw (Ljava/lang/String;)V
+	public final fun selectTab-iBpPuZw (Ljava/lang/String;)V
+	public fun switchTo-iBpPuZw (Ljava/lang/String;)Ldev/goose/runtime/Navigator;
+}
+
+public final class dev/goose/nav3/GooseTabNavigatorKt {
+	public static final fun TabbedGooseContent (Ldev/goose/nav3/GooseTabNavigator;Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
+	public static final fun rememberTabNavigator (Ljava/util/List;Ldev/goose/runtime/Navigator;Landroidx/compose/runtime/Composer;II)Ldev/goose/nav3/GooseTabNavigator;
 }
 
 public final class dev/goose/nav3/Nav3Navigator : dev/goose/runtime/BaseNavigator {
@@ -48,11 +54,6 @@ public final class dev/goose/nav3/PushRecordSerializers$Companion$PushRecordSeri
 }
 
 public abstract interface class dev/goose/nav3/PushRecordSerializers$MetroContributionToAppScope : dev/goose/nav3/PushRecordSerializers {
-}
-
-public final class dev/goose/nav3/TabNavigatorKt {
-	public static final fun TabbedGooseContent (Ldev/goose/nav3/GooseTabNavigator;Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
-	public static final fun rememberTabNavigator (Ljava/util/List;Ldev/goose/runtime/Navigator;Landroidx/compose/runtime/Composer;II)Ldev/goose/nav3/GooseTabNavigator;
 }
 
 public final class dev/goose/nav3/TabSpec {
