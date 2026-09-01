@@ -12,6 +12,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
+import dev.goose.fragment.GooseFragment
 import dev.goose.fragment.fragmentScreenEntry
 import dev.goose.gaggle.auth.api.OrderHistoryScreen
 import dev.goose.gaggle.auth.api.TermsScreen
@@ -32,14 +33,8 @@ import kotlinx.serialization.Serializable
 @ContributesTo(AppScope::class)
 interface LegacyEntriesModule {
     companion object {
-        @Provides
-        @IntoMap
-        @ClassKey(OrderHistoryScreen::class)
-        fun orderHistoryEntry(): ScreenEntry =
-            fragmentScreenEntry<OrderHistoryFragment, OrderHistoryScreen> { screen ->
-                bundleOf(OrderHistoryFragment.ARG_COUNT to screen.orderCount)
-            }
-
+        // Terms needs a Bundle entry BEYOND the screen's fields (the Parcelable author), so it
+        // keeps the explicit registration — the escape hatch @GooseFragment can't replace.
         @Provides
         @IntoMap
         @ClassKey(TermsScreen::class)
@@ -54,6 +49,11 @@ interface LegacyEntriesModule {
     }
 }
 
+/**
+ * The concise form: @GooseFragment generates the whole registration, with the Bundle mapped
+ * from OrderHistoryScreen's properties by name — so the fragment reads "orderCount".
+ */
+@GooseFragment(OrderHistoryScreen::class)
 class OrderHistoryFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -62,7 +62,7 @@ class OrderHistoryFragment : Fragment() {
     ): View = legacyText("Order history: ${requireArguments().getInt(ARG_COUNT)} order(s)\n(legacy fragment)")
 
     companion object {
-        const val ARG_COUNT = "count"
+        const val ARG_COUNT = "orderCount"
     }
 }
 

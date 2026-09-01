@@ -89,6 +89,11 @@ public abstract interface class dev/goose/fragment/FragmentScreenNavigation {
 	public abstract fun navigate (Ldev/goose/fragment/FragmentNavigationRequest;)V
 }
 
+public abstract interface annotation class dev/goose/fragment/GooseFragment : java/lang/annotation/Annotation {
+	public abstract fun scope ()Ljava/lang/Class;
+	public abstract fun screen ()Ljava/lang/Class;
+}
+
 public abstract interface class dev/goose/fragment/GooseFragmentAccessors {
 	public abstract fun getFragmentBinders ()Ljava/util/Map;
 	public abstract fun getFragmentNavigationOverrides ()Ljava/util/Map;
