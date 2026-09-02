@@ -23,7 +23,7 @@ have to.
 Gradle must run on JDK 21+ (Metro requires it). Then:
 
 ```kotlin
-val gooseVersion = "0.4.0"
+val gooseVersion = "0.5.0"
 
 dependencies {
     implementation("io.github.big-jared:goose-runtime:$gooseVersion")
