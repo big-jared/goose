@@ -149,8 +149,8 @@ Then `goTo` routes one of three ways:
 ```kotlin
 // inside FragmentNavigator.goTo, simplified
 val fragment = binders[screen::class]?.createFragment(screen)   // legacy screens land here
-    ?: ScreenFragment.newInstance(screen)                       // migrated screens land here
-fragmentManager.commit {
+    ?: fragmentManager.fragmentFactory.instantiate(screenHost)  // migrated screens: your host
+fragmentManager.commit {                                        // class, or ScreenFragment
     replace(containerId, fragment)
     addToBackStack(resultKey(screen))
 }
@@ -180,18 +180,23 @@ fragment, so it pushes, pops, and rotates like everything around it. When a whol
 migrated, swap the fragment host for
 `NavigableGooseContent(rememberGooseBackStack(HomeScreen))` and no screen code changes.
 
-## Theming fragment-hosted screens
+## Your base fragment as the screen host
 
-Fragment-hosted screens render outside your Compose shell's theme, so contribute the theme
-once:
+Fragment-hosted screens ride goose's plain `ScreenFragment` by default, outside your Compose
+shell's theme and outside your fragment base class. Apps with a base fragment (lifecycle
+hooks, analytics, a theme) register their own host instead:
 
 ```kotlin
-@ContributesIntoSet(AppScope::class)
-@Inject
-class AppThemeDecoration : GooseDecoration {
-    @Composable override fun Decorate(content: @Composable () -> Unit) = AppTheme { content() }
+class GaggleScreenFragment : GaggleFragment() {   // your base, your onDestroy analytics
+    override fun onCreateView(i: LayoutInflater, c: ViewGroup?, s: Bundle?) =
+        gooseScreenView { content -> AppTheme { content() } }
 }
+
+installGooseNavigator(R.id.container, screenHost = GaggleScreenFragment::class)
 ```
+
+`gooseScreenView` is the entire wiring (screen from arguments, navigator, scopes); the wrap
+lambda composes your theme and chrome around the screen.
 
 ## Typed results
 
@@ -299,26 +304,55 @@ top-level in its package (where factory codegen puts them). If your ViewModels e
 class, tell the plugin once:
 `-P plugin:dev.goose.compiler-plugin:extraViewModelBases=AppViewModel`.
 
-No Metro at all? Build the wiring by hand and use it anywhere a graph goes:
+## One builder, three DI stories
+
+Everything goose hosts need is one object, `Goose`, with one construction path,
+`Goose.Builder` — the analogue of Circuit's `Circuit`. What differs is who calls the builder:
+
+**Metro**: goose ships the default provider, so most apps build nothing. To configure it,
+replace the provider — contributed screen entries flow in as multibindings, app-level config
+goes inline:
 
 ```kotlin
-val environment = GooseEnvironment.Builder()
-    .addUi<ProfileScreen> { screen, modifier -> ProfileUi(screen, modifier, dagger.factory()) }
-    .addDecoration { content -> AppTheme { content() } }
+@ContributesTo(AppScope::class, replaces = [DefaultGooseModule::class])
+interface GooseModule {
+    companion object {
+        @Provides @SingleIn(AppScope::class)
+        fun provideGoose(
+            screenEntries: Map<KClass<*>, Provider<ScreenEntry>>,
+            serializersModules: Set<SerializersModule>,
+        ): Goose = Goose.Builder()
+            .addScreens(screenEntries)
+            .addSerializers(serializersModules)
+            .build()
+    }
+}
+```
+
+**Dagger, Hilt, kotlin-inject**: the same provider in your own graph, with your own
+multibindings, registering screens via `screenUi { }` entries.
+
+**No DI**: call the builder in `Application.onCreate` and hand the result to
+`GooseGraphHolder` / `GooseCompositionLocals`, entries closing over whatever you use instead:
+
+```kotlin
+val goose = Goose.Builder()
+    .addUi<ProfileScreen> { screen, modifier -> ProfileUi(screen, modifier, myFactory()) }
     .build()
 ```
 
-The `@GooseUi` codegen and session scopes stay Metro-only. Everything else runs on a built
-environment.
+The `@GooseUi` codegen and session scopes stay Metro-only. Everything else — typed navigation,
+results, fragment hosting, persistence — runs on a built `Goose`.
 
 ## Custom hosts and embedding
 
 Per-screen and host-wide navigation overrides are migration step 5. `installGooseNavigator`
 also takes a custom FragmentManager for nested stack ownership.
 
-Embedding without navigating works too: `ScreenFragment.newInstance(childFragmentManager,
-screen)` attaches a goose screen in your own container, no back stack entry. It finds the
-nearest navigator and scope by walking up the parent-fragment chain.
+Embedding without navigating works too: attach a host fragment in your own container with no
+back stack entry, `MyHostFragment().withGooseScreen(screen)` (or
+`ScreenFragment.newInstance(childFragmentManager, screen)`). It finds the nearest navigator
+and scope by walking up the parent-fragment chain.
 
 ## Animations
 

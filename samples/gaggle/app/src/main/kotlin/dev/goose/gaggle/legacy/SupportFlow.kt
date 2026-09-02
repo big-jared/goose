@@ -45,10 +45,12 @@ import dev.goose.fragment.GooseScopeOwner
 import dev.goose.fragment.ScreenFragment
 import dev.goose.fragment.ScreenFragmentBinder
 import dev.goose.fragment.fragmentScreenEntry
+import dev.goose.fragment.withGooseScreen
+import dev.goose.gaggle.GaggleScreenFragment
 import dev.goose.gaggle.R
 import dev.goose.gaggle.auth.api.SupportFlowScreen
 import dev.goose.metro.GooseGraphHolder
-import dev.goose.metro.GooseRuntimeAccessors
+import dev.goose.metro.asGoose
 import dev.goose.metro.GooseScopeAccessors
 import dev.goose.metro.retainedGraph
 import dev.goose.runtime.GooseUi
@@ -389,9 +391,12 @@ class SupportFlowFragment : Fragment(), GooseScopeOwner, FragmentNavigatorOwner 
             fragmentManager = childFragmentManager,
             containerId = R.id.gaggle_support_container,
             binders = (appGraph as GooseFragmentAccessors).fragmentBinders,
-            resultRouter = (appGraph as GooseRuntimeAccessors).resultRouter,
+            resultRouter = appGraph.asGoose().resultRouter,
             navigationOverrides = (appGraph as GooseFragmentAccessors).fragmentNavigationOverrides,
             stackTag = "support-flow",
+            // The app-owned host: every migrated screen this flow pushes rides a
+            // GaggleScreenFragment, themed and lifecycle-instrumented like the rest of the app.
+            screenHost = GaggleScreenFragment::class,
         )
     }
 
@@ -432,7 +437,7 @@ class SupportFlowFragment : Fragment(), GooseScopeOwner, FragmentNavigatorOwner 
             childFragmentManager.commit {
                 add(
                     R.id.gaggle_support_panel,
-                    ScreenFragment.newInstance(childFragmentManager, SupportStatusPanelScreen),
+                    GaggleScreenFragment().withGooseScreen(SupportStatusPanelScreen),
                 )
             }
         }

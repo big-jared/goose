@@ -71,8 +71,7 @@ fun GooseScope(scopeGraph: Any, content: @Composable () -> Unit) {
             "${scopeGraph::class.qualifiedName} is not a GooseScopeAccessors. " +
                 "Have your @GraphExtension interface extend GooseScopeAccessors."
         )
-    val parentRegistry = LocalScreenRegistry.current
-        ?: gooseGraph<GooseRuntimeAccessors>().screenRegistry
+    val parentRegistry = LocalScreenRegistry.current ?: goose().screenRegistry
     val registry = remember(scopeGraph) {
         ScreenRegistry(accessors.scopedScreenEntries, parent = parentRegistry)
     }

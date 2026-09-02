@@ -22,7 +22,13 @@ import kotlinx.serialization.modules.polymorphic
  */
 @Composable
 fun GooseCompositionLocals(graph: Any, content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalGooseGraph provides graph, content = content)
+    // Resolving here fails fast at the line the developer typed (not deep inside a screen's
+    // recomposition) and makes goose() a cheap local read for the whole subtree.
+    CompositionLocalProvider(
+        LocalGooseGraph provides graph,
+        LocalGoose provides graph.asGoose(),
+        content = content,
+    )
 }
 
 /**
@@ -38,7 +44,7 @@ fun GooseContent(
 ) {
     // Nearest active registry wins: a GooseScope's child registry when inside one, the app
     // graph's root registry otherwise.
-    val registry = LocalScreenRegistry.current ?: gooseGraph<GooseRuntimeAccessors>().screenRegistry
+    val registry = LocalScreenRegistry.current ?: goose().screenRegistry
     CompositionLocalProvider(LocalNavigator provides navigator) {
         // entryFor is memoized per screen class in the registry; no remember needed.
         registry.entryFor(screen).UntypedContent(screen, modifier)

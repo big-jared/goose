@@ -27,10 +27,10 @@ import androidx.savedstate.serialization.SavedStateConfiguration
 import androidx.savedstate.serialization.decodeFromSavedState
 import androidx.savedstate.serialization.encodeToSavedState
 import kotlinx.serialization.PolymorphicSerializer
+import kotlinx.serialization.modules.plus
 import java.util.UUID
 import dev.goose.metro.GooseContent
-import dev.goose.metro.GooseRuntimeAccessors
-import dev.goose.metro.gooseGraph
+import dev.goose.metro.goose
 import dev.goose.runtime.LocalScreenAnimatedContentScope
 import dev.goose.runtime.LocalSharedTransitionScope
 import dev.goose.runtime.Navigator
@@ -57,9 +57,13 @@ fun rememberGooseBackStack(vararg roots: Screen): NavBackStack<NavKey> =
  */
 @Composable
 fun rememberGooseBackStack(initial: List<Screen>): NavBackStack<NavKey> {
-    val module = gooseGraph<GooseRuntimeAccessors>().navSerializersModule
+    val module = goose().navSerializersModule
     val configuration = remember(module) {
-        SavedStateConfiguration { serializersModule = module }
+        // Push records must always round-trip, whether or not the app's Goose was assembled by
+        // Metro (where this module arrives by contribution) or by hand (where it wouldn't).
+        SavedStateConfiguration {
+            serializersModule = module + PushRecordSerializers.pushRecordSerializers()
+        }
     }
     return rememberSaveable(
         saver = Saver(
@@ -111,7 +115,7 @@ fun NavigableGooseContent(
     onRootBack: (() -> Unit)? = null,
     defaultTransitions: ScreenTransitions? = null,
 ) {
-    val resultRouter = gooseGraph<GooseRuntimeAccessors>().resultRouter
+    val resultRouter = goose().resultRouter
     // Stable per-stack-instance identity: scopes result routing to this stack, so equal screen
     // classes awaited in different stacks or activities never cross-deliver. Saveable, so
     // pending awaiters survive recreation (restore ignores the input key, so the restored stack

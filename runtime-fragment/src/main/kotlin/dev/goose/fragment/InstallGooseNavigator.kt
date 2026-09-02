@@ -6,7 +6,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import dev.goose.metro.GooseGraphHolder
-import dev.goose.metro.GooseRuntimeAccessors
+import dev.goose.metro.asGoose
 import dev.goose.runtime.Navigator
 import dev.goose.runtime.NavigatorHandle
 
@@ -56,22 +56,32 @@ fun FragmentActivity.installGooseNavigator(
      * built-in replace+addToBackStack for everything.
      */
     defaultNavigation: FragmentScreenNavigation? = null,
+    /**
+     * The fragment class hosting MIGRATED screens, replacing the default ScreenFragment. Your
+     * class extends your own base and renders with `gooseScreenView()`; it is instantiated
+     * through the FragmentManager's FragmentFactory, same as on recreation:
+     * ```
+     * installGooseNavigator(R.id.container, screenHost = GaggleScreenFragment::class)
+     * ```
+     */
+    screenHost: kotlin.reflect.KClass<out androidx.fragment.app.Fragment> = ScreenFragment::class,
 ): NavigatorHandle {
     val graph = (application as GooseGraphHolder).gooseGraph
     val holder = ViewModelProvider(this)[ActivityNavigatorHandleHolder::class.java]
     holder.installed = true
     val handle = holder.handle
-    // A graph without GooseFragmentAccessors (a hand-built GooseEnvironment, say) just has no
+    // A graph without GooseFragmentAccessors (a bare hand-built Goose, say) just has no
     // legacy binders or overrides — migrated screens still host in ScreenFragments fine.
     val fragmentAccessors = graph as? GooseFragmentAccessors
     val navigator = FragmentNavigator(
         fragmentManager = fragmentManager,
         containerId = containerId,
         binders = fragmentAccessors?.fragmentBinders ?: emptyMap(),
-        resultRouter = (graph as GooseRuntimeAccessors).resultRouter,
+        resultRouter = graph.asGoose().resultRouter,
         navigationOverrides = fragmentAccessors?.fragmentNavigationOverrides ?: emptyMap(),
         stackTag = holder.stackTag,
         defaultNavigation = defaultNavigation,
+        screenHost = screenHost,
     )
     handle.bind(navigator)
     onBackPressedDispatcher.addCallback(this) {

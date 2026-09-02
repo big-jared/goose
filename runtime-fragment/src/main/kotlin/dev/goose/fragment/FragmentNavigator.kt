@@ -124,6 +124,13 @@ class FragmentNavigator(
      * [FragmentNavigationRequest.performDefaultTransaction] for screens you don't customize.
      */
     private val defaultNavigation: FragmentScreenNavigation? = null,
+    /**
+     * The fragment class hosting MIGRATED screens, replacing the default [ScreenFragment] —
+     * for apps whose fragments share a base class (lifecycle hooks, analytics). The class
+     * renders via [gooseScreenView] and is instantiated through the FragmentManager's own
+     * FragmentFactory, exactly like the FragmentManager will recreate it after process death.
+     */
+    private val screenHost: KClass<out Fragment> = ScreenFragment::class,
 ) : BaseNavigator(resultRouter) {
 
     /** Scoped to this activity's stack (the tag is retained across rotation by the installer). */
@@ -189,10 +196,10 @@ class FragmentNavigator(
         performDefaultTransaction(screen)
     }
 
-    /** The binder's fragment for legacy screens; a factory-created ScreenFragment otherwise. */
+    /** The binder's fragment for legacy screens; the screen host (default ScreenFragment) otherwise. */
     private fun createFragmentFor(screen: Screen): Fragment =
         binders[screen::class]?.createFragment(screen)
-            ?: ScreenFragment.newInstance(fragmentManager, screen)
+            ?: fragmentManager.instantiateGooseHost(screenHost, screen)
 
     private fun performDefaultTransaction(screen: Screen) {
         val fragment = createFragmentFor(screen)

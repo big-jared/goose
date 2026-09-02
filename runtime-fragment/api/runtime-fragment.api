@@ -1,3 +1,9 @@
+public final class dev/goose/fragment/ComposableSingletons$ScreenFragmentKt {
+	public static final field INSTANCE Ldev/goose/fragment/ComposableSingletons$ScreenFragmentKt;
+	public fun <init> ()V
+	public final fun getLambda$1396038984$runtime_fragment ()Lkotlin/jvm/functions/Function3;
+}
+
 public final class dev/goose/fragment/FragmentNavigationRequest {
 	public static final field $stable I
 	public final fun createFragment ()Landroidx/fragment/app/Fragment;
@@ -11,8 +17,8 @@ public final class dev/goose/fragment/FragmentNavigationRequest {
 
 public final class dev/goose/fragment/FragmentNavigator : dev/goose/runtime/BaseNavigator {
 	public static final field $stable I
-	public fun <init> (Landroidx/fragment/app/FragmentManager;ILjava/util/Map;Ldev/goose/runtime/ResultRouter;Ldev/goose/runtime/Navigator;Ljava/util/Map;Ljava/lang/String;Ldev/goose/fragment/FragmentScreenNavigation;)V
-	public synthetic fun <init> (Landroidx/fragment/app/FragmentManager;ILjava/util/Map;Ldev/goose/runtime/ResultRouter;Ldev/goose/runtime/Navigator;Ljava/util/Map;Ljava/lang/String;Ldev/goose/fragment/FragmentScreenNavigation;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Landroidx/fragment/app/FragmentManager;ILjava/util/Map;Ldev/goose/runtime/ResultRouter;Ldev/goose/runtime/Navigator;Ljava/util/Map;Ljava/lang/String;Ldev/goose/fragment/FragmentScreenNavigation;Lkotlin/reflect/KClass;)V
+	public synthetic fun <init> (Landroidx/fragment/app/FragmentManager;ILjava/util/Map;Ldev/goose/runtime/ResultRouter;Ldev/goose/runtime/Navigator;Ljava/util/Map;Ljava/lang/String;Ldev/goose/fragment/FragmentScreenNavigation;Lkotlin/reflect/KClass;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun getBackStack ()Ljava/util/List;
 	public fun getParent ()Ldev/goose/runtime/Navigator;
 	public fun goTo (Ldev/goose/runtime/Screen;)V
@@ -114,16 +120,11 @@ public abstract interface annotation class dev/goose/fragment/GooseFragmentBinde
 
 public final class dev/goose/fragment/GooseFragmentEnvironment : dev/goose/fragment/GooseFragmentAccessors, dev/goose/metro/GooseRuntimeAccessors {
 	public static final field $stable I
-	public fun <init> (Ldev/goose/metro/GooseEnvironment;Ljava/util/Map;Ljava/util/Map;)V
-	public synthetic fun <init> (Ldev/goose/metro/GooseEnvironment;Ljava/util/Map;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ldev/goose/metro/Goose;Ljava/util/Map;Ljava/util/Map;)V
+	public synthetic fun <init> (Ldev/goose/metro/Goose;Ljava/util/Map;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun getFragmentBinders ()Ljava/util/Map;
 	public fun getFragmentNavigationOverrides ()Ljava/util/Map;
-	public fun getGooseDecorations ()Ljava/util/Set;
-	public fun getNavSerializersModule ()Lkotlinx/serialization/modules/SerializersModule;
-	public fun getResultRouter ()Ldev/goose/runtime/ResultRouter;
-	public fun getScreenEntries ()Ljava/util/Map;
-	public fun getScreenRegistry ()Ldev/goose/metro/ScreenRegistry;
-	public fun getSerializersModules ()Ljava/util/Set;
+	public fun getGoose ()Ldev/goose/metro/Goose;
 }
 
 public abstract interface annotation class dev/goose/fragment/GooseFragmentNavigation : java/lang/annotation/Annotation {
@@ -136,8 +137,8 @@ public abstract interface class dev/goose/fragment/GooseScopeOwner {
 
 public final class dev/goose/fragment/InstallGooseNavigatorKt {
 	public static final fun getGooseNavigator (Landroidx/fragment/app/FragmentActivity;)Ldev/goose/runtime/Navigator;
-	public static final fun installGooseNavigator (Landroidx/fragment/app/FragmentActivity;ILandroidx/fragment/app/FragmentManager;Ldev/goose/fragment/FragmentScreenNavigation;)Ldev/goose/runtime/NavigatorHandle;
-	public static synthetic fun installGooseNavigator$default (Landroidx/fragment/app/FragmentActivity;ILandroidx/fragment/app/FragmentManager;Ldev/goose/fragment/FragmentScreenNavigation;ILjava/lang/Object;)Ldev/goose/runtime/NavigatorHandle;
+	public static final fun installGooseNavigator (Landroidx/fragment/app/FragmentActivity;ILandroidx/fragment/app/FragmentManager;Ldev/goose/fragment/FragmentScreenNavigation;Lkotlin/reflect/KClass;)Ldev/goose/runtime/NavigatorHandle;
+	public static synthetic fun installGooseNavigator$default (Landroidx/fragment/app/FragmentActivity;ILandroidx/fragment/app/FragmentManager;Ldev/goose/fragment/FragmentScreenNavigation;Lkotlin/reflect/KClass;ILjava/lang/Object;)Ldev/goose/runtime/NavigatorHandle;
 }
 
 public final class dev/goose/fragment/ScreenBundler {
@@ -156,11 +157,16 @@ public final class dev/goose/fragment/ScreenFragment : androidx/fragment/app/Fra
 
 public final class dev/goose/fragment/ScreenFragment$Companion {
 	public final fun newInstance (Landroidx/fragment/app/FragmentManager;Ldev/goose/runtime/Screen;)Ldev/goose/fragment/ScreenFragment;
-	public final fun newInstance (Ldev/goose/runtime/Screen;)Ldev/goose/fragment/ScreenFragment;
 }
 
 public abstract interface class dev/goose/fragment/ScreenFragmentBinder {
 	public abstract fun createFragment (Ldev/goose/runtime/Screen;)Landroidx/fragment/app/Fragment;
+}
+
+public final class dev/goose/fragment/ScreenFragmentKt {
+	public static final fun gooseScreenView (Landroidx/fragment/app/Fragment;Lkotlin/jvm/functions/Function3;)Landroid/view/View;
+	public static synthetic fun gooseScreenView$default (Landroidx/fragment/app/Fragment;Lkotlin/jvm/functions/Function3;ILjava/lang/Object;)Landroid/view/View;
+	public static final fun withGooseScreen (Landroidx/fragment/app/Fragment;Ldev/goose/runtime/Screen;)Landroidx/fragment/app/Fragment;
 }
 
 public final class metro/hints/DevGooseFragmentFragmentScreenEntryDev_zacsweers_metro_AppScopeKt {

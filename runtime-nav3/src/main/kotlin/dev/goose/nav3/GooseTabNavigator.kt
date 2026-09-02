@@ -9,8 +9,7 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.NavKey
-import dev.goose.metro.GooseRuntimeAccessors
-import dev.goose.metro.gooseGraph
+import dev.goose.metro.goose
 import dev.goose.runtime.BaseNavigator
 import dev.goose.runtime.Navigator
 import dev.goose.runtime.PopResult
@@ -144,7 +143,7 @@ fun rememberTabNavigator(
     require(tabs.distinctBy { it.key }.size == tabs.size) {
         "Tab keys must be unique: ${tabs.map { it.key }}"
     }
-    val resultRouter = gooseGraph<GooseRuntimeAccessors>().resultRouter
+    val resultRouter = goose().resultRouter
     val stacks = tabs.associate { spec -> spec.key to rememberGooseBackStack(spec.root) }
     // A restored selection naming a tab this release no longer has falls back to the first tab.
     val currentTabState = rememberSaveable(

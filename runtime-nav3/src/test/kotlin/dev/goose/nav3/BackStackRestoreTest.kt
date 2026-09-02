@@ -5,7 +5,6 @@ import androidx.navigation3.runtime.NavKey
 import androidx.savedstate.serialization.SavedStateConfiguration
 import androidx.savedstate.serialization.encodeToSavedState
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import dev.goose.metro.GooseRuntimeAccessors
 import dev.goose.runtime.Screen
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -34,7 +33,7 @@ class BackStackRestoreTest {
     data class NestedScreen(val id: String) : Screen
 
     private val configuration = SavedStateConfiguration {
-        serializersModule = GooseRuntimeAccessors.provideNavSerializersModule(emptySet())
+        serializersModule = dev.goose.metro.Goose.Builder().build().navSerializersModule
     }
 
     private fun roundTrip(vararg screens: Screen): NavBackStack<NavKey>? {
