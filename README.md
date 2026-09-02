@@ -65,7 +65,7 @@ If your root graph uses a custom scope marker, merge goose's in:
 
 ## Migrating a screen
 
-Five steps (the fifth only when the screen navigates to unmigrated fragments).
+Six steps. The last two only apply while the screen's destinations are still fragments.
 
 **1. A typed screen instead of an args Bundle.** It lives in the feature's `:api` module so
 other features can navigate to it:
@@ -123,7 +123,24 @@ anything else is injected from the graph.
 `requireActivity().gooseNavigator.goTo(ProfileScreen(user.id))`.
 
 **5. Register the fragments the migrated screen calls.** Step 2's `openFollowers()` navigates
-to `FollowersScreen`, and that's still a fragment. Give it a typed screen and one binder:
+to `FollowersScreen`, and that's still a fragment. On the fragment host, `goTo` resolves in
+order:
+
+1. A per-screen `@GooseFragmentNavigation` override, when one exists (step 6).
+2. The host-wide `defaultNavigation` policy, if you passed one to `installGooseNavigator`.
+3. The default transaction, showing whatever fragment is registered for the screen, or the
+   screen's composable once it's migrated.
+
+So this step is about layer 3: tell goose which fragment the screen means. In one module,
+annotate the fragment itself and the Bundle maps from the screen's properties by name:
+
+```kotlin
+@GooseFragment(TermsScreen::class)
+class TermsFragment : Fragment()   // reads "termsId", "revision" from arguments
+```
+
+A binder earns its keep across modules, where the typed screen (in `:api`) and the legacy
+fragment can't see each other, or the Bundle needs hand-building:
 
 ```kotlin
 @GooseFragmentBinder(FollowersScreen::class)
@@ -133,18 +150,22 @@ class FollowersBinder : ScreenFragmentBinder {
 }
 ```
 
-When the fragment's argument keys match the screen's property names, one annotation on the
-fragment itself replaces the binder:
+When a destination migrates, delete its registration and register a composable for the same
+screen. No caller notices.
+
+**6. Route through your existing navigation helpers, when a plain transaction is wrong.** A
+dialog, a `startDialogForResult` extension, a router someone built years ago: a per-screen
+override runs your API instead, and `request.deliverResult(...)` answers a caller suspended in
+`goToForResult`:
 
 ```kotlin
-@GooseFragment(TermsScreen::class)
-class TermsFragment : Fragment()   // reads "termsId", "revision" from arguments
+@GooseFragmentNavigation(PickPlanScreen::class)
+class PickPlanNavigation : FragmentScreenNavigation {
+    override fun navigate(request: FragmentNavigationRequest) {
+        request.fragmentManager.startDialogForResult(...) { request.deliverResult(it) }
+    }
+}
 ```
-
-And a destination that needs custom presentation (a dialog, your own router) gets a
-`@GooseFragmentNavigation` override instead, covered [below](#custom-navigation-and-embedding).
-When a destination later migrates, delete its registration and register a composable for the
-same screen. No caller notices.
 
 That's the whole loop. The migrated screen rides the old back stack in an invisible host
 fragment, so it pushes, pops, and rotates like everything around it. When a whole flow is
@@ -282,22 +303,11 @@ val environment = GooseEnvironment.Builder()
 The `@GooseUi` codegen and session scopes stay Metro-only. Everything else runs on a built
 environment.
 
-## Custom navigation and embedding
+## Custom hosts and embedding
 
-Have your own dialog helpers or router? One annotation adapts a screen to it, and
-`request.deliverResult(...)` answers `goToForResult` callers:
-
-```kotlin
-@GooseFragmentNavigation(PickPlanScreen::class)
-class PickPlanNavigation : FragmentScreenNavigation {
-    override fun navigate(request: FragmentNavigationRequest) {
-        request.fragmentManager.startDialogForResult(...) { request.deliverResult(it) }
-    }
-}
-```
-
-`installGooseNavigator` also takes a host-wide `defaultNavigation` policy and a custom
-FragmentManager for nested stack ownership.
+Per-screen navigation overrides are migration step 6. The host is configurable too:
+`installGooseNavigator` takes a host-wide `defaultNavigation` policy that sees every screen
+without a per-screen override, and a custom FragmentManager for nested stack ownership.
 
 Embedding without navigating works too: `ScreenFragment.newInstance(childFragmentManager,
 screen)` attaches a goose screen in your own container, no back stack entry. It finds the
