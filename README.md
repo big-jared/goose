@@ -57,8 +57,10 @@ class MainActivity : FragmentActivity() {
 ```
 
 That's the whole integration. Your FragmentManager back stack is still the stack, and the
-navigator is available anywhere as `activity.gooseNavigator`. A pure-Compose activity skips
-both: `setContent` with `GooseCompositionLocals` + `NavigableGooseContent` is the setup there.
+navigator is available anywhere as `activity.gooseNavigator`. Both pieces are migration-only:
+`GooseGraphHolder` exists so fragments (which have no constructor to hand the graph through)
+can find it, and a pure-Compose activity skips both — `setContent` with
+`GooseCompositionLocals` + `NavigableGooseContent` is the setup there.
 
 If your root graph uses a custom scope marker, merge goose's in:
 `@DependencyGraph(scope = MyRootScope::class, additionalScopes = [AppScope::class])`.
@@ -304,36 +306,40 @@ top-level in its package (where factory codegen puts them). If your ViewModels e
 class, tell the plugin once:
 `-P plugin:dev.goose.compiler-plugin:extraViewModelBases=AppViewModel`.
 
-## One builder, three DI stories
+## How Goose gets built
 
-Everything goose hosts need is one object, `Goose`, with one construction path,
-`Goose.Builder` — the analogue of Circuit's `Circuit`. What differs is who calls the builder:
+Everything hosts need is one object, `Goose`, with one construction path, `Goose.Builder`
+(the analogue of Circuit's `Circuit`). The only question is who calls the builder — find your
+case:
 
-**Metro**: goose ships the default provider, so most apps build nothing. To configure it,
-replace the provider — contributed screen entries flow in as multibindings, app-level config
-goes inline:
+**On Metro: nobody. Skip this section.** The library's `DefaultGooseModule` builds it from
+your features' contributions, which is the setup at the top of this README. The one reason to
+touch the builder is an app-level override at assembly time, like a debug build swapping a
+screen's UI — replace the default provider and add your override to the same inputs:
 
 ```kotlin
 @ContributesTo(AppScope::class, replaces = [DefaultGooseModule::class])
 interface GooseModule {
     companion object {
-        @Provides @SingleIn(AppScope::class)
+        @Provides @SingleIn(AppScope::class)   // keep @SingleIn, or awaited results break
         fun provideGoose(
             screenEntries: Map<KClass<*>, Provider<ScreenEntry>>,
             serializersModules: Set<SerializersModule>,
         ): Goose = Goose.Builder()
             .addScreens(screenEntries)
             .addSerializers(serializersModules)
+            .addUi<ProfileScreen> { s, m -> DebugProfileUi(s, m) }   // wins over the contributed one
             .build()
     }
 }
 ```
 
-**Dagger, Hilt, kotlin-inject**: the same provider in your own graph, with your own
-multibindings, registering screens via `screenUi { }` entries.
+**On Dagger, Hilt, or kotlin-inject: your graph calls it.** This is your setup path — a
+provider like the one above in your own component, fed by your own multibindings, with screens
+registered as `screenUi { }` entries. No Metro in your build.
 
-**No DI**: call the builder in `Application.onCreate` and hand the result to
-`GooseGraphHolder` / `GooseCompositionLocals`, entries closing over whatever you use instead:
+**With no DI: you call it.** In `Application.onCreate`, entries closing over whatever you use
+instead, and the result is what you hand to `GooseGraphHolder` / `GooseCompositionLocals`:
 
 ```kotlin
 val goose = Goose.Builder()
