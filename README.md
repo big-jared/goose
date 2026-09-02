@@ -259,6 +259,29 @@ FragmentManager back stack
 └── DetailFragment                    // legacy
 ```
 
+### The migrated screen calls legacy fragments too
+
+Step 2's `openFollowers()` navigates to `FollowersScreen`, and that screen is still a fragment.
+This is the `binders` lookup in the snippet above: give the unmigrated fragment a typed screen
+and one binder, and the navigator pushes the real fragment for it:
+
+```kotlin
+@Serializable data class FollowersScreen(val userId: String) : Screen
+
+@GooseFragmentBinder(FollowersScreen::class)
+class FollowersBinder : ScreenFragmentBinder {
+    override fun createFragment(screen: Screen) =
+        FollowersFragment.newInstance((screen as FollowersScreen).userId)
+}
+```
+
+The annotation is the entire registration, same as `@GooseUi`, and constructor parameters are
+injected from the app graph if the binder needs any. When `FollowersFragment` migrates, delete
+the binder and register a composable for the SAME screen: the ViewModel that navigates there
+never changes. Between the two registrations every screen the migrated ViewModel can reach is
+covered, which is why "migrate one screen" is a shippable PR even when everything around it is
+still fragments.
+
 ### Your theme, inside the fragment host
 
 Each `ScreenFragment` roots its own ComposeView, outside whatever `AppTheme { ... }` your
@@ -365,6 +388,12 @@ imports, and what `goTo(ProfileScreen(...))` looks up.
 A flow-shared ViewModel is never a parameter. Call `flowViewModel()` inside the function
 (see [nested flows](#nested-flows-and-deep-links)). The hand-written forms also remain
 supported: a `@Provides` function with `screenUi { }`, or a `ScreenUi<S>` class.
+
+The fragment-interop annotations expand the same way: `@GooseFragmentBinder` and
+`@GooseFragmentNavigation` (later section) each generate the contributed module, the map key,
+and a provider wired from the class's constructor, so a migrating team writes one annotation
+per registration and no DI plumbing. The hand-written Metro form
+(`@ContributesIntoMap` + `@ClassKey` + `@Inject`) stays equivalent for all of them.
 
 ## Typed results
 
@@ -711,9 +740,7 @@ And you contribute one adapter per screen telling the fragment host how to execu
 whatever API your project already trusts:
 
 ```kotlin
-@ContributesIntoMap(AppScope::class, binding = binding<FragmentScreenNavigation>())
-@ClassKey(PickPlanScreen::class)
-@Inject
+@GooseFragmentNavigation(PickPlanScreen::class)
 class PickPlanNavigation : FragmentScreenNavigation {
     override fun navigate(request: FragmentNavigationRequest) {
         val screen = request.screen as PickPlanScreen
@@ -770,7 +797,9 @@ childFragmentManager.commit { add(R.id.panel_container, fragment) }
 
 Prefer this `newInstance(fragmentManager, screen)` overload. It creates the fragment through
 that FragmentManager's own `FragmentFactory`, so a host with a custom factory sees goose's
-fragments go through the same path as its own.
+fragments go through the same path as its own. Gaggle does exactly this: `SupportFlowFragment`
+embeds `SupportStatusPanelScreen` in a container under its chat stack, and the embedded panel
+still resolves the flow's scoped session.
 
 The embedded fragment wires itself up when its view is created. You configure it by being the
 right kind of parent, not by passing anything in:
@@ -798,7 +827,21 @@ with `GooseContent(screen, navigator)`, no stack host required.
 
 ## Animations
 
-Three tools, all optional.
+Four tools, all optional.
+
+**Host default transitions.** Most screens should move the same way, so the default lives on
+the host rather than on every screen. Pass `defaultTransitions` to `NavigableGooseContent` or
+`TabbedGooseContent` and every screen without its own `ScreenTransitions` uses it:
+
+```kotlin
+TabbedGooseContent(tabs, defaultTransitions = SlideScreenTransitions)
+```
+
+`SlideScreenTransitions` ships with the library: pushes slide in from the right with the
+outgoing screen drifting left beneath, pops reverse the motion, and the predictive back
+gesture previews the pop as the user drags. For the swipe-back gesture to reach your app at
+all, opt in once in the manifest with `android:enableOnBackInvokedCallback="true"` on the
+`<application>` element.
 
 **Per-screen transitions.** A screen declares how it enters and leaves by implementing
 `ScreenTransitions`, the same pattern as `OverlayScreen`:
@@ -815,7 +858,8 @@ data class CheckoutScreen(val itemId: String? = null) :
 
 That checkout now slides up over the cart and slides back down when it pops, from every call
 site, because the screen owns its presentation. Screens without the interface get the host's
-default. Nothing here is serialized. The functions are behavior, not state.
+`defaultTransitions`, or Nav3's standard transition if none was set. Nothing here is
+serialized. The functions are behavior, not state.
 
 **Shared elements.** Tag an element on both screens with the same key and it animates between
 them during the transition:
@@ -831,6 +875,12 @@ Declare the key type in an `:api` module so both features can use it without dep
 other. The modifier no-ops when no transition scope exists (for example, while the screen is
 hosted inside a fragment mid-migration), so it is safe to add before the app is fully
 converted.
+
+For text that changes size between screens (a list row's title growing into a detail
+headline), use `sharedScreenBounds` with the same keys instead. `sharedScreenElement` renders
+each endpoint at its own real size, and the larger rendering clips against the animating
+bounds mid-flight. `sharedScreenBounds` scales one rendering to the bounds, so glyphs never
+crop.
 
 **Dialogs.** Mark a screen `OverlayScreen` and it renders as a dialog above the previous
 screen, on the same back stack, with the same result semantics: push it with `goTo` or

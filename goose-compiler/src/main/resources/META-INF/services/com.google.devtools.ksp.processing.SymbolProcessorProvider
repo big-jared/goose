@@ -1,1 +1,2 @@
 dev.goose.compiler.GooseUiProcessorProvider
+dev.goose.compiler.GooseFragmentProcessorProvider

@@ -4,12 +4,12 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Surface
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,6 +32,7 @@ import dev.goose.nav3.TabSpec
 import dev.goose.nav3.TabbedGooseContent
 import dev.goose.nav3.rememberGooseBackStack
 import dev.goose.nav3.rememberTabNavigator
+import dev.goose.runtime.SlideScreenTransitions
 import dev.goose.runtime.StackKey
 
 /**
@@ -53,7 +54,10 @@ class MainActivity : FragmentActivity() {
                     Surface(Modifier.fillMaxSize()) {
                         val session = sessionManager.current
                         if (session == null) {
-                            NavigableGooseContent(rememberGooseBackStack(LoginScreen))
+                            NavigableGooseContent(
+                                rememberGooseBackStack(LoginScreen),
+                                defaultTransitions = SlideScreenTransitions,
+                            )
                         } else {
                             GooseScope(session) {
                                 LoggedInShell(sessionManager)
@@ -96,23 +100,30 @@ private fun LoggedInShell(sessionManager: SessionManager) {
         tabs.switchTo(GaggleTabs.Shop).goTo(ProductScreen(productId))
     }
     Column(Modifier.fillMaxSize()) {
-        TabbedGooseContent(tabs, Modifier.weight(1f))
+        // Side-to-side pushes with the predictive back gesture previewing the pop; individual
+        // screens (the checkout wizard, the review form) still slide up via ScreenTransitions.
+        TabbedGooseContent(tabs, Modifier.weight(1f), defaultTransitions = SlideScreenTransitions)
         TabBar(tabs)
     }
 }
 
 @Composable
 private fun TabBar(tabs: GooseTabNavigator) {
-    Row(Modifier.fillMaxWidth()) {
-        TabButton(tabs, GaggleTabs.Shop, "Shop")
-        TabButton(tabs, GaggleTabs.Cart, "Cart")
-        TabButton(tabs, GaggleTabs.Profile, "Profile")
+    NavigationBar {
+        TabItem(tabs, GaggleTabs.Shop, "Shop", "🏪")
+        TabItem(tabs, GaggleTabs.Cart, "Cart", "🛒")
+        TabItem(tabs, GaggleTabs.Profile, "Profile", "🪿")
     }
 }
 
 @Composable
-private fun TabButton(tabs: GooseTabNavigator, key: StackKey, label: String) {
-    TextButton(onClick = { tabs.selectTab(key) }) {
-        Text(if (tabs.currentStack == key) "• $label" else label)
-    }
+private fun RowScope.TabItem(tabs: GooseTabNavigator, key: StackKey, label: String, emoji: String) {
+    NavigationBarItem(
+        selected = tabs.currentStack == key,
+        // selectTab, not switchTo: re-selecting the current tab pops it to its root, the
+        // platform-conventional tab-bar gesture.
+        onClick = { tabs.selectTab(key) },
+        icon = { Text(emoji) },
+        label = { Text(label) },
+    )
 }

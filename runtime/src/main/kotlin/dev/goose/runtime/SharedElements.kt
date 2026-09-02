@@ -30,3 +30,26 @@ fun Modifier.sharedScreenElement(key: Any): Modifier {
         this@sharedScreenElement.sharedElement(rememberSharedContentState(key), anim)
     }
 }
+
+/**
+ * Like [sharedScreenElement], but the in-flight content is scaled to fit the animating bounds
+ * (`sharedBounds` + `ScaleToBounds`) instead of being rendered at each end's own size. Use this
+ * for TEXT that changes font size between screens (a list row's title growing into a detail
+ * headline): plain `sharedElement` measures text at both endpoints' real sizes and the larger
+ * rendering clips against the interpolated bounds mid-flight, while scale-to-bounds draws one
+ * rendering scaled, so glyphs never crop. Same key rules and graceful no-op as
+ * [sharedScreenElement].
+ */
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+fun Modifier.sharedScreenBounds(key: Any): Modifier {
+    val sts = LocalSharedTransitionScope.current ?: return this
+    val anim = LocalScreenAnimatedContentScope.current ?: return this
+    return with(sts) {
+        this@sharedScreenBounds.sharedBounds(
+            rememberSharedContentState(key),
+            anim,
+            resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(),
+        )
+    }
+}

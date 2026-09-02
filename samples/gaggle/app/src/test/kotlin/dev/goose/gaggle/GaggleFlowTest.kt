@@ -4,12 +4,14 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.Espresso.onView
@@ -56,7 +58,7 @@ class GaggleFlowTest {
     fun loginAndLogout() {
         launch().use {
             signIn()
-            composeRule.onNodeWithText("• Shop").assertIsDisplayed()
+            composeRule.onNode(hasText("Shop") and isSelected()).assertIsDisplayed()
             composeRule.onNodeWithText("Profile").performClick()
             composeRule.waitFor("Hi, Goose Fan")
             composeRule.onNodeWithText("Log out").performClick()
@@ -114,7 +116,7 @@ class GaggleFlowTest {
             composeRule.waitFor("A quick look. The full page has related products and add-to-cart.")
             composeRule.onNodeWithText("Open full page").performClick()
             composeRule.waitFor("Add to cart")
-            composeRule.onNodeWithText("Related").assertIsDisplayed()
+            composeRule.onNodeWithText("Related").performScrollTo().assertIsDisplayed()
         }
     }
 
@@ -245,7 +247,7 @@ class GaggleFlowTest {
                 )
             }
             composeRule.waitFor("Honk amplifier")
-            composeRule.onNodeWithText("• Shop").assertIsDisplayed()
+            composeRule.onNode(hasText("Shop") and isSelected()).assertIsDisplayed()
         }
     }
 

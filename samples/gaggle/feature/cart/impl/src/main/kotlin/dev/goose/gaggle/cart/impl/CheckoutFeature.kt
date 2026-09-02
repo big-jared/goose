@@ -23,7 +23,6 @@ import dev.goose.gaggle.auth.api.LoggedInScope
 import dev.goose.gaggle.cart.api.CheckoutScreen
 import dev.goose.mavericks.flowViewModel
 import dev.goose.metro.GooseScope
-import dev.goose.metro.gooseGraph
 import dev.goose.metro.rememberRetainedGraph
 import dev.goose.nav3.NavigableGooseContent
 import dev.goose.nav3.rememberGooseBackStack
@@ -31,24 +30,19 @@ import dev.goose.runtime.FlowViewModelScope
 import dev.goose.runtime.GooseUi
 import dev.goose.runtime.LocalNavigator
 import dev.goose.runtime.Screen
+import dev.goose.runtime.SlideScreenTransitions
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
 // Wizard steps are internal to the flow by module structure (public for Metro merging).
 @Serializable
-data object ShippingStepScreen : Screen {
-    private fun readResolve(): Any = ShippingStepScreen
-}
+data object ShippingStepScreen : Screen
 
 @Serializable
-data object GiftNoteStepScreen : Screen {
-    private fun readResolve(): Any = GiftNoteStepScreen
-}
+data object GiftNoteStepScreen : Screen
 
 @Serializable
-data object ConfirmStepScreen : Screen {
-    private fun readResolve(): Any = ConfirmStepScreen
-}
+data object ConfirmStepScreen : Screen
 
 data class CheckoutFlowState(
     /** Survives process death mid-wizard via Mavericks' own machinery. */
@@ -78,9 +72,8 @@ class CheckoutFlowViewModel(initialState: CheckoutFlowState) :
  */
 @GooseUi(CheckoutScreen::class, scope = LoggedInScope::class)
 @Composable
-fun CheckoutUi(modifier: Modifier) {
+fun CheckoutUi(modifier: Modifier, graphFactory: CheckoutGraph.Factory) {
     val parent = LocalNavigator.current
-    val graphFactory = gooseGraph<CheckoutGraph.Factory>()
     val checkoutGraph = rememberRetainedGraph { graphFactory.createCheckoutGraph() }
     GooseScope(checkoutGraph) {
         FlowViewModelScope {
@@ -91,7 +84,12 @@ fun CheckoutUi(modifier: Modifier) {
                     style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier.padding(16.dp),
                 )
-                NavigableGooseContent(steps, Modifier.fillMaxSize(), parent = parent)
+                NavigableGooseContent(
+                    steps,
+                    Modifier.fillMaxSize(),
+                    parent = parent,
+                    defaultTransitions = SlideScreenTransitions,
+                )
             }
         }
     }
@@ -144,10 +142,14 @@ fun GiftNoteStepUi(modifier: Modifier, session: CheckoutSession) {
     }
 }
 
-/** Demonstrates: the final step answering the ORIGINAL caller by popping the parent stack. */
+/**
+ * Demonstrates: the final step answering the ORIGINAL caller by popping the parent stack, and
+ * a checkout-scoped screen reaching UP the registry chain for a session dependency (the cart
+ * lives in LoggedInScope; this screen resolves checkout -> session).
+ */
 @GooseUi(ConfirmStepScreen::class, scope = CheckoutScope::class)
 @Composable
-fun ConfirmStepUi(modifier: Modifier, session: CheckoutSession) {
+fun ConfirmStepUi(modifier: Modifier, session: CheckoutSession, cart: SessionCart) {
     val navigator = LocalNavigator.current
     val flowViewModel = flowViewModel<CheckoutFlowViewModel, CheckoutFlowState>()
     val state by flowViewModel.collectAsState()
@@ -155,8 +157,9 @@ fun ConfirmStepUi(modifier: Modifier, session: CheckoutSession) {
         Text("Step 3: Confirm", style = MaterialTheme.typography.titleLarge)
         Text("Ship to: ${state.address}")
         Text("Gift note: ${session.giftNote.ifEmpty { "none" }}")
+        Text("Items: ${cart.items.sumOf { it.qty }} · Order total: $${cart.totalCents / 100}")
         Button(onClick = {
-            navigator.parent?.pop(CheckoutResult(state.address, itemCount = 0))
+            navigator.parent?.pop(CheckoutResult(state.address, itemCount = cart.items.sumOf { it.qty }))
         }) { Text("Place order") }
     }
 }

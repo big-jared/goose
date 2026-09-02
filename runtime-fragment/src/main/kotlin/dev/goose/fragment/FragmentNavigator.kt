@@ -15,13 +15,13 @@ import kotlin.reflect.KClass
 /**
  * Maps a [Screen] to the legacy [Fragment] that still implements it. Contributed per screen:
  * ```
- * @ContributesIntoMap(AppScope::class)
- * @ClassKey(DetailScreen::class)
- * @Inject
+ * @GooseFragmentBinder(DetailScreen::class)
  * class DetailFragmentBinder : ScreenFragmentBinder {
  *   override fun createFragment(screen: Screen) = DetailFragment.newInstance(screen as DetailScreen)
  * }
  * ```
+ * (goose-compiler expands the annotation into the Metro registration; hand-written
+ * `@ContributesIntoMap(AppScope::class) @ClassKey(...) @Inject` works identically.)
  */
 fun interface ScreenFragmentBinder {
     fun createFragment(screen: Screen): Fragment
@@ -33,15 +33,16 @@ fun interface ScreenFragmentBinder {
  * hand off to an existing navigation framework, or start an activity. Contribute keyed by
  * screen class:
  * ```
- * @ContributesIntoMap(AppScope::class, binding = binding<FragmentScreenNavigation>())
- * @ClassKey(HelpScreen::class)
- * @Inject
+ * @GooseFragmentNavigation(HelpScreen::class)
  * class HelpNavigation : FragmentScreenNavigation {
  *   override fun navigate(request: FragmentNavigationRequest) {
  *     HelpDialogFragment().show(request.fragmentManager, "help")
  *   }
  * }
  * ```
+ * (goose-compiler expands the annotation into the Metro registration; hand-written
+ * `@ContributesIntoMap(AppScope::class, binding = binding<FragmentScreenNavigation>())
+ * @ClassKey(...) @Inject` works identically.)
  * If the destination is pushed onto the FragmentManager back stack, use
  * [FragmentNavigationRequest.backStackEntryName] as the `addToBackStack` name so awaited results
  * resolve when it pops. If it bypasses the back stack (a dialog, an activity), answer awaiting

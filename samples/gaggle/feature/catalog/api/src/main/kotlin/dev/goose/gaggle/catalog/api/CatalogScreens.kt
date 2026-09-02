@@ -3,37 +3,27 @@ package dev.goose.gaggle.catalog.api
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.ui.window.DialogProperties
 import dev.goose.runtime.OverlayScreen
+import dev.goose.runtime.PopResult
 import dev.goose.runtime.Screen
 import dev.goose.runtime.ScreenTransitions
+import dev.goose.runtime.ScreenWithResult
 import kotlinx.serialization.Serializable
 
 @Serializable
-data object CatalogScreen : Screen {
-    private fun readResolve(): Any = CatalogScreen
-}
+data object CatalogScreen : Screen
 
 /**
  * Product detail. Related products push MORE ProductScreens: stacking the same screen type.
- *
- * The transitions are a gentle fade + scale rather than the default slide: the hero content
- * (emoji + title) travels via shared elements, and a screen-level slide would fight the
- * shared bounds animation. The container stays still; the content does the moving.
+ * No ScreenTransitions here: the host's side-to-side default slides the page while the hero
+ * content (emoji + title) travels via shared elements over the slide.
  */
 @Serializable
-data class ProductScreen(val productId: String) : Screen, ScreenTransitions {
-    override fun enterTransition() =
-        (fadeIn(tween(220)) + scaleIn(initialScale = 0.94f, animationSpec = tween(220)))
-            .togetherWith(fadeOut(tween(220)))
-
-    override fun exitTransition() =
-        fadeIn(tween(220))
-            .togetherWith(fadeOut(tween(220)) + scaleOut(targetScale = 0.94f, animationSpec = tween(220)))
-}
+data class ProductScreen(val productId: String) : Screen
 
 /**
  * A quick-look dialog: a full OverlayScreen with custom window properties — edge-to-edge width
@@ -43,6 +33,20 @@ data class ProductScreen(val productId: String) : Screen, ScreenTransitions {
 data class ProductPeekScreen(val productId: String) : OverlayScreen {
     override fun dialogProperties() = DialogProperties(usePlatformDefaultWidth = false)
 }
+
+/**
+ * The write-a-review form: slides up modally (ScreenTransitions) over the product page and
+ * answers its caller with a typed result. The product screen owns the repository write; this
+ * screen only asks the question.
+ */
+@Serializable
+data class WriteReviewScreen(val productId: String) : ScreenWithResult<ReviewPosted>, ScreenTransitions {
+    override fun enterTransition() = slideInVertically(tween(250)) { it } togetherWith fadeOut(tween(250))
+    override fun exitTransition() = fadeIn(tween(250)) togetherWith slideOutVertically(tween(250)) { it }
+}
+
+@Serializable
+data class ReviewPosted(val rating: Int, val text: String) : PopResult
 
 /**
  * Shared-element keys, declared in :api so the list and detail screens (and any other feature)

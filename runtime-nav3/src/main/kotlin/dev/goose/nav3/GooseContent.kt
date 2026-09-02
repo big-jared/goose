@@ -2,6 +2,7 @@ package dev.goose.nav3
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -70,6 +71,8 @@ fun rememberGooseBackStack(initial: List<Screen>): NavBackStack<NavKey> {
 
 internal val navBackStackSerializer = NavBackStack.serializer(PolymorphicSerializer(NavKey::class))
 
+private const val ROOT_FADE_MS = 220
+
 /** Decodes a saved stack, or returns null (restart fresh) when the saved form is unreadable. */
 internal fun decodeBackStackOrNull(
     saved: SavedState,
@@ -96,6 +99,9 @@ internal fun decodeBackStackOrNull(
  * - A [SharedTransitionLayout] wraps the display; screens opt in via Modifier.sharedScreenElement.
  * - Pass [parent] when nesting (a flow hosted inside another stack's entry): unhandled root pops
  *   bubble up the navigator tree. [onRootBack] fires when a back event goes entirely unhandled.
+ * - [defaultTransitions] animates every screen that doesn't declare its own [ScreenTransitions]
+ *   (e.g. [dev.goose.runtime.SlideScreenTransitions] for conventional side-to-side stack motion,
+ *   previewed by the predictive back gesture); screens implementing the interface still win.
  */
 @Composable
 fun NavigableGooseContent(
@@ -103,6 +109,7 @@ fun NavigableGooseContent(
     modifier: Modifier = Modifier,
     parent: Navigator? = null,
     onRootBack: (() -> Unit)? = null,
+    defaultTransitions: ScreenTransitions? = null,
 ) {
     val resultRouter = gooseGraph<GooseRuntimeAccessors>().resultRouter
     // Stable per-stack-instance identity: scopes result routing to this stack, so equal screen
@@ -118,6 +125,7 @@ fun NavigableGooseContent(
         isStackRoot = { key -> key === backStack.firstOrNull() },
         modifier = modifier,
         onRootBack = onRootBack,
+        defaultTransitions = defaultTransitions,
     )
 }
 
@@ -130,6 +138,7 @@ internal fun GooseNavDisplay(
     isStackRoot: (NavKey) -> Boolean,
     modifier: Modifier = Modifier,
     onRootBack: (() -> Unit)? = null,
+    defaultTransitions: ScreenTransitions? = null,
 ) {
     SharedTransitionLayout(modifier) {
         CompositionLocalProvider(LocalSharedTransitionScope provides this) {
@@ -156,12 +165,26 @@ internal fun GooseNavDisplay(
                         } else {
                             emptyMap()
                         }
-                    if (screen is ScreenTransitions) {
-                        screen.enterTransition()?.let { t -> metadata = metadata + NavDisplay.transitionSpec { t } }
-                        screen.exitTransition()?.let { t -> metadata = metadata + NavDisplay.popTransitionSpec { t } }
-                        metadata = metadata + NavDisplay.predictivePopTransitionSpec { edge ->
-                            screen.predictivePopTransition(edge)
-                                ?: (fadeIn() togetherWith fadeOut())
+                    // A stack ROOT leaving the top is a stack CHANGE (a tab switch, or back
+                    // falling through to the primary tab), never a pop within one stack — so
+                    // roots crossfade instead of playing the pop motion, and the predictive
+                    // gesture previews the same fade. Non-root entries animate per screen,
+                    // falling back to the host default.
+                    if (isStackRoot(key)) {
+                        val fade = { fadeIn(tween(ROOT_FADE_MS)) togetherWith fadeOut(tween(ROOT_FADE_MS)) }
+                        metadata = metadata +
+                            NavDisplay.transitionSpec { fade() } +
+                            NavDisplay.popTransitionSpec { fade() } +
+                            NavDisplay.predictivePopTransitionSpec { _ -> fade() }
+                    } else {
+                        val transitions = screen as? ScreenTransitions ?: defaultTransitions
+                        if (transitions != null) {
+                            transitions.enterTransition()?.let { t -> metadata = metadata + NavDisplay.transitionSpec { t } }
+                            transitions.exitTransition()?.let { t -> metadata = metadata + NavDisplay.popTransitionSpec { t } }
+                            metadata = metadata + NavDisplay.predictivePopTransitionSpec { edge ->
+                                transitions.predictivePopTransition(edge)
+                                    ?: (fadeIn() togetherWith fadeOut())
+                            }
                         }
                     }
                     NavEntry(key, metadata = metadata) {

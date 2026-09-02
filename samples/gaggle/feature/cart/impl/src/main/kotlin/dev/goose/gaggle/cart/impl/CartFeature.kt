@@ -12,6 +12,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.goose.gaggle.auth.api.GaggleTabs
@@ -69,12 +70,23 @@ fun CartUi(modifier: Modifier, cart: SessionCart) {
         Text("Cart", style = MaterialTheme.typography.headlineMedium)
         if (cart.items.isEmpty() && cart.lastOrder == null) Text("Nothing here yet. Honk at the shop.")
         cart.items.forEach { item ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(item.name)
-                TextButton(onClick = { holder.askRemove(item) }) { Text("Remove") }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("×${item.qty} · $${item.lineTotalCents / 100}")
+                    TextButton(onClick = { holder.askRemove(item) }) { Text("Remove") }
+                }
             }
         }
         if (cart.items.isNotEmpty()) {
+            Text(
+                "Total: $${cart.totalCents / 100}",
+                style = MaterialTheme.typography.titleMedium,
+            )
             Button(onClick = holder::checkout) { Text("Checkout (${cart.items.size})") }
         }
         cart.lastOrder?.let { order ->

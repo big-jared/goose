@@ -4,7 +4,8 @@
         android:name=".GaggleApplication"
         android:label="Gaggle"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
-        android:supportsRtl="true">
+        android:supportsRtl="true"
+        android:enableOnBackInvokedCallback="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

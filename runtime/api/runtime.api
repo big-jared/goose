@@ -122,7 +122,16 @@ public abstract interface class dev/goose/runtime/ScreenWithResult : dev/goose/r
 public final class dev/goose/runtime/SharedElementsKt {
 	public static final fun getLocalScreenAnimatedContentScope ()Landroidx/compose/runtime/ProvidableCompositionLocal;
 	public static final fun getLocalSharedTransitionScope ()Landroidx/compose/runtime/ProvidableCompositionLocal;
+	public static final fun sharedScreenBounds (Landroidx/compose/ui/Modifier;Ljava/lang/Object;Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/Modifier;
 	public static final fun sharedScreenElement (Landroidx/compose/ui/Modifier;Ljava/lang/Object;Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/Modifier;
+}
+
+public final class dev/goose/runtime/SlideScreenTransitions : dev/goose/runtime/ScreenTransitions {
+	public static final field $stable I
+	public static final field INSTANCE Ldev/goose/runtime/SlideScreenTransitions;
+	public fun enterTransition ()Landroidx/compose/animation/ContentTransform;
+	public fun exitTransition ()Landroidx/compose/animation/ContentTransform;
+	public fun predictivePopTransition (I)Landroidx/compose/animation/ContentTransform;
 }
 
 public abstract interface class dev/goose/runtime/StackHost : dev/goose/runtime/Navigator {

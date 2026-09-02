@@ -12,14 +12,10 @@ import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
 import com.google.devtools.ksp.processing.SymbolProcessorProvider
 import com.google.devtools.ksp.symbol.FunctionKind
 import com.google.devtools.ksp.symbol.KSAnnotated
-import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
-import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSValueParameter
 import com.google.devtools.ksp.symbol.Modifier
-import com.google.devtools.ksp.symbol.Nullability
 import com.google.devtools.ksp.validate
 
 private const val GOOSE_UI = "dev.goose.runtime.GooseUi"
@@ -31,7 +27,6 @@ private const val MAVERICKS_VM = "com.airbnb.mvrx.MavericksViewModel"
 private const val NAVIGATOR = "dev.goose.runtime.Navigator"
 private const val ASSISTED_FACTORY = "dev.zacsweers.metro.AssistedFactory"
 private const val DAGGER_ASSISTED_FACTORY = "dagger.assisted.AssistedFactory"
-private const val QUALIFIER = "dev.zacsweers.metro.Qualifier"
 private const val SERIALIZABLE = "kotlinx.serialization.Serializable"
 private const val APP_SCOPE = "dev.zacsweers.metro.AppScope"
 
@@ -263,7 +258,7 @@ class GooseUiProcessor(
                     return
                 }
                 else -> {
-                    injected += Injected(name, type.render(), param.renderQualifiers(function) ?: return)
+                    injected += Injected(name, type.render(), param.renderQualifiers(logger, "@GooseUi", function) ?: return)
                     callArgs += "$name = $name"
                 }
             }
@@ -505,67 +500,6 @@ class GooseUiProcessor(
                 params[1].type.resolve().declaration.qualifiedName?.asString() == NAVIGATOR &&
                 create.returnType?.resolve()?.declaration?.qualifiedName?.asString() == vmFqn
         }
-
-    /**
-     * Renders the Metro qualifier annotations on an injected parameter (`@Named("x") ` etc.) so
-     * they carry over to the generated provider parameter. Returns "" when there are none, null
-     * after logging when a qualifier has arguments the generator cannot render.
-     */
-    private fun KSValueParameter.renderQualifiers(function: KSFunctionDeclaration): String? {
-        val rendered = StringBuilder()
-        for (ann in annotations) {
-            val annDecl = ann.annotationType.resolve().declaration
-            val isQualifier = annDecl.annotations.any {
-                it.annotationType.resolve().declaration.qualifiedName?.asString() == QUALIFIER
-            }
-            if (!isQualifier) continue
-            val fqn = annDecl.qualifiedName?.asString() ?: continue
-            val args = ann.arguments.mapNotNull { arg ->
-                val value = arg.value ?: return@mapNotNull null
-                val renderedValue = renderAnnotationValue(value) ?: run {
-                    logger.error(
-                        "@GooseUi: cannot render qualifier @${annDecl.simpleName.asString()} argument " +
-                            "'${arg.name?.asString()}' (${value::class.simpleName}); use a hand-written " +
-                            "@Provides registration for this screen",
-                        function,
-                    )
-                    return null
-                }
-                arg.name?.asString()?.let { "$it = $renderedValue" } ?: renderedValue
-            }
-            rendered.append("@$fqn")
-            if (args.isNotEmpty()) rendered.append(args.joinToString(", ", "(", ")"))
-            rendered.append(" ")
-        }
-        return rendered.toString()
-    }
-
-    private fun renderAnnotationValue(value: Any): String? = when (value) {
-        is String -> "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
-        is Char -> "'$value'"
-        is Boolean, is Int, is Short, is Byte, is Double -> value.toString()
-        is Long -> "${value}L"
-        is Float -> "${value}f"
-        is KSType -> value.declaration.qualifiedName?.asString()?.let { "$it::class" }
-        is KSDeclaration -> value.qualifiedName?.asString()
-        is List<*> -> value.map { it?.let(::renderAnnotationValue) ?: return null }
-            .joinToString(", ", "[", "]")
-        else -> null
-    }
-
-    private fun KSAnnotation.classArgument(name: String, index: Int): KSType? =
-        (arguments.firstOrNull { it.name?.asString() == name }
-            ?: arguments.getOrNull(index)?.takeIf { it.name == null })?.value as? KSType
-
-    /** Renders a type with qualified names, generics, and nullability. */
-    private fun KSType.render(): String {
-        val base = declaration.qualifiedName?.asString() ?: declaration.simpleName.asString()
-        val args = if (arguments.isEmpty()) "" else arguments.joinToString(", ", "<", ">") { arg ->
-            arg.type?.resolve()?.render() ?: "*"
-        }
-        val nullable = if (nullability == Nullability.NULLABLE) "?" else ""
-        return "$base$args$nullable"
-    }
 }
 
 class GooseUiProcessorProvider : SymbolProcessorProvider {

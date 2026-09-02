@@ -2,10 +2,12 @@ package dev.goose.gaggle
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.assertion.ViewAssertions.matches
@@ -67,11 +69,11 @@ class GaggleHardeningTest {
             composeRule.waitFor("Premium pond pellets")
             composeRule.onAllNodes(hasText("Premium pond pellets", substring = true)).onFirst().performClick()
             composeRule.waitFor("Related")
-            composeRule.onAllNodes(hasText("🛖 Floating nest platform", substring = true)).onFirst().performClick()
+            composeRule.onAllNodes(hasText("🛖 Floating nest platform", substring = true)).onFirst().performScrollTo().performClick()
             composeRule.waitFor("Related")
             repeat(6) { back(scenario) }
             composeRule.waitFor("Deal failed to load.")
-            composeRule.onNodeWithText("• Shop").assertIsDisplayed()
+            composeRule.onNode(hasText("Shop") and isSelected()).assertIsDisplayed()
         }
     }
 
@@ -87,7 +89,7 @@ class GaggleHardeningTest {
             repeat(10) { i ->
                 composeRule.waitFor("Related")
                 val next = if (i % 2 == 0) "🛖 Floating nest platform" else "🌾 Premium pond pellets"
-                composeRule.onAllNodes(hasText(next, substring = true)).onFirst().performClick()
+                composeRule.onAllNodes(hasText(next, substring = true)).onFirst().performScrollTo().performClick()
                 composeRule.waitForIdle()
             }
             scenario.recreate()

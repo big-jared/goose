@@ -9,6 +9,9 @@ appId: dev.goose.gaggle
 - assertVisible: ".*Golden egg incubator.*"
 - tapOn: ".*Premium pond pellets.*"
 - assertVisible: "Add to cart"
+- scrollUntilVisible:
+    element:
+      text: ".*Floating nest platform.*"
 - tapOn: ".*Floating nest platform.*"
 - assertVisible: "Add to cart"
 - back

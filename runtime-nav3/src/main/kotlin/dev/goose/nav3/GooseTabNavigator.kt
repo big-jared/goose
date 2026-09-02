@@ -16,6 +16,7 @@ import dev.goose.runtime.Navigator
 import dev.goose.runtime.PopResult
 import dev.goose.runtime.ResultRouter
 import dev.goose.runtime.Screen
+import dev.goose.runtime.ScreenTransitions
 import dev.goose.runtime.StackHost
 import dev.goose.runtime.StackKey
 
@@ -168,6 +169,7 @@ fun TabbedGooseContent(
     tabNavigator: GooseTabNavigator,
     modifier: Modifier = Modifier,
     onRootBack: (() -> Unit)? = null,
+    defaultTransitions: ScreenTransitions? = null,
 ) {
     GooseNavDisplay(
         displayStack = tabNavigator.displayStack,
@@ -175,5 +177,6 @@ fun TabbedGooseContent(
         isStackRoot = tabNavigator::isStackRoot,
         modifier = modifier,
         onRootBack = onRootBack,
+        defaultTransitions = defaultTransitions,
     )
 }

@@ -13,13 +13,16 @@ import dev.goose.runtime.ScreenWithResult
 import kotlinx.serialization.Serializable
 
 @Serializable
-data object CartScreen : Screen {
-    private fun readResolve(): Any = CartScreen
-}
+data object CartScreen : Screen
 
-/** How other features (the catalog's product page) put things in this session's cart. */
+/**
+ * How other features (the catalog's product page) put things in this session's cart — and read
+ * it back: [quantityOf] is backed by snapshot state, so a composable reading it recomposes as
+ * the cart changes (the add-to-cart button flips to "In cart" by observing, not by guessing).
+ */
 interface CartMutator {
-    fun add(productId: String, name: String)
+    fun add(productId: String, name: String, unitPriceCents: Int)
+    fun quantityOf(productId: String): Int
 }
 
 /** The checkout wizard: slides up modally (ScreenTransitions), answers with a typed result. */
@@ -27,8 +30,6 @@ interface CartMutator {
 data object CheckoutScreen : ScreenWithResult<CheckoutResult>, ScreenTransitions {
     override fun enterTransition() = slideInVertically { it } togetherWith fadeOut()
     override fun exitTransition() = fadeIn() togetherWith slideOutVertically { it }
-
-    private fun readResolve(): Any = CheckoutScreen
 }
 
 @Serializable
@@ -36,9 +37,7 @@ data class CheckoutResult(val shippingAddress: String, val itemCount: Int) : Pop
 
 /** A picker screen: a question with a typed answer. */
 @Serializable
-data object PickAddressScreen : ScreenWithResult<PickedAddress> {
-    private fun readResolve(): Any = PickAddressScreen
-}
+data object PickAddressScreen : ScreenWithResult<PickedAddress>
 
 @Serializable
 data class PickedAddress(val line: String) : PopResult

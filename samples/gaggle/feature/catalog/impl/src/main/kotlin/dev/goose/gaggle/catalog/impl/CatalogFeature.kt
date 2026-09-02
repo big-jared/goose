@@ -31,7 +31,7 @@ import dev.goose.gaggle.catalog.api.ProductScreen
 import dev.goose.gaggle.catalog.api.ProductTitleKey
 import dev.goose.runtime.GooseUi
 import dev.goose.runtime.Navigator
-import dev.goose.runtime.sharedScreenElement
+import dev.goose.runtime.sharedScreenBounds
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
 import dev.zacsweers.metro.AssistedInject
@@ -90,14 +90,14 @@ fun CatalogUi(state: CatalogState, viewModel: CatalogViewModel, modifier: Modifi
             is Success -> OutlinedButton(onClick = { viewModel.openProduct(deal().id) }) {
                 Text(
                     deal().emoji,
-                    modifier = Modifier.sharedScreenElement(ProductImageKey(deal().id)),
+                    modifier = Modifier.sharedScreenBounds(ProductImageKey(deal().id)),
                 )
                 Text("  Deal of the day: ", fontWeight = FontWeight.Bold)
                 Text(
                     deal().name,
-                    modifier = Modifier.sharedScreenElement(ProductTitleKey(deal().id)),
+                    modifier = Modifier.sharedScreenBounds(ProductTitleKey(deal().id)),
                 )
-                Text("  ${deal().price}")
+                Text("  ${deal().price} · deal!")
             }
             else -> Text("Loading deal…")
         }
@@ -119,11 +119,11 @@ fun CatalogUi(state: CatalogState, viewModel: CatalogViewModel, modifier: Modifi
                             // detail screen independently during the push.
                             Text(
                                 product.emoji,
-                                modifier = Modifier.sharedScreenElement(ProductImageKey(product.id)),
+                                modifier = Modifier.sharedScreenBounds(ProductImageKey(product.id)),
                             )
                             Text(
                                 "  ${product.name}",
-                                modifier = Modifier.sharedScreenElement(ProductTitleKey(product.id)),
+                                modifier = Modifier.sharedScreenBounds(ProductTitleKey(product.id)),
                             )
                             Text("  ${product.price}")
                         }

@@ -93,19 +93,13 @@ object GaggleTabs {
     val Profile = StackKey("profile")
 }
 
-// Screens ride the saved-state Bundle via Java serialization; readResolve keeps each object
-// screen a true singleton when it comes back after process death.
 @Serializable
-data object LoginScreen : Screen {
-    private fun readResolve(): Any = LoginScreen
-}
+data object LoginScreen : Screen
 
 // ---- Shell screens (the profile tab), declared here so any feature can navigate to them ----
 
 @Serializable
-data object ProfileScreen : Screen {
-    private fun readResolve(): Any = ProfileScreen
-}
+data object ProfileScreen : Screen
 
 /** Pops in with a scale+fade instead of the default slide (ScreenTransitions). */
 @Serializable
@@ -117,8 +111,6 @@ data object TeamStatsScreen : Screen, ScreenTransitions {
     override fun exitTransition() =
         fadeIn(tween(200))
             .togetherWith(fadeOut(tween(200)) + scaleOut(targetScale = 0.85f, animationSpec = tween(200)))
-
-    private fun readResolve(): Any = TeamStatsScreen
 }
 
 /**
@@ -128,8 +120,6 @@ data object TeamStatsScreen : Screen, ScreenTransitions {
 @Serializable
 data object SignOutConfirmScreen : OverlayScreen, ScreenWithResult<SignOutChoice> {
     override fun dialogProperties() = DialogProperties(dismissOnClickOutside = false)
-
-    private fun readResolve(): Any = SignOutConfirmScreen
 }
 
 @Serializable
@@ -145,6 +135,4 @@ data class TermsScreen(val termsId: String, val revision: Int) : Screen
 
 /** A legacy-owned scoped flow (fragment + child FragmentManager + its own graph). */
 @Serializable
-data object SupportFlowScreen : Screen {
-    private fun readResolve(): Any = SupportFlowScreen
-}
+data object SupportFlowScreen : Screen
