@@ -131,16 +131,23 @@ order:
 3. The default transaction, showing whatever fragment is registered for the screen, or the
    screen's composable once it's migrated.
 
-So this step is about layer 3: tell goose which fragment the screen means. In one module,
-annotate the fragment itself and the Bundle maps from the screen's properties by name:
+So this step is about layer 3: tell goose which fragment the screen means. There are two ways
+to register it, and they route differently.
+
+`@GooseFragment` makes the screen a registry entry, so it works on BOTH stacks: called from a
+fragment-hosted screen it shows through a host fragment, and called from a Compose-hosted flow
+the legacy fragment rides the Nav3 list (goose embeds it for you). The Bundle maps from the
+screen's properties by name:
 
 ```kotlin
 @GooseFragment(TermsScreen::class)
 class TermsFragment : Fragment()   // reads "termsId", "revision" from arguments
 ```
 
-A binder earns its keep across modules, where the typed screen (in `:api`) and the legacy
-fragment can't see each other, or the Bundle needs hand-building:
+`@GooseFragmentBinder` registers with the fragment host only, and pushes the real fragment as
+a plain transaction, no wrapping. Use it while the flow is still on the FragmentManager, and
+for cross-module cases where the typed screen (in `:api`) and the fragment can't see each
+other, or the Bundle needs hand-building:
 
 ```kotlin
 @GooseFragmentBinder(FollowersScreen::class)
@@ -150,8 +157,9 @@ class FollowersBinder : ScreenFragmentBinder {
 }
 ```
 
-When a destination migrates, delete its registration and register a composable for the same
-screen. No caller notices.
+Either way, when a destination migrates, delete the registration and register a composable for
+the same screen. No caller notices. One thing to remember: a flow can't flip to a Compose host
+until every destination it reaches has an entry, because binders aren't consulted there.
 
 **6. Route through your existing navigation helpers, when a plain transaction is wrong.** A
 dialog, a `startDialogForResult` extension, a router someone built years ago: a per-screen
