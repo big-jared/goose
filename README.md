@@ -65,7 +65,7 @@ If your root graph uses a custom scope marker, merge goose's in:
 
 ## Migrating a screen
 
-Six steps. The last two only apply while the screen's destinations are still fragments.
+Five steps. The fifth only applies while the screen's destinations are still fragments.
 
 **1. A typed screen instead of an args Bundle.** It lives in the feature's `:api` module so
 other features can navigate to it:
@@ -122,32 +122,15 @@ anything else is injected from the graph.
 **4. Delete the fragment.** Legacy call sites use
 `requireActivity().gooseNavigator.goTo(ProfileScreen(user.id))`.
 
-**5. Register the fragments the migrated screen calls.** Step 2's `openFollowers()` navigates
-to `FollowersScreen`, and that's still a fragment. On the fragment host, `goTo` resolves in
-order:
-
-1. A per-screen `@GooseFragmentNavigation` override, when one exists (step 6).
-2. The host-wide `defaultNavigation` policy, if you passed one to `installGooseNavigator`.
-3. The default transaction, showing whatever fragment is registered for the screen, or the
-   screen's composable once it's migrated.
-
-So this step is about layer 3: tell goose which fragment the screen means. There are two ways
-to register it, and they route differently.
-
-`@GooseFragment` makes the screen a registry entry, so it works on BOTH stacks: called from a
-fragment-hosted screen it shows through a host fragment, and called from a Compose-hosted flow
-the legacy fragment rides the Nav3 list (goose embeds it for you). The Bundle maps from the
-screen's properties by name:
+**5. Register the fragments the migrated screen calls, and pick how they route.** Step 2's
+`openFollowers()` navigates to a screen that's still a fragment. Register it:
 
 ```kotlin
 @GooseFragment(TermsScreen::class)
-class TermsFragment : Fragment()   // reads "termsId", "revision" from arguments
+class TermsFragment : Fragment()   // Bundle maps from the screen's properties, by name
 ```
 
-`@GooseFragmentBinder` registers with the fragment host only, and pushes the real fragment as
-a plain transaction, no wrapping. Use it while the flow is still on the FragmentManager, and
-for cross-module cases where the typed screen (in `:api`) and the fragment can't see each
-other, or the Bundle needs hand-building:
+or with a binder when the argument keys don't match the screen's properties:
 
 ```kotlin
 @GooseFragmentBinder(FollowersScreen::class)
@@ -157,14 +140,28 @@ class FollowersBinder : ScreenFragmentBinder {
 }
 ```
 
-Either way, when a destination migrates, delete the registration and register a composable for
-the same screen. No caller notices. One thing to remember: a flow can't flip to a Compose host
-until every destination it reaches has an entry, because binders aren't consulted there.
+(`@GooseFragment` entries also render on Compose hosts. Binders are fragment-host only.)
 
-**6. Route through your existing navigation helpers, when a plain transaction is wrong.** A
-dialog, a `startDialogForResult` extension, a router someone built years ago: a per-screen
-override runs your API instead, and `request.deliverResult(...)` answers a caller suspended in
-`goToForResult`:
+Then `goTo` routes one of three ways:
+
+**a. Let goose handle it.** The default. Under the hood:
+
+```kotlin
+// inside FragmentNavigator.goTo, simplified
+val fragment = binders[screen::class]?.createFragment(screen)   // legacy screens land here
+    ?: ScreenFragment.newInstance(screen)                       // migrated screens land here
+fragmentManager.commit {
+    replace(containerId, fragment)
+    addToBackStack(resultKey(screen))
+}
+```
+
+**b. Override the host default.** Pass `defaultNavigation` where you build the navigator
+(`installGooseNavigator`, or your own `FragmentNavigatorOwner`). Every screen without a
+per-screen override goes through your policy.
+
+**c. Override one screen.** For the one-off case (a dialog, your router).
+`request.deliverResult(...)` answers `goToForResult` callers:
 
 ```kotlin
 @GooseFragmentNavigation(PickPlanScreen::class)
@@ -174,6 +171,9 @@ class PickPlanNavigation : FragmentScreenNavigation {
     }
 }
 ```
+
+When a destination migrates, delete its registration and register a composable for the same
+screen. No caller notices.
 
 That's the whole loop. The migrated screen rides the old back stack in an invisible host
 fragment, so it pushes, pops, and rotates like everything around it. When a whole flow is
@@ -313,9 +313,8 @@ environment.
 
 ## Custom hosts and embedding
 
-Per-screen navigation overrides are migration step 6. The host is configurable too:
-`installGooseNavigator` takes a host-wide `defaultNavigation` policy that sees every screen
-without a per-screen override, and a custom FragmentManager for nested stack ownership.
+Per-screen and host-wide navigation overrides are migration step 5. `installGooseNavigator`
+also takes a custom FragmentManager for nested stack ownership.
 
 Embedding without navigating works too: `ScreenFragment.newInstance(childFragmentManager,
 screen)` attaches a goose screen in your own container, no back stack entry. It finds the
