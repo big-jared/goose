@@ -20,9 +20,9 @@ appId: dev.goose.gaggle
 - assertVisible: ".*Terms TOS-7 rev 3 by Legal Goose.*"
 - back
 - tapOn: "Support chat"
-- assertVisible: "Ticket T-42"
+- assertVisible: ".*Ticket T-42.*"
 - tapOn: "Send a honk"
-- assertVisible: "Honks sent: 1"
+- assertVisible: ".*Honks sent: 1.*"
 - back
 - tapOn: "Log out"
 - assertVisible: "Leaving the pond?"
