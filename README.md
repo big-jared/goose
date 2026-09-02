@@ -65,7 +65,7 @@ If your root graph uses a custom scope marker, merge goose's in:
 
 ## Migrating a screen
 
-Four steps.
+Five steps (the fifth only when the screen navigates to unmigrated fragments).
 
 **1. A typed screen instead of an args Bundle.** It lives in the feature's `:api` module so
 other features can navigate to it:
@@ -122,15 +122,8 @@ anything else is injected from the graph.
 **4. Delete the fragment.** Legacy call sites use
 `requireActivity().gooseNavigator.goTo(ProfileScreen(user.id))`.
 
-The migrated screen rides the old back stack in an invisible host fragment, so it pushes,
-pops, and rotates like everything around it. When a whole flow is migrated, swap the fragment
-host for `NavigableGooseContent(rememberGooseBackStack(HomeScreen))` and no screen code
-changes.
-
-## Legacy fragments, both directions
-
-A migrated screen can navigate to a fragment you haven't migrated yet. Give the fragment a
-typed screen and one annotation:
+**5. Register the fragments the migrated screen calls.** Step 2's `openFollowers()` navigates
+to `FollowersScreen`, and that's still a fragment. Give it a typed screen and one binder:
 
 ```kotlin
 @GooseFragmentBinder(FollowersScreen::class)
@@ -140,15 +133,25 @@ class FollowersBinder : ScreenFragmentBinder {
 }
 ```
 
-Or, when the fragment's argument keys match the screen's property names, skip the binder:
+When the fragment's argument keys match the screen's property names, one annotation on the
+fragment itself replaces the binder:
 
 ```kotlin
 @GooseFragment(TermsScreen::class)
 class TermsFragment : Fragment()   // reads "termsId", "revision" from arguments
 ```
 
-When the fragment migrates, delete the binder and register a composable for the same screen.
-No caller notices.
+And a destination that needs custom presentation (a dialog, your own router) gets a
+`@GooseFragmentNavigation` override instead, covered [below](#custom-navigation-and-embedding).
+When a destination later migrates, delete its registration and register a composable for the
+same screen. No caller notices.
+
+That's the whole loop. The migrated screen rides the old back stack in an invisible host
+fragment, so it pushes, pops, and rotates like everything around it. When a whole flow is
+migrated, swap the fragment host for
+`NavigableGooseContent(rememberGooseBackStack(HomeScreen))` and no screen code changes.
+
+## Theming fragment-hosted screens
 
 Fragment-hosted screens render outside your Compose shell's theme, so contribute the theme
 once:
