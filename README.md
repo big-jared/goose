@@ -38,6 +38,22 @@ dependencies {
 }
 ```
 
+One caveat on that last line. Kotlin's compiler extension points have no stability guarantee
+across compiler versions, so `goose-compiler-plugin` only works with the Kotlin it was built
+against. This release is built on Kotlin 2.4.10, and matching that version is the only pairing
+the plugin can promise. Nearby 2.4.x patch releases usually load fine, but there is no
+guarantee behind that. On an incompatible Kotlin the build fails at the first compilation with
+a plugin loading or API error, and the fix is to drop the line and write both pieces by hand:
+`private fun readResolve(): Any = TheScreen` in each `object` screen, and the
+`companion object : MavericksViewModelFactory<...> by gooseVmFactory(...)` shown later.
+Everything else in goose is ordinary library code and has no such coupling.
+
+The generated `readResolve` covers `object` screens, meaning anything implementing `Screen`.
+That scope matches the runtime's R8 keep rule, which is what preserves the method in minified
+builds. Earlier releases generated it for every Serializable `object`, so if you upgrade with
+non-Screen Serializable singletons in your app, give those their hand-written
+`readResolve` and a keep rule. Nothing at compile time will remind you.
+
 Expose your Metro graph from the Application, and install a navigator over your existing
 fragment container:
 
@@ -175,7 +191,10 @@ class PickPlanNavigation : FragmentScreenNavigation {
 ```
 
 When a destination migrates, delete its registration and register a composable for the same
-screen. No caller notices.
+screen. No caller notices. That holds for dialogs too: a migrated screen marked
+`OverlayScreen` shows as a dialog on both hosts with no registration at all, and screens
+sharing a custom presentation bind their fragment behavior once per presentation type with
+`@GoosePresentationNavigation` (see Presentations below) instead of once per screen.
 
 That's the whole loop. The migrated screen rides the old back stack in an invisible host
 fragment, so it pushes, pops, and rotates like everything around it. When a whole flow is
@@ -362,15 +381,21 @@ and scope by walking up the parent-fragment chain.
 
 ## Animations
 
-- **Host defaults**: `TabbedGooseContent(tabs, defaultTransitions = SlideScreenTransitions)`.
+- **Host defaults**: `TabbedGooseContent(tabs, defaultTransitions = rememberSlideScreenTransitions())`.
   Slides with predictive back preview (opt into `enableOnBackInvokedCallback` in the
-  manifest).
-- **Per screen**: implement `ScreenTransitions` on the screen class.
+  manifest). The remember variant mirrors the slide under RTL layouts; the raw
+  `SlideScreenTransitions` object is the fixed-LTR motion.
+- **Per screen**: implement `ScreenTransitions` on the screen class. Stack roots are the one
+  place this is ignored: a root changing at the top is a tab switch or reset, and the host
+  crossfades any change landing on a root. Landing on a stack with screens pushed above its
+  root plays the top screen's motion instead.
 - **Shared elements**: `Modifier.sharedScreenElement(key)` on both screens, key declared in
   `:api`. Use `sharedScreenBounds` for text that changes size, so glyphs never crop.
 - **Dialogs**: mark the screen `OverlayScreen` and it renders as a dialog over the previous
   screen, same stack, same result semantics. Window config via `dialogProperties()` on the
-  screen.
+  screen. Both hosts honor it: a Compose host renders a dialog scene, and a fragment host
+  mid-migration shows the same screen in a built-in `ScreenDialogFragment`, so converting a
+  dialog screen changes nothing for the callers still living in fragments.
 
 ```kotlin
 @Serializable
@@ -379,6 +404,45 @@ data class CheckoutScreen(val itemId: String) : Screen, ScreenTransitions {
     override fun exitTransition() = fadeIn() togetherWith slideOutVertically { it }
 }
 ```
+
+## Presentations
+
+Ten bottom-sheet screens should not carry ten copies of the same motion. When a family of
+screens appears the same way, define the presentation once and point each screen at it:
+
+```kotlin
+// design-system module, defined once
+object BottomSheet : Presentation, ScreenTransitions {
+    override fun enterTransition() = slideInVertically { it } togetherWith fadeOut()
+    override fun exitTransition() = fadeIn() togetherWith slideOutVertically { it }
+}
+
+// any :api module
+@Serializable
+data class HelpScreen(val topic: String) : PresentedScreen {
+    override val presentation get() = BottomSheet   // a getter: behavior, not state
+}
+```
+
+A presentation opts into behavior by implementing facets. `ScreenTransitions` and `Overlay`
+(the dialog facet behind `OverlayScreen`) are values, so Compose hosts consume them with no
+registration. A facet the screen implements itself still beats its presentation's, which
+beats the host default.
+
+Fragment hosts mid-migration need FragmentManager mechanics, so custom fragment behavior
+binds once per presentation type instead of once per screen:
+
+```kotlin
+@GoosePresentationNavigation(BottomSheet::class)
+class BottomSheetNavigation : FragmentScreenNavigation {
+    override fun navigate(request: FragmentNavigationRequest) {
+        // request.presentation carries the token; a data-class token carries its knobs
+    }
+}
+```
+
+Presentations carrying only the `Overlay` facet skip even that: the fragment host shows them
+in its dialog host automatically, exactly like `OverlayScreen`.
 
 ## Going deeper
 

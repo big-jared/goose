@@ -29,8 +29,9 @@ import dev.goose.nav3.rememberGooseBackStack
 import dev.goose.runtime.FlowViewModelScope
 import dev.goose.runtime.GooseUi
 import dev.goose.runtime.LocalNavigator
+import dev.goose.runtime.Navigator
 import dev.goose.runtime.Screen
-import dev.goose.runtime.SlideScreenTransitions
+import dev.goose.runtime.rememberSlideScreenTransitions
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
@@ -57,7 +58,7 @@ data class CheckoutFlowState(
 class CheckoutFlowViewModel(initialState: CheckoutFlowState) :
     MavericksViewModel<CheckoutFlowState>(initialState) {
 
-    fun chooseAddress(navigator: dev.goose.runtime.Navigator) {
+    fun chooseAddress(navigator: Navigator) {
         viewModelScope.launch {
             val picked = navigator.goToForResult(PickAddressScreen) ?: return@launch
             setState { copy(address = picked.line) }
@@ -88,7 +89,7 @@ fun CheckoutUi(modifier: Modifier, graphFactory: CheckoutGraph.Factory) {
                     steps,
                     Modifier.fillMaxSize(),
                     parent = parent,
-                    defaultTransitions = SlideScreenTransitions,
+                    defaultTransitions = rememberSlideScreenTransitions(),
                 )
             }
         }

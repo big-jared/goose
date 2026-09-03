@@ -85,7 +85,7 @@ fun ProfileUi(modifier: Modifier, user: UserSession, sessionManager: SessionMana
 @Composable
 fun SignOutConfirmUi(modifier: Modifier, user: UserSession) {
     val navigator = LocalNavigator.current
-    Card(Modifier.fillMaxWidth(0.92f)) {
+    Card(modifier.fillMaxWidth(0.92f)) {
         Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Leaving the pond?", style = MaterialTheme.typography.titleLarge)
             Text("Sign out of ${user.userName}? Your cart stays with the session and will be gone.")

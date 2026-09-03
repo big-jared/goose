@@ -19,8 +19,10 @@ import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrarAdapter
  *
  * 1. readResolve: screens implement [java.io.Serializable] (the Mavericks args contract), so
  *    every `object` screen needs `private fun readResolve(): Any = TheObject` to stay a
- *    singleton across Java deserialization. Generated on every Serializable object that
- *    doesn't declare its own.
+ *    singleton across Java deserialization. Generated on every `object` implementing
+ *    `dev.goose.runtime.Screen` that doesn't declare its own — and only those: the runtime's
+ *    Screen-scoped consumer keep rule is what preserves the method through R8, so non-Screen
+ *    Serializable objects keep writing readResolve (and a keep rule) by hand.
  * 2. Mavericks factories: every migrated ViewModel needed a
  *    `companion object : MavericksViewModelFactory by gooseVmFactory(...)`. Generated as a
  *    nested `GooseFactory` on MavericksViewModel subclasses without a hand-written factory

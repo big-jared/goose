@@ -9,6 +9,8 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.ui.window.DialogProperties
 import dev.goose.runtime.OverlayScreen
 import dev.goose.runtime.PopResult
+import dev.goose.runtime.Presentation
+import dev.goose.runtime.PresentedScreen
 import dev.goose.runtime.Screen
 import dev.goose.runtime.ScreenTransitions
 import dev.goose.runtime.ScreenWithResult
@@ -35,14 +37,25 @@ data class ProductPeekScreen(val productId: String) : OverlayScreen {
 }
 
 /**
- * The write-a-review form: slides up modally (ScreenTransitions) over the product page and
- * answers its caller with a typed result. The product screen owns the repository write; this
- * screen only asks the question.
+ * The app's modal-sheet presentation, defined once and referenced by every screen that asks a
+ * question by sliding up over its caller. In a real app this lives in a design-system module.
+ * The ScreenTransitions facet animates Compose hosts with no registration; the fragment host's
+ * behavior binds once per presentation type (see `@GoosePresentationNavigation` on
+ * ModalSheetNavigation in the app module).
  */
-@Serializable
-data class WriteReviewScreen(val productId: String) : ScreenWithResult<ReviewPosted>, ScreenTransitions {
+object ModalSheet : Presentation, ScreenTransitions {
     override fun enterTransition() = slideInVertically(tween(250)) { it } togetherWith fadeOut(tween(250))
     override fun exitTransition() = fadeIn(tween(250)) togetherWith slideOutVertically(tween(250)) { it }
+}
+
+/**
+ * The write-a-review form: a [ModalSheet] answering its caller with a typed result. The
+ * product screen owns the repository write; this screen only asks the question. The
+ * presentation is a getter because it is behavior, not serialized state.
+ */
+@Serializable
+data class WriteReviewScreen(val productId: String) : ScreenWithResult<ReviewPosted>, PresentedScreen {
+    override val presentation get() = ModalSheet
 }
 
 @Serializable

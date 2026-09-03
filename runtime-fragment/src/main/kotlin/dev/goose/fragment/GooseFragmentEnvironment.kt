@@ -23,9 +23,13 @@ class GooseFragmentEnvironment(
     override val goose: Goose,
     binders: Map<KClass<*>, ScreenFragmentBinder> = emptyMap(),
     navigationOverrides: Map<KClass<*>, FragmentScreenNavigation> = emptyMap(),
+    /** Keyed by [dev.goose.runtime.Presentation] class — see [GoosePresentationNavigation]. */
+    presentationNavigations: Map<KClass<*>, FragmentScreenNavigation> = emptyMap(),
 ) : GooseRuntimeAccessors, GooseFragmentAccessors {
 
     override val fragmentBinders: Map<KClass<*>, ScreenFragmentBinder> = binders.toMap()
     override val fragmentNavigationOverrides: Map<KClass<*>, FragmentScreenNavigation> =
         navigationOverrides.toMap()
+    override val presentationNavigations: Map<KClass<*>, FragmentScreenNavigation> =
+        presentationNavigations.toMap()
 }

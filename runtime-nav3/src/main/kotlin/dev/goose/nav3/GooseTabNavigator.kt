@@ -18,6 +18,7 @@ import dev.goose.runtime.Screen
 import dev.goose.runtime.ScreenTransitions
 import dev.goose.runtime.StackHost
 import dev.goose.runtime.StackKey
+import java.util.UUID
 
 /** One tab in a [rememberTabNavigator] host. */
 data class TabSpec(val key: StackKey, val root: Screen)
@@ -152,7 +153,7 @@ fun rememberTabNavigator(
             { raw -> StackKey(raw).takeIf { k -> tabs.any { it.key == k } } ?: tabs.first().key },
         ),
     ) { mutableStateOf(tabs.first().key) }
-    val hostTag = rememberSaveable { java.util.UUID.randomUUID().toString() }
+    val hostTag = rememberSaveable { UUID.randomUUID().toString() }
     return remember(tabs, parent) {
         GooseTabNavigator(stacks, tabs.map { it.key }, currentTabState, resultRouter, parent, hostTag)
     }

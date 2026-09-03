@@ -18,6 +18,7 @@ import dev.goose.metro.Goose
 import dev.goose.metro.GooseGraphHolder
 import dev.goose.runtime.Screen
 import dev.goose.runtime.ScreenEntry
+import kotlin.reflect.KClass
 import kotlinx.serialization.Serializable
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -76,7 +77,7 @@ class GooseScreenHostTest {
 
     private fun launch(
         graph: Any,
-        screenHost: kotlin.reflect.KClass<out Fragment> = ScreenFragment::class,
+        screenHost: KClass<out Fragment> = ScreenFragment::class,
     ): FragmentActivity {
         ApplicationProvider.getApplicationContext<HostTestApp>().environment = graph
         val activity = Robolectric.buildActivity(FragmentActivity::class.java).setup().get()

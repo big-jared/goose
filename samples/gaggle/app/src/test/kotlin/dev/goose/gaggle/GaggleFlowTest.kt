@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
@@ -19,6 +20,10 @@ import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import dev.goose.fragment.GooseFragmentAccessors
+import dev.goose.gaggle.auth.api.SessionManagerAccessor
+import dev.goose.gaggle.catalog.api.ModalSheet
+import dev.goose.metro.GooseGraphHolder
 import org.hamcrest.CoreMatchers.containsString
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -48,6 +53,18 @@ class GaggleFlowTest {
         composeRule.waitFor("Sign in as Goose Fan")
         composeRule.onNodeWithText("Sign in as Goose Fan").performClick()
         composeRule.waitFor("Shop")
+    }
+
+    /**
+     * The @GoosePresentationNavigation route: Metro aggregates the generated registration
+     * into the presentation-keyed map (distinct from the screen-keyed override map), so one
+     * binding covers every screen whose presentation is ModalSheet.
+     */
+    @Test
+    fun presentationNavigationAggregatesByPresentationType() {
+        val graph = ApplicationProvider.getApplicationContext<GaggleApplication>().gooseGraph
+        val navigations = (graph as GooseFragmentAccessors).presentationNavigations
+        assertEquals(ModalSheetNavigation::class, navigations.getValue(ModalSheet::class)::class)
     }
 
     /**
@@ -240,10 +257,10 @@ class GaggleFlowTest {
             composeRule.onNodeWithText("Cart", useUnmergedTree = true).performClick()
             composeRule.waitFor("Nothing here yet. Honk at the shop.")
             scenario.onActivity { activity ->
-                val graph = (activity.application as dev.goose.metro.GooseGraphHolder).gooseGraph
+                val graph = (activity.application as GooseGraphHolder).gooseGraph
                 activity.handleDeepLink(
                     Intent(Intent.ACTION_VIEW, Uri.parse("gaggle://product/pond-4")),
-                    (graph as dev.goose.gaggle.auth.api.SessionManagerAccessor).sessionManager,
+                    (graph as SessionManagerAccessor).sessionManager,
                 )
             }
             composeRule.waitFor("Honk amplifier")
@@ -284,5 +301,5 @@ internal fun ComposeTestRule.waitFor(text: String) {
     }
 }
 
-internal fun ComposeTestRule.onNode(matcher: androidx.compose.ui.test.SemanticsMatcher) =
+internal fun ComposeTestRule.onNode(matcher: SemanticsMatcher) =
     onAllNodes(matcher).onFirst()

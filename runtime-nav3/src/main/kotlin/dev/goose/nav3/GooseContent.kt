@@ -34,9 +34,10 @@ import dev.goose.metro.goose
 import dev.goose.runtime.LocalScreenAnimatedContentScope
 import dev.goose.runtime.LocalSharedTransitionScope
 import dev.goose.runtime.Navigator
-import dev.goose.runtime.OverlayScreen
 import dev.goose.runtime.Screen
 import dev.goose.runtime.ScreenTransitions
+import dev.goose.runtime.effectiveOverlay
+import dev.goose.runtime.effectiveTransitions
 
 /**
  * A persisted back stack whose serializers come from every feature module's contributed
@@ -75,7 +76,54 @@ fun rememberGooseBackStack(initial: List<Screen>): NavBackStack<NavKey> {
 
 internal val navBackStackSerializer = NavBackStack.serializer(PolymorphicSerializer(NavKey::class))
 
-private const val ROOT_FADE_MS = 220
+// Deliberately quicker than the runtime's default slide: a crossfade carries less motion than
+// a slide, so at equal length it reads slower. Don't unify the two durations.
+internal const val ROOT_FADE_MS = 220
+
+/**
+ * The per-entry NavDisplay metadata: dialog scenes for overlays, transition specs for motion.
+ * Pure — split out of the entryProvider so tests can pin every branch without composing.
+ *
+ * - A stack's ROOT never renders as a dialog: nav3 requires a non-empty scene beneath an
+ *   overlay, and in a tab host the entry beneath would belong to ANOTHER tab. Root overlays
+ *   degrade to full-screen entries.
+ * - A stack ROOT arriving at or leaving the top is a stack CHANGE (a tab switch, or back
+ *   falling through to the primary tab), never a push or pop within one stack — so roots
+ *   crossfade instead of playing stack motion, and the predictive gesture previews the same
+ *   fade. Non-root entries animate per screen, falling back to the host default.
+ */
+internal fun entryMetadata(
+    screen: Screen,
+    isRoot: Boolean,
+    defaultTransitions: ScreenTransitions?,
+): Map<String, Any> {
+    // Facet resolution: the screen's own declaration, then its Presentation's, then the host's.
+    val overlay = screen.effectiveOverlay()
+    var metadata: Map<String, Any> =
+        if (overlay != null && !isRoot) {
+            DialogSceneStrategy.dialog(overlay.dialogProperties())
+        } else {
+            emptyMap()
+        }
+    if (isRoot) {
+        val fade = { fadeIn(tween(ROOT_FADE_MS)) togetherWith fadeOut(tween(ROOT_FADE_MS)) }
+        metadata = metadata +
+            NavDisplay.transitionSpec { fade() } +
+            NavDisplay.popTransitionSpec { fade() } +
+            NavDisplay.predictivePopTransitionSpec { _ -> fade() }
+    } else {
+        val transitions = screen.effectiveTransitions(defaultTransitions)
+        if (transitions != null) {
+            transitions.enterTransition()?.let { t -> metadata = metadata + NavDisplay.transitionSpec { t } }
+            transitions.exitTransition()?.let { t -> metadata = metadata + NavDisplay.popTransitionSpec { t } }
+            metadata = metadata + NavDisplay.predictivePopTransitionSpec { edge ->
+                transitions.predictivePopTransition(edge)
+                    ?: (fadeIn() togetherWith fadeOut())
+            }
+        }
+    }
+    return metadata
+}
 
 /** Decodes a saved stack, or returns null (restart fresh) when the saved form is unreadable. */
 internal fun decodeBackStackOrNull(
@@ -99,13 +147,19 @@ internal fun decodeBackStackOrNull(
  * - Screens resolve through the app graph's ScreenRegistry (contributed by feature modules).
  * - Entries get a ViewModelStore + saveable-state decorator, so Mavericks VMs retain across
  *   config changes and clear on pop.
- * - [OverlayScreen]s render in a dialog over the previous entry (DialogSceneStrategy).
+ * - Screens with the [dev.goose.runtime.Overlay] facet — [dev.goose.runtime.OverlayScreen]s,
+ *   or screens whose [dev.goose.runtime.Presentation] implements it — render in a dialog over
+ *   the previous entry (DialogSceneStrategy).
  * - A [SharedTransitionLayout] wraps the display; screens opt in via Modifier.sharedScreenElement.
  * - Pass [parent] when nesting (a flow hosted inside another stack's entry): unhandled root pops
  *   bubble up the navigator tree. [onRootBack] fires when a back event goes entirely unhandled.
  * - [defaultTransitions] animates every screen that doesn't declare its own [ScreenTransitions]
  *   (e.g. [dev.goose.runtime.SlideScreenTransitions] for conventional side-to-side stack motion,
  *   previewed by the predictive back gesture); screens implementing the interface still win.
+ *   Stack ROOTS are the exception: a root changing at the top is a stack change (a tab switch,
+ *   or resetRoot), so a change landing ON a root crossfades and neither the default nor the
+ *   root's own [ScreenTransitions] is consulted. A stack change landing on a stack with screens
+ *   pushed above its root animates with that top screen's transitions instead.
  */
 @Composable
 fun NavigableGooseContent(
@@ -160,37 +214,7 @@ internal fun GooseNavDisplay(
                     // what NavEntry identity, saveable state, and ViewModel stores scope to;
                     // everything below renders the unwrapped screen.
                     val screen = key.asScreen()
-                    // A stack's ROOT never renders as a dialog: nav3 requires a non-empty scene
-                    // beneath an overlay, and in a tab host the entry beneath would belong to
-                    // ANOTHER tab. Root overlays degrade to full-screen entries.
-                    var metadata: Map<String, Any> =
-                        if (screen is OverlayScreen && !isStackRoot(key)) {
-                            DialogSceneStrategy.dialog(screen.dialogProperties())
-                        } else {
-                            emptyMap()
-                        }
-                    // A stack ROOT leaving the top is a stack CHANGE (a tab switch, or back
-                    // falling through to the primary tab), never a pop within one stack — so
-                    // roots crossfade instead of playing the pop motion, and the predictive
-                    // gesture previews the same fade. Non-root entries animate per screen,
-                    // falling back to the host default.
-                    if (isStackRoot(key)) {
-                        val fade = { fadeIn(tween(ROOT_FADE_MS)) togetherWith fadeOut(tween(ROOT_FADE_MS)) }
-                        metadata = metadata +
-                            NavDisplay.transitionSpec { fade() } +
-                            NavDisplay.popTransitionSpec { fade() } +
-                            NavDisplay.predictivePopTransitionSpec { _ -> fade() }
-                    } else {
-                        val transitions = screen as? ScreenTransitions ?: defaultTransitions
-                        if (transitions != null) {
-                            transitions.enterTransition()?.let { t -> metadata = metadata + NavDisplay.transitionSpec { t } }
-                            transitions.exitTransition()?.let { t -> metadata = metadata + NavDisplay.popTransitionSpec { t } }
-                            metadata = metadata + NavDisplay.predictivePopTransitionSpec { edge ->
-                                transitions.predictivePopTransition(edge)
-                                    ?: (fadeIn() togetherWith fadeOut())
-                            }
-                        }
-                    }
+                    val metadata = entryMetadata(screen, isStackRoot(key), defaultTransitions)
                     NavEntry(key, metadata = metadata) {
                         CompositionLocalProvider(
                             LocalScreenAnimatedContentScope provides LocalNavAnimatedContentScope.current,

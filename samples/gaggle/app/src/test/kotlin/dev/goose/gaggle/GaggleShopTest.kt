@@ -1,5 +1,6 @@
 package dev.goose.gaggle
 
+import android.view.View
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
@@ -189,11 +190,11 @@ class GaggleShopTest {
     private fun waitForLegacyView(scenario: ActivityScenario<MainActivity>, text: String) {
         composeRule.waitUntil(10_000) {
             scenario.onActivity { a ->
-                val container = a.findViewById<android.view.View>(R.id.gaggle_support_container)
+                val container = a.findViewById<View>(R.id.gaggle_support_container)
                 if (container != null && container.width > 0) {
                     container.measure(
-                        android.view.View.MeasureSpec.makeMeasureSpec(container.width, android.view.View.MeasureSpec.EXACTLY),
-                        android.view.View.MeasureSpec.makeMeasureSpec(container.height, android.view.View.MeasureSpec.EXACTLY),
+                        View.MeasureSpec.makeMeasureSpec(container.width, View.MeasureSpec.EXACTLY),
+                        View.MeasureSpec.makeMeasureSpec(container.height, View.MeasureSpec.EXACTLY),
                     )
                     container.layout(container.left, container.top, container.right, container.bottom)
                 }

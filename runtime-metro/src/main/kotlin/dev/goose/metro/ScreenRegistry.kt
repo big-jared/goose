@@ -3,6 +3,7 @@ package dev.goose.metro
 import dev.goose.runtime.Screen
 import dev.goose.runtime.ScreenEntry
 import dev.zacsweers.metro.Provider
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
 
 /**
@@ -31,7 +32,7 @@ class ScreenRegistry(
     // Entries are stateless renderers; memoize per screen class so re-showing a screen (pop-back,
     // tab switch) doesn't re-run the entry's constructor injection. The cache lives in THIS
     // registry: child-scoped entries are cached in the child registry only.
-    private val cache = java.util.concurrent.ConcurrentHashMap<KClass<*>, ScreenEntry>()
+    private val cache = ConcurrentHashMap<KClass<*>, ScreenEntry>()
 
     fun entryFor(screen: Screen): ScreenEntry =
         entryForOrNull(screen)

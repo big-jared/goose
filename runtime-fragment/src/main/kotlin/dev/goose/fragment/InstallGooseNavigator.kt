@@ -2,13 +2,18 @@ package dev.goose.fragment
 
 import androidx.activity.addCallback
 import androidx.annotation.IdRes
+import androidx.fragment.app.DialogFragment
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
+import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import dev.goose.metro.GooseGraphHolder
 import dev.goose.metro.asGoose
 import dev.goose.runtime.Navigator
 import dev.goose.runtime.NavigatorHandle
+import java.util.UUID
+import kotlin.reflect.KClass
 
 /**
  * Retains one [NavigatorHandle] per activity, in the activity's own ViewModelStore: it survives
@@ -18,7 +23,7 @@ internal class ActivityNavigatorHandleHolder : ViewModel() {
     val handle = NavigatorHandle()
 
     /** Rotation-stable identity for this activity's stack, scoping its result routing. */
-    val stackTag: String = java.util.UUID.randomUUID().toString()
+    val stackTag: String = UUID.randomUUID().toString()
     var installed = false
 }
 
@@ -49,7 +54,7 @@ internal class ActivityNavigatorHandleHolder : ViewModel() {
 fun FragmentActivity.installGooseNavigator(
     @IdRes containerId: Int,
     /** The stack's owner; pass a child fragment's childFragmentManager for nested ownership. */
-    fragmentManager: androidx.fragment.app.FragmentManager = supportFragmentManager,
+    fragmentManager: FragmentManager = supportFragmentManager,
     /**
      * Host-wide transaction policy for screens without a per-screen contributed override; call
      * `request.performDefaultTransaction()` for the ones you don't customize. Null keeps the
@@ -64,7 +69,13 @@ fun FragmentActivity.installGooseNavigator(
      * installGooseNavigator(R.id.container, screenHost = GaggleScreenFragment::class)
      * ```
      */
-    screenHost: kotlin.reflect.KClass<out androidx.fragment.app.Fragment> = ScreenFragment::class,
+    screenHost: KClass<out Fragment> = ScreenFragment::class,
+    /**
+     * The DialogFragment hosting migrated screens with the [dev.goose.runtime.Overlay] facet
+     * (an `OverlayScreen`, or a screen whose Presentation carries the facet), replacing the
+     * default [ScreenDialogFragment] — the dialog analogue of [screenHost].
+     */
+    dialogHost: KClass<out DialogFragment> = ScreenDialogFragment::class,
 ): NavigatorHandle {
     val graph = (application as GooseGraphHolder).gooseGraph
     val holder = ViewModelProvider(this)[ActivityNavigatorHandleHolder::class.java]
@@ -79,9 +90,11 @@ fun FragmentActivity.installGooseNavigator(
         binders = fragmentAccessors?.fragmentBinders ?: emptyMap(),
         resultRouter = graph.asGoose().resultRouter,
         navigationOverrides = fragmentAccessors?.fragmentNavigationOverrides ?: emptyMap(),
+        presentationNavigations = fragmentAccessors?.presentationNavigations ?: emptyMap(),
         stackTag = holder.stackTag,
         defaultNavigation = defaultNavigation,
         screenHost = screenHost,
+        dialogHost = dialogHost,
     )
     handle.bind(navigator)
     onBackPressedDispatcher.addCallback(this) {

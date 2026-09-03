@@ -6,11 +6,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airbnb.mvrx.ActivityViewModelContext
+import com.airbnb.mvrx.InternalMavericksApi
 import com.airbnb.mvrx.MavericksState
 import com.airbnb.mvrx.MavericksViewModel
 import com.airbnb.mvrx.MavericksViewModelProvider
 import dev.goose.runtime.FlowViewModelScope
 import dev.goose.runtime.LocalFlowScope
+import java.lang.ref.WeakReference
 
 /**
  * Obtains (or creates) a [MavericksViewModel] shared by every screen under the enclosing
@@ -28,7 +30,7 @@ import dev.goose.runtime.LocalFlowScope
 inline fun <reified VM : MavericksViewModel<S>, reified S : MavericksState> flowViewModel(): VM =
     flowViewModel(VM::class.java, S::class.java)
 
-@OptIn(com.airbnb.mvrx.InternalMavericksApi::class)
+@OptIn(InternalMavericksApi::class)
 @Composable
 fun <VM : MavericksViewModel<S>, S : MavericksState> flowViewModel(
     vmClass: Class<VM>,
@@ -52,7 +54,7 @@ fun <VM : MavericksViewModel<S>, S : MavericksState> flowViewModel(
     )
     SideEffect {
         val registryRef =
-            java.lang.ref.WeakReference(flowScope.savedStateRegistryOwner.savedStateRegistry)
+            WeakReference(flowScope.savedStateRegistryOwner.savedStateRegistry)
         cleanupHolder.onClearedAction = { registryRef.get()?.unregisterSavedStateProvider(key) }
     }
 

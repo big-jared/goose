@@ -21,9 +21,15 @@ import org.jetbrains.kotlin.name.Name
 
 /**
  * Declares `private fun readResolve(): Any` on every source `object` whose supertype closure
- * contains [java.io.Serializable], unless the object already declares one. The frontend then
- * sees a complete Serializable singleton (no "must implement 'readResolve'" warning), and
+ * contains [dev.goose.runtime.Screen], unless the object already declares one. The frontend
+ * then sees a complete Serializable singleton (no "must implement 'readResolve'" warning), and
  * [ReadResolveBodyGenerator] fills in the body returning the object instance.
+ *
+ * Scoped to Screen implementors on purpose, not to every Serializable object: goose only
+ * generates members in goose types, and the runtime's consumer keep rule (which preserves
+ * readResolve from R8) is Screen-scoped to match — generating wider would produce singletons
+ * that quietly break again in minified builds. Non-Screen Serializable objects keep writing
+ * `private fun readResolve(): Any = TheObject` by hand, plus their own keep rule.
  */
 class ReadResolveDeclarationGenerator(session: FirSession) : FirDeclarationGenerationExtension(session) {
 
@@ -45,13 +51,13 @@ class ReadResolveDeclarationGenerator(session: FirSession) : FirDeclarationGener
             .filterIsInstance<FirNamedFunctionSymbol>()
             .any { it.name == READ_RESOLVE && it.valueParameterSymbols.isEmpty() }
         if (declaresOwn) return emptySet()
-        val serializable = lookupSuperTypes(
+        val isScreen = lookupSuperTypes(
             classSymbol,
             lookupInterfaces = true,
             deep = true,
             useSiteSession = session,
-        ).any { it.classId == JAVA_IO_SERIALIZABLE }
-        if (!serializable) return emptySet()
+        ).any { it.classId == GOOSE_SCREEN }
+        if (!isScreen) return emptySet()
         return setOf(READ_RESOLVE)
     }
 
@@ -74,6 +80,6 @@ class ReadResolveDeclarationGenerator(session: FirSession) : FirDeclarationGener
 
     companion object {
         val READ_RESOLVE: Name = Name.identifier("readResolve")
-        private val JAVA_IO_SERIALIZABLE: ClassId = ClassId.topLevel(FqName("java.io.Serializable"))
+        private val GOOSE_SCREEN: ClassId = ClassId.topLevel(FqName("dev.goose.runtime.Screen"))
     }
 }

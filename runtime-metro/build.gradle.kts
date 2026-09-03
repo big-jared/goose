@@ -3,6 +3,7 @@ plugins {
     id("goose.docs")
     id("goose.api-tracking")
     id("goose.android.library")
+    id("org.jetbrains.kotlin.plugin.serialization")
     alias(libs.plugins.metro)
 }
 
@@ -14,4 +15,7 @@ dependencies {
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.lifecycle.viewmodel.compose)
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation(libs.serialization.json)
 }

@@ -36,8 +36,14 @@ jobs:
             || "$SDKMANAGER" --channel=3 "platforms;android-37" \
             || { "$SDKMANAGER" --list --channel=3 | grep -i "android-3" || true; exit 1; }
 
+      - name: Static analysis (detekt, custom goose rules included)
+        run: ./gradlew detekt
+
       - name: Unit tests (all modules, Robolectric suites included)
         run: ./gradlew test apiCheck
+
+      - name: Coverage floor (published modules, 80% line minimum)
+        run: ./gradlew :koverVerify
 
       - name: Assemble samples and publishable artifacts
         run: ./gradlew assembleDebug publishToMavenLocal -x test
@@ -47,7 +53,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-reports
-          path: '**/build/reports/tests/'
+          path: |
+            **/build/reports/tests/
+            **/build/reports/detekt/
+            build/reports/kover/
 
   instrumented:
     # Emulator jobs are the slow ones. They run on main pushes and manual dispatch; on PRs
