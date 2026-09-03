@@ -1,5 +1,6 @@
 package dev.goose.fragment
 
+import dev.goose.runtime.Presentation
 import dev.goose.runtime.Screen
 import kotlin.reflect.KClass
 
@@ -28,6 +29,28 @@ import kotlin.reflect.KClass
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.SOURCE)
 annotation class GooseFragmentNavigation(val screen: KClass<out Screen>)
+
+/**
+ * Marks a class as the [FragmentScreenNavigation] for every screen using [presentation] — the
+ * fragment-host half of a [dev.goose.runtime.Presentation]. Where [GooseFragmentNavigation]
+ * binds per SCREEN, this binds per presentation TYPE: ten bottom-sheet screens share one
+ * binding. The goose-compiler KSP processor generates the entire Metro registration:
+ * ```
+ * @GoosePresentationNavigation(BottomSheet::class)
+ * class BottomSheetNavigation : FragmentScreenNavigation {
+ *     override fun navigate(request: FragmentNavigationRequest) {
+ *         // request.presentation is the token instance; a data-class token carries its knobs
+ *     }
+ * }
+ * ```
+ * Same grammar and injection rules as [GooseFragmentNavigation]; precedence at navigation time
+ * is per-screen override, then this, then the host-wide default. Screens whose presentation
+ * only carries the [dev.goose.runtime.Overlay] facet need no binding at all — the fragment
+ * host shows those in a [ScreenDialogFragment] built in.
+ */
+@Target(AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.SOURCE)
+annotation class GoosePresentationNavigation(val presentation: KClass<out Presentation>)
 
 /**
  * Marks a class as the [ScreenFragmentBinder] mapping [screen] to its legacy fragment. The

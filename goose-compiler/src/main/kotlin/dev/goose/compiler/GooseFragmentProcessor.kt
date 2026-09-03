@@ -18,11 +18,14 @@ import com.google.devtools.ksp.validate
 private const val APP_SCOPE = "dev.zacsweers.metro.AppScope"
 
 /**
- * Turns one `@GooseFragmentNavigation(SomeScreen::class)` or `@GooseFragmentBinder(...)` class
- * into the full Metro registration: a contributed module whose @Provides function returns the
- * class bound as its interop interface, keyed by the screen class into the map
- * [dev.goose.fragment.FragmentNavigator] reads. Constructor parameters become injected provider
- * parameters (Metro qualifier annotations copied over); an `object` is provided as-is.
+ * Turns one `@GooseFragmentNavigation(SomeScreen::class)`, `@GooseFragmentBinder(...)`, or
+ * `@GoosePresentationNavigation(SomePresentation::class)` class into the full Metro
+ * registration: a contributed module whose @Provides function returns the class bound as its
+ * interop interface, keyed by the annotation's class argument (a screen class, or for
+ * presentation navigation a [dev.goose.runtime.Presentation] class under the
+ * `@PresentationNavigations` qualifier) into the map [dev.goose.fragment.FragmentNavigator]
+ * reads. Constructor parameters become injected provider parameters (Metro qualifier
+ * annotations copied over); an `object` is provided as-is.
  *
  * Supported grammar: a public or internal, top-level, non-generic, concrete class or object
  * implementing the annotation's interop interface, with a non-private primary constructor.
@@ -41,6 +44,10 @@ class GooseFragmentProcessor(
         val annotationFqn: String,
         val interfaceFqn: String,
         val moduleSuffix: String,
+        /** Name of the annotation's KClass argument that becomes the map key. */
+        val keyArgument: String = "screen",
+        /** Extra qualifier annotation (FQN) on the generated @Provides, or null for none. */
+        val providerQualifierFqn: String? = null,
     )
 
     private val registrations = listOf(
@@ -53,6 +60,14 @@ class GooseFragmentProcessor(
             annotationFqn = "dev.goose.fragment.GooseFragmentBinder",
             interfaceFqn = "dev.goose.fragment.ScreenFragmentBinder",
             moduleSuffix = "GooseBinderModule",
+        ),
+        Registration(
+            annotationFqn = "dev.goose.fragment.GoosePresentationNavigation",
+            interfaceFqn = "dev.goose.fragment.FragmentScreenNavigation",
+            moduleSuffix = "GoosePresentationModule",
+            keyArgument = "presentation",
+            // Keeps the presentation-keyed map distinct from the screen-keyed override map.
+            providerQualifierFqn = "dev.goose.fragment.PresentationNavigations",
         ),
     )
 
@@ -115,9 +130,9 @@ class GooseFragmentProcessor(
         val annotation = declaration.annotations.first {
             it.annotationType.resolve().declaration.qualifiedName?.asString() == registration.annotationFqn
         }
-        val screenFqn = annotation.classArgument("screen", index = 0)
+        val keyFqn = annotation.classArgument(registration.keyArgument, index = 0)
             ?.declaration?.qualifiedName?.asString() ?: run {
-            logger.error("@$label requires a screen class argument", declaration)
+            logger.error("@$label requires a ${registration.keyArgument} class argument", declaration)
             return
         }
         val classFqn = declaration.qualifiedName?.asString() ?: run {
@@ -175,6 +190,8 @@ class GooseFragmentProcessor(
             packageName = packageName,
             fileName = moduleName,
         )
+        val qualifierLine = registration.providerQualifierFqn
+            ?.let { "\n                |        @$it" } ?: ""
         file.bufferedWriter().use { writer ->
             writer.write(
                 """
@@ -186,7 +203,7 @@ class GooseFragmentProcessor(
                 |    public companion object {
                 |        @dev.zacsweers.metro.Provides
                 |        @dev.zacsweers.metro.IntoMap
-                |        @dev.zacsweers.metro.ClassKey($screenFqn::class)
+                |        @dev.zacsweers.metro.ClassKey($keyFqn::class)$qualifierLine
                 |        public fun provide$className(
                 |            $providerParams
                 |        ): ${registration.interfaceFqn} = $creation

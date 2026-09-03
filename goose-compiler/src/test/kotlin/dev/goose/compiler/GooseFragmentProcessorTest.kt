@@ -6,6 +6,7 @@ import com.tschuchort.compiletesting.JvmCompilationResult
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import com.tschuchort.compiletesting.configureKsp
+import java.io.OutputStream
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -93,7 +94,7 @@ class GooseFragmentProcessorTest {
                 symbolProcessorProviders += GooseUiProcessorProvider()
             }
             inheritClassPath = true
-            messageOutputStream = java.io.OutputStream.nullOutputStream()
+            messageOutputStream = OutputStream.nullOutputStream()
         }
         return compilation.compile()
     }

@@ -287,7 +287,9 @@ class GooseUiProcessor(
             }
         }
         val vmDeclarations = vmParams.joinToString("") { vm ->
-            "\n            val ${vm.name} = screenViewModel(gooseScreen, ${vm.vmFqn}::class.java, ${vm.stateFqn}::class.java, ${factoryParamNames.getValue(vm.name)}::${vm.createName})"
+            val factoryRef = "${factoryParamNames.getValue(vm.name)}::${vm.createName}"
+            "\n            val ${vm.name} = screenViewModel(" +
+                "gooseScreen, ${vm.vmFqn}::class.java, ${vm.stateFqn}::class.java, $factoryRef)"
         }
 
         generatedModules.add(packageName to moduleName)

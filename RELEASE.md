@@ -45,10 +45,20 @@ repo would change that; neither is used). The fast `build` job (unit + Robolectr
 assemble) runs on every push and PR. The two emulator jobs (`instrumented`, `maestro`) run on
 main pushes and manual dispatch, and on PRs only when the `emulator` label is applied.
 
-Merging to main is governed by the "main requires CI" ruleset: the `build`, `instrumented`,
+Coverage has a floor, not a ceiling: kover merges the published modules plus the gaggle
+Robolectric suites (the de facto integration tests) into one report at the root, and
+`:koverVerify` fails the build below 80% line coverage. Samples, generated serializers, Metro
+mirrors, and Compose preview functions sit outside the measurement, because the floor is meant
+to protect library logic rather than reward covering ceremony. `./gradlew koverHtmlReport`
+writes the browsable report to `build/reports/kover/html/`.
+
+Merging to main is governed by the "main requires CI" ruleset: outside contributions land
+through a pull request with one approving review from the maintainer (a new push dismisses a
+stale approval, and open review threads must be resolved), and the `build`, `instrumented`,
 and `maestro` checks must pass (a check skipped by the label gate counts as satisfied, so
-unlabeled PRs need `build` only). Repo admins bypass the ruleset for direct pushes; force
-pushes and branch deletion are blocked for everyone.
+unlabeled PRs need `build` only). Repo admins bypass the ruleset entirely — the maintainer
+pushes to main directly, and the release workflow pushes version bumps and tags with the
+admin PAT; force pushes and branch deletion are blocked for everyone.
 
 ## Snapshots
 

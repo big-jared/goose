@@ -19,6 +19,7 @@ import dev.goose.gaggle.auth.api.GaggleTabs
 import dev.goose.gaggle.auth.api.LoggedInScope
 import dev.goose.gaggle.cart.api.CartScreen
 import dev.goose.gaggle.cart.api.CheckoutScreen
+import dev.goose.gaggle.cart.api.RemoveConfirmed
 import dev.goose.gaggle.cart.api.RemoveItemScreen
 import dev.goose.gaggle.auth.api.OrderHistoryScreen
 import dev.goose.runtime.GooseUi
@@ -109,7 +110,7 @@ fun RemoveItemUi(screen: RemoveItemScreen, modifier: Modifier) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = { navigator.pop() }) { Text("Keep it") }
                 Button(onClick = {
-                    navigator.pop(dev.goose.gaggle.cart.api.RemoveConfirmed(remove = true))
+                    navigator.pop(RemoveConfirmed(remove = true))
                 }) { Text("Remove it") }
             }
         }

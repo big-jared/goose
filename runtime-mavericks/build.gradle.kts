@@ -6,7 +6,11 @@ plugins {
     alias(libs.plugins.metro)
 }
 
-android { namespace = "dev.goose.mavericks" }
+android {
+    namespace = "dev.goose.mavericks"
+    testOptions.targetSdk = 36
+    testOptions.unitTests.isIncludeAndroidResources = true
+}
 
 dependencies {
     api(project(":runtime"))
@@ -16,4 +20,8 @@ dependencies {
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.lifecycle.viewmodel.compose)
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("androidx.test.ext:junit:1.3.0")
+    testImplementation("org.robolectric:robolectric:4.16")
 }

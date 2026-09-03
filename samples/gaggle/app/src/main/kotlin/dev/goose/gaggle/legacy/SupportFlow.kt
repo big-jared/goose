@@ -57,7 +57,12 @@ import dev.goose.runtime.GooseUi
 import dev.goose.runtime.Navigator
 import dev.goose.runtime.Screen
 import dev.goose.runtime.ScreenEntry
+import com.airbnb.mvrx.MavericksState
+import com.airbnb.mvrx.MavericksViewModel
 import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
 import dev.zacsweers.metro.ClassKey
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.GraphExtension
@@ -161,7 +166,7 @@ data class ChatMessage(val fromUser: Boolean, val text: String)
 data class SupportChatState(
     val messages: List<ChatMessage> = emptyList(),
     val agentTyping: Boolean = false,
-) : com.airbnb.mvrx.MavericksState {
+) : MavericksState {
     /** Every user message is a honk at heart. Pinned by the hardening tests. */
     val honksSent: Int get() = messages.count { it.fromUser }
 }
@@ -173,13 +178,13 @@ data class SupportChatState(
  * retention across rotation and clearing on pop behave exactly as on a Nav3 host; the
  * hardening tests pin both — the chat transcript IS the retained state.
  */
-@dev.zacsweers.metro.AssistedInject
+@AssistedInject
 class SupportChatViewModel(
-    @dev.zacsweers.metro.Assisted initialState: SupportChatState,
-    @dev.zacsweers.metro.Assisted private val navigator: Navigator,
+    @Assisted initialState: SupportChatState,
+    @Assisted private val navigator: Navigator,
     private val agent: SupportAgent,
     private val session: SupportSession,
-) : com.airbnb.mvrx.MavericksViewModel<SupportChatState>(initialState) {
+) : MavericksViewModel<SupportChatState>(initialState) {
 
     init {
         setState {
@@ -212,7 +217,7 @@ class SupportChatViewModel(
 
     fun openHours() = navigator.goTo(SupportHoursScreen)
 
-    @dev.zacsweers.metro.AssistedFactory
+    @AssistedFactory
     fun interface Factory {
         fun create(initialState: SupportChatState, navigator: Navigator): SupportChatViewModel
     }

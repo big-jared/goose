@@ -1,6 +1,7 @@
 package dev.goose.runtime
 
 import androidx.navigation3.runtime.NavKey
+import java.io.Serializable
 
 /**
  * A navigation destination. Screens are the only currency of navigation: they live in `:api`
@@ -15,25 +16,21 @@ import androidx.navigation3.runtime.NavKey
  * (ViewModelContext.args must be Parcelable or Serializable for saved-state persistence) —
  * screens are small data classes, so this costs nothing and keeps the MvRx contract intact.
  */
-interface Screen : NavKey, java.io.Serializable
+interface Screen : NavKey, Serializable
 
 /**
- * A [Screen] rendered as a dialog OVER the previous entry instead of replacing it. Push and pop
- * it like any screen ([Navigator.goToForResult] works too — a dialog is a natural answerer);
- * tapping outside or system back pops it with a null result.
+ * A [Screen] rendered as a dialog OVER the previous entry instead of replacing it — sugar for
+ * implementing the [Overlay] facet directly on the screen. Push and pop it like any screen
+ * ([Navigator.goToForResult] works too — a dialog is a natural answerer); tapping outside or
+ * system back pops it with a null result. See [Overlay] for the dialog contract, and
+ * [Presentation] for sharing one dialog configuration across many screens instead.
  *
- * The dialog window is configured by [dialogProperties]; the dialog's SIZE is whatever the
- * screen's composable measures (combine `usePlatformDefaultWidth = false` with width modifiers
- * for full control). Like [ScreenTransitions], the override is behavior, not serialized state.
+ * Like [ScreenTransitions], the override is behavior, not serialized state.
  *
  * An overlay at the ROOT of a stack (deep link, resetRoot) has nothing to overlay and renders as
  * a plain full-screen entry instead.
  */
-interface OverlayScreen : Screen {
-    /** Window-level dialog configuration: outside-tap/back dismissal, width policy, security. */
-    fun dialogProperties(): androidx.compose.ui.window.DialogProperties =
-        androidx.compose.ui.window.DialogProperties()
-}
+interface OverlayScreen : Screen, Overlay
 
 /** A result a [ScreenWithResult] can answer with when popped. Concrete types are `@Serializable`. */
 interface PopResult

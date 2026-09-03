@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.fir.plugin.createConstructor
 import org.jetbrains.kotlin.fir.plugin.createNestedClass
 import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
+import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirConstructorSymbol
@@ -111,7 +112,7 @@ class GooseVmCompanionGenerator(
 
         // Refs are raw FirUserTypeRefs when queried before supertype resolution and
         // FirResolvedTypeRefs after; the simple name is available either way.
-        @OptIn(org.jetbrains.kotlin.fir.symbols.SymbolInternals::class)
+        @OptIn(SymbolInternals::class)
         val extendsViewModel = fir.superTypeRefs.any { ref ->
             val simpleName = when (ref) {
                 is FirUserTypeRef -> ref.qualifier.lastOrNull()?.name?.asString()

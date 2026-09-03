@@ -1,0 +1,66 @@
+# Shared detekt configuration, layered on top of the default rule sets
+# (buildUponDefaultConfig=true in the root build script). Only deviations from the defaults
+# belong here.
+
+# :tools:detekt-rules lints without its own plugin jar on the classpath, so the goose section
+# is unknown there; keep validation on for everything else.
+config:
+  excludes: 'goose.*'
+
+goose:
+  NoFullyQualifiedReference:
+    active: true
+
+style:
+  # A library codebase leans on explanatory returns and small constants; the default
+  # thresholds flag idiomatic code more than real problems.
+  MagicNumber:
+    active: false
+  ReturnCount:
+    active: false
+  MaxLineLength:
+    maxLineLength: 140
+  # @Composable signatures carry contract parameters the body may not read (modifier,
+  # @GooseUi ViewModel params the processor wires); @Assisted properties are part of the
+  # assisted-inject contract even when the demo body doesn't touch them.
+  UnusedParameter:
+    ignoreAnnotated: ['Composable']
+  UnusedPrivateProperty:
+    ignoreAnnotated: ['Assisted']
+  # The KSP processors' generate() methods interleave validation and emission per candidate;
+  # continue/return jumps are their control flow.
+  LoopWithTooManyJumpStatements:
+    excludes: ['**/goose-compiler/**']
+
+complexity:
+  LongParameterList:
+    functionThreshold: 8
+    constructorThreshold: 8
+    ignoreDefaultParameters: true
+    ignoreAnnotated: ['Composable']
+  # Code generators are long, flat emit sequences by nature; splitting them hides the shape
+  # of the generated file.
+  LongMethod:
+    excludes: ['**/goose-compiler/**']
+  CyclomaticComplexMethod:
+    excludes: ['**/goose-compiler/**']
+
+naming:
+  # Composables are PascalCase by convention.
+  FunctionNaming:
+    ignoreAnnotated: ['Composable']
+  # Files here are named for the feature they provide (RememberRetainedGraph.kt,
+  # GooseGraph.kt), not for whichever holder class happens to live inside.
+  MatchingDeclarationName:
+    active: false
+
+performance:
+  # Both spreads adapt collections to vararg APIs (NavBackStack, bundleOf); there is no
+  # non-spread alternative.
+  SpreadOperator:
+    active: false
+
+exceptions:
+  # The runtime intentionally catches broadly at process-death restore boundaries.
+  TooGenericExceptionCaught:
+    active: false

@@ -14,6 +14,7 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.savedstate.compose.LocalSavedStateRegistryOwner
 import com.airbnb.mvrx.ActivityViewModelContext
+import com.airbnb.mvrx.InternalMavericksApi
 import com.airbnb.mvrx.MavericksState
 import com.airbnb.mvrx.MavericksViewModel
 import com.airbnb.mvrx.MavericksViewModelProvider
@@ -21,6 +22,7 @@ import dev.goose.runtime.LocalNavigator
 import dev.goose.runtime.Navigator
 import dev.goose.runtime.NavigatorHandle
 import dev.goose.runtime.Screen
+import java.lang.ref.WeakReference
 import java.util.UUID
 
 /** Retains the [NavigatorHandle] alongside the VM in the entry's ViewModelStore. */
@@ -62,7 +64,7 @@ inline fun <reified VM : MavericksViewModel<S>, reified S : MavericksState> scre
     noinline create: (initialState: S, navigator: Navigator) -> VM,
 ): VM = screenViewModel(screen, VM::class.java, S::class.java, create)
 
-@OptIn(com.airbnb.mvrx.InternalMavericksApi::class)
+@OptIn(InternalMavericksApi::class)
 @Composable
 fun <VM : MavericksViewModel<S>, S : MavericksState> screenViewModel(
     screen: Screen,
@@ -101,7 +103,7 @@ fun <VM : MavericksViewModel<S>, S : MavericksState> screenViewModel(
         key = "goose:ssrCleanup:" + key,
     )
     SideEffect {
-        val registryRef = java.lang.ref.WeakReference(savedStateRegistryOwner.savedStateRegistry)
+        val registryRef = WeakReference(savedStateRegistryOwner.savedStateRegistry)
         cleanupHolder.onClearedAction = { registryRef.get()?.unregisterSavedStateProvider(key) }
     }
 

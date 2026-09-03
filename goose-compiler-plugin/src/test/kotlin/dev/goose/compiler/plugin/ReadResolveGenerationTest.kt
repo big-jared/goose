@@ -9,6 +9,8 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
+import java.io.ObjectStreamClass
+import java.lang.reflect.Modifier
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -18,10 +20,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The readResolve contract, end to end: serializable objects deserialize to the SAME instance,
- * the frontend warning is gone, hand-written readResolve is left alone, and non-objects are
- * untouched. A control compile without the plugin pins that the warning genuinely fires in this
- * harness, so the "no warning" assertions can't pass vacuously.
+ * The readResolve contract, end to end: object Screens deserialize to the SAME instance, the
+ * frontend warning is gone, hand-written readResolve is left alone, and non-Screens (including
+ * Serializable objects outside goose) are untouched. A control compile without the plugin pins
+ * that the identity break genuinely occurs in this harness, so the "same instance" assertions
+ * can't pass vacuously.
  */
 class ReadResolveGenerationTest {
 
@@ -45,7 +48,7 @@ class ReadResolveGenerationTest {
         val bytes = ByteArrayOutputStream().also { ObjectOutputStream(it).writeObject(value) }
         val loader = value.javaClass.classLoader
         return object : ObjectInputStream(ByteArrayInputStream(bytes.toByteArray())) {
-            override fun resolveClass(desc: java.io.ObjectStreamClass): Class<*> =
+            override fun resolveClass(desc: ObjectStreamClass): Class<*> =
                 Class.forName(desc.name, false, loader)
         }.readObject()
     }
@@ -162,7 +165,7 @@ class ReadResolveGenerationTest {
     }
 
     @Test
-    fun `non-serializable object and data class are untouched`() {
+    fun `non-Screen objects and data classes are untouched`() {
         val result = compile(
             screenStub,
             SourceFile.kotlin(
@@ -170,6 +173,9 @@ class ReadResolveGenerationTest {
                 """
                 package test
                 data object PlainObject
+                // Serializable but not a Screen: none of goose's business, and the runtime's
+                // Screen-scoped keep rule wouldn't preserve a generated readResolve through R8.
+                data object SerializableUtil : java.io.Serializable
                 data class DataScreen(val id: String) : dev.goose.runtime.Screen
                 """.trimIndent(),
             ),
@@ -178,6 +184,10 @@ class ReadResolveGenerationTest {
         assertFalse(
             "PlainObject must not get readResolve",
             result.classLoader.loadClass("test.PlainObject").declaredMethods.any { it.name == "readResolve" },
+        )
+        assertFalse(
+            "SerializableUtil must not get readResolve (plugin is scoped to Screen implementors)",
+            result.classLoader.loadClass("test.SerializableUtil").declaredMethods.any { it.name == "readResolve" },
         )
         assertFalse(
             "DataScreen must not get readResolve",
@@ -205,6 +215,6 @@ class ReadResolveGenerationTest {
         assertEquals(result.messages, KotlinCompilation.ExitCode.OK, result.exitCode)
         val method = result.classLoader.loadClass("test.FooScreen")
             .declaredMethods.single { it.name == "readResolve" }
-        assertTrue("readResolve should be private", java.lang.reflect.Modifier.isPrivate(method.modifiers))
+        assertTrue("readResolve should be private", Modifier.isPrivate(method.modifiers))
     }
 }

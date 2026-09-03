@@ -6,6 +6,7 @@ import dev.goose.runtime.PopResult
 import dev.goose.runtime.ResultRouter
 import dev.goose.runtime.Screen
 import dev.goose.runtime.ScreenWithResult
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -14,6 +15,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Robolectric
 import org.robolectric.Shadows.shadowOf
 import android.os.Looper
 
@@ -35,7 +37,7 @@ class FragmentRequestCorrelationTest {
     private fun withNavigator(
         block: (FragmentNavigator, MutableList<FragmentNavigationRequest>) -> Unit,
     ) {
-        val activity = org.robolectric.Robolectric.buildActivity(FragmentActivity::class.java)
+        val activity = Robolectric.buildActivity(FragmentActivity::class.java)
             .setup().get()
         val requests = mutableListOf<FragmentNavigationRequest>()
         val navigator = FragmentNavigator(
@@ -54,7 +56,7 @@ class FragmentRequestCorrelationTest {
     /** Two same-class custom destinations open concurrently; the FIRST answers last. */
     @Test
     fun twoSameClassDestinationsCompletingOutOfOrder() = withNavigator { navigator, requests ->
-        val scope = kotlinx.coroutines.CoroutineScope(Dispatchers.Main.immediate)
+        val scope = CoroutineScope(Dispatchers.Main.immediate)
         val first = scope.async { navigator.goToForResult(PickerScreen("first")) }
         val second = scope.async { navigator.goToForResult(PickerScreen("second")) }
         shadowOf(Looper.getMainLooper()).idle()
@@ -74,7 +76,7 @@ class FragmentRequestCorrelationTest {
     /** A plain same-class goTo while a caller awaits: its request cannot answer the awaiter. */
     @Test
     fun plainGoToRequestCannotAnswerTheAwaitingCaller() = withNavigator { navigator, requests ->
-        val scope = kotlinx.coroutines.CoroutineScope(Dispatchers.Main.immediate)
+        val scope = CoroutineScope(Dispatchers.Main.immediate)
         val caller = scope.async { navigator.goToForResult(PickerScreen("awaited")) }
         navigator.goTo(PickerScreen("plain"))
         shadowOf(Looper.getMainLooper()).idle()
@@ -97,7 +99,7 @@ class FragmentRequestCorrelationTest {
     /** deliverResult twice on one request: the second call must deliver nothing. */
     @Test
     fun deliverResultIsOneShotPerRequest() = withNavigator { navigator, requests ->
-        val scope = kotlinx.coroutines.CoroutineScope(Dispatchers.Main.immediate)
+        val scope = CoroutineScope(Dispatchers.Main.immediate)
         val first = scope.async { navigator.goToForResult(PickerScreen("a")) }
         val second = scope.async { navigator.goToForResult(PickerScreen("b")) }
         shadowOf(Looper.getMainLooper()).idle()

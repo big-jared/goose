@@ -7,6 +7,7 @@ import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import com.tschuchort.compiletesting.configureKsp
 import com.tschuchort.compiletesting.sourcesGeneratedBySymbolProcessor
+import java.io.OutputStream
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -25,6 +26,7 @@ class GooseFragmentContributionsTest {
         """
         package dev.goose.runtime
         interface Screen
+        interface Presentation
         """.trimIndent(),
     )
     private val fragmentStub = SourceFile.kotlin(
@@ -42,6 +44,8 @@ class GooseFragmentContributionsTest {
         import kotlin.reflect.KClass
         annotation class GooseFragmentNavigation(val screen: KClass<out Screen>)
         annotation class GooseFragmentBinder(val screen: KClass<out Screen>)
+        annotation class GoosePresentationNavigation(val presentation: KClass<out dev.goose.runtime.Presentation>)
+        annotation class PresentationNavigations
         class FragmentNavigationRequest
         fun interface FragmentScreenNavigation {
             fun navigate(request: FragmentNavigationRequest)
@@ -76,7 +80,7 @@ class GooseFragmentContributionsTest {
                 symbolProcessorProviders += GooseFragmentProcessorProvider()
             }
             inheritClassPath = true
-            messageOutputStream = java.io.OutputStream.nullOutputStream()
+            messageOutputStream = OutputStream.nullOutputStream()
         }
         return compilation.compile()
     }
@@ -361,6 +365,51 @@ class GooseFragmentContributionsTest {
         assertTrue(generated, generated.contains("@dev.zacsweers.metro.ClassKey(test.HelpScreen::class)"))
         assertTrue(generated, generated.contains("@dev.zacsweers.metro.ContributesTo(dev.zacsweers.metro.AppScope::class)"))
         assertTrue(generated, generated.contains(": dev.goose.fragment.FragmentScreenNavigation = test.HelpNavigation()"))
+    }
+
+    @Test
+    fun presentationNavigationKeysByPresentationUnderTheQualifier() {
+        val result = compile(
+            """
+            package test
+            import dev.goose.fragment.FragmentNavigationRequest
+            import dev.goose.fragment.FragmentScreenNavigation
+            import dev.goose.fragment.GoosePresentationNavigation
+            import dev.goose.runtime.Presentation
+
+            object BottomSheet : Presentation
+
+            @GoosePresentationNavigation(BottomSheet::class)
+            class BottomSheetNavigation : FragmentScreenNavigation {
+                override fun navigate(request: FragmentNavigationRequest) { }
+            }
+            """.trimIndent(),
+        )
+        assertEquals(result.messages, KotlinCompilation.ExitCode.OK, result.exitCode)
+        val generated = result.sourceFor("BottomSheetNavigationGoosePresentationModule.kt")
+        assertTrue(generated, generated.contains("@dev.zacsweers.metro.ClassKey(test.BottomSheet::class)"))
+        assertTrue(generated, generated.contains("@dev.goose.fragment.PresentationNavigations"))
+        assertTrue(
+            generated,
+            generated.contains(": dev.goose.fragment.FragmentScreenNavigation = test.BottomSheetNavigation()"),
+        )
+    }
+
+    @Test
+    fun presentationNavigationMustImplementTheInteropInterface() {
+        assertError(
+            """
+            package test
+            import dev.goose.fragment.GoosePresentationNavigation
+            import dev.goose.runtime.Presentation
+
+            object BottomSheet : Presentation
+
+            @GoosePresentationNavigation(BottomSheet::class)
+            class BottomSheetNavigation
+            """.trimIndent(),
+            "must implement FragmentScreenNavigation",
+        )
     }
 
     private fun JvmCompilationResult.sourceFor(fileName: String): String =

@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import dev.goose.metro.GooseCompositionLocals
 import dev.goose.metro.GooseContent
 import dev.goose.metro.GooseScope
@@ -116,7 +117,7 @@ fun <T : Fragment> T.withGooseScreen(screen: Screen): T = apply {
  * fragment after rotation or process death, so a custom factory (constructor injection, test
  * doubles) sees goose's hosts on push and on restore alike.
  */
-internal fun androidx.fragment.app.FragmentManager.instantiateGooseHost(
+internal fun FragmentManager.instantiateGooseHost(
     hostClass: KClass<out Fragment>,
     screen: Screen,
 ): Fragment = fragmentFactory.instantiate(
@@ -139,7 +140,7 @@ class ScreenFragment : Fragment() {
 
     companion object {
         /** Creation through the host FragmentManager's own FragmentFactory. */
-        fun newInstance(fragmentManager: androidx.fragment.app.FragmentManager, screen: Screen): ScreenFragment =
+        fun newInstance(fragmentManager: FragmentManager, screen: Screen): ScreenFragment =
             fragmentManager.instantiateGooseHost(ScreenFragment::class, screen) as ScreenFragment
     }
 }

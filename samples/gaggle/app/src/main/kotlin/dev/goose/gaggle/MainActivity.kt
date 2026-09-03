@@ -32,7 +32,7 @@ import dev.goose.nav3.TabSpec
 import dev.goose.nav3.TabbedGooseContent
 import dev.goose.nav3.rememberGooseBackStack
 import dev.goose.nav3.rememberTabNavigator
-import dev.goose.runtime.SlideScreenTransitions
+import dev.goose.runtime.rememberSlideScreenTransitions
 import dev.goose.runtime.StackKey
 
 /**
@@ -56,7 +56,7 @@ class MainActivity : FragmentActivity() {
                         if (session == null) {
                             NavigableGooseContent(
                                 rememberGooseBackStack(LoginScreen),
-                                defaultTransitions = SlideScreenTransitions,
+                                defaultTransitions = rememberSlideScreenTransitions(),
                             )
                         } else {
                             GooseScope(session) {
@@ -102,7 +102,7 @@ private fun LoggedInShell(sessionManager: SessionManager) {
     Column(Modifier.fillMaxSize()) {
         // Side-to-side pushes with the predictive back gesture previewing the pop; individual
         // screens (the checkout wizard, the review form) still slide up via ScreenTransitions.
-        TabbedGooseContent(tabs, Modifier.weight(1f), defaultTransitions = SlideScreenTransitions)
+        TabbedGooseContent(tabs, Modifier.weight(1f), defaultTransitions = rememberSlideScreenTransitions())
         TabBar(tabs)
     }
 }

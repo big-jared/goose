@@ -1,15 +1,19 @@
 package dev.goose.fragment
 
 import androidx.annotation.IdRes
+import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commit
 import dev.goose.runtime.BaseNavigator
 import dev.goose.runtime.Navigator
 import dev.goose.runtime.PopResult
+import dev.goose.runtime.Presentation
+import dev.goose.runtime.PresentedScreen
 import dev.goose.runtime.ResultAwaiter
 import dev.goose.runtime.ResultRouter
 import dev.goose.runtime.Screen
+import dev.goose.runtime.effectiveOverlay
 import kotlin.reflect.KClass
 
 /**
@@ -75,6 +79,13 @@ class FragmentNavigationRequest internal constructor(
     fun createFragment(): Fragment = createFragmentImpl()
 
     /**
+     * The screen's [Presentation] token, when it declares one. A `@GoosePresentationNavigation`
+     * binding routes on the token's CLASS; the instance here carries any per-screen knobs a
+     * data-class token holds (`BottomSheet(peekHeight = ...)`).
+     */
+    val presentation: Presentation? get() = (screen as? PresentedScreen)?.presentation
+
+    /**
      * Runs goose's built-in transaction for this request (replace into [containerId], pushed
      * under [backStackEntryName]). Lets a host-wide [FragmentScreenNavigation] customize only
      * some screens and delegate the rest.
@@ -116,6 +127,11 @@ class FragmentNavigator(
     resultRouter: ResultRouter,
     override val parent: Navigator? = null,
     private val navigationOverrides: Map<KClass<*>, FragmentScreenNavigation> = emptyMap(),
+    /**
+     * Keyed by [Presentation] class: one binding covers every screen pointing at that
+     * presentation. Consulted after per-screen [navigationOverrides], before [defaultNavigation].
+     */
+    private val presentationNavigations: Map<KClass<*>, FragmentScreenNavigation> = emptyMap(),
     private val stackTag: String,
     /**
      * Host-wide transaction policy: receives every navigation that has no per-screen override.
@@ -131,6 +147,12 @@ class FragmentNavigator(
      * FragmentFactory, exactly like the FragmentManager will recreate it after process death.
      */
     private val screenHost: KClass<out Fragment> = ScreenFragment::class,
+    /**
+     * The DialogFragment hosting migrated screens with the [dev.goose.runtime.Overlay] facet,
+     * replacing the
+     * default [ScreenDialogFragment] — the dialog analogue of [screenHost].
+     */
+    private val dialogHost: KClass<out DialogFragment> = ScreenDialogFragment::class,
 ) : BaseNavigator(resultRouter) {
 
     /** Scoped to this activity's stack (the tag is retained across rotation by the installer). */
@@ -175,10 +197,13 @@ class FragmentNavigator(
     }
 
     private fun navigate(screen: Screen, awaiter: ResultAwaiter?) {
-        // Precedence: per-screen override, then the host-wide policy, then the built-in
-        // replace+addToBackStack transaction. Awaited default-transaction screens deliver by
+        // Precedence: per-screen override, then the screen's presentation-type binding, then
+        // the host-wide policy, then the built-in transaction (dialog for Overlay screens,
+        // replace+addToBackStack otherwise). Awaited default-transaction screens deliver by
         // entry name on pop; stack removal is LIFO-correct per class, no token needed.
-        val navigation = navigationOverrides[screen::class] ?: defaultNavigation
+        val navigation = navigationOverrides[screen::class]
+            ?: (screen as? PresentedScreen)?.presentation?.let { presentationNavigations[it::class] }
+            ?: defaultNavigation
         if (navigation != null) {
             navigation.navigate(
                 FragmentNavigationRequest(
@@ -202,6 +227,20 @@ class FragmentNavigator(
             ?: fragmentManager.instantiateGooseHost(screenHost, screen)
 
     private fun performDefaultTransaction(screen: Screen) {
+        // The fragment-host half of the Overlay facet, for MIGRATED screens only (a binder's
+        // legacy fragment presents itself; use a navigation override for legacy dialogs). The
+        // dialog rides the back stack via show(transaction): DialogFragment records the entry
+        // id, so dismissal by ANY path — outside tap, system back, navigator.pop — pops the
+        // named entry and the back-stack listener delivers results exactly like a full-screen
+        // entry. No deliverResult wiring needed.
+        if (binders[screen::class] == null && screen.effectiveOverlay() != null) {
+            val dialog = fragmentManager.instantiateGooseHost(dialogHost, screen) as DialogFragment
+            val transaction = fragmentManager.beginTransaction()
+                .setReorderingAllowed(true)
+                .addToBackStack(resultKeyFor(screen))
+            dialog.show(transaction, resultKeyFor(screen))
+            return
+        }
         val fragment = createFragmentFor(screen)
         fragmentManager.commit {
             setReorderingAllowed(true)

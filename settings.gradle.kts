@@ -18,6 +18,7 @@ dependencyResolutionManagement {
 rootProject.name = "goose"
 
 include(
+    ":tools:detekt-rules",
     ":goose-compiler",
     ":goose-compiler-plugin",
     ":runtime",
